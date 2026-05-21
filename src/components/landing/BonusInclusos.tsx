@@ -1,0 +1,99 @@
+import { motion } from 'framer-motion';
+import { Spade, LineChart } from 'lucide-react';
+
+const BONUS = [
+  {
+    icon: Spade,
+    badge: '🃏 BÔNUS · BANCA PEQUENA',
+    title: 'Arena Blackjack — assistente matemático',
+    desc: 'Não é tigrinho. Não é roleta. Blackjack é o único jogo de cassino onde a vantagem matemática pode ficar com o jogador — combinando contagem Hi-Lo, estratégia básica perfeita (Illustrious 18) e gestão Kelly Híbrido. A casa fica abaixo de 0,5%.',
+    bullets: [
+      'Contagem de cartas Hi-Lo automatizada',
+      'Estratégia básica + Illustrious 18',
+      'Progressão D\'Alembert customizada (+2/-2)',
+      'Modo ao vivo com até 7 posições',
+    ],
+    warning: '⚠️ Gestão obrigatória: meta diária R$ 50–R$ 100, stop loss definido, sessões de no máximo 20 minutos. Sessões longas favorecem a casa.',
+    accent: 'from-violet-500/15 to-violet-900/5 border-violet-500/40',
+    badgeColor: 'text-violet-300 border-violet-500/40',
+  },
+  {
+    icon: LineChart,
+    badge: '📈 BÔNUS · MESMO MÉTODO, OUTRO MERCADO',
+    title: 'Arena Trader Financeiro',
+    desc: 'A mesma lógica do Trader Sports aplicada a WIN, WDO e BTC. Quem opera esporte e quer diversificar pra mercado financeiro tem o Mycroft trabalhando com R:R ≥ 1:1.5, stop loss automático e leitura técnica em tempo real.',
+    bullets: [
+      'WIN (mini-índice) com proxy ^BVSP',
+      'WDO (mini-dólar) com proxy USD/BRL',
+      'BTC escalonado em 0.01 unidades',
+      'Stop loss e take profit automáticos',
+    ],
+    warning: '💡 Mesma filosofia: o Mycroft não torce, ele calcula. Sem promessa de "viver de day trade" — é ferramenta de gestão de risco.',
+    accent: 'from-sky-500/15 to-sky-900/5 border-sky-500/40',
+    badgeColor: 'text-sky-300 border-sky-500/40',
+  },
+];
+
+export default function BonusInclusos() {
+  return (
+    <section className="py-16 sm:py-20 px-4 bg-gradient-to-b from-[#0a0f1e] via-[#0f1729] to-[#0a0f1e]">
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center mb-12">
+          <span className="inline-block px-3 py-1 bg-yellow-500/10 border border-yellow-500/30 rounded-full text-xs uppercase tracking-widest text-yellow-400 mb-4">
+            🎁 Bônus inclusos em todos os planos
+          </span>
+          <h2 className="text-3xl sm:text-4xl font-black mb-3 leading-tight">
+            O método do Mycroft vai <span className="text-yellow-400">além do futebol</span>
+          </h2>
+          <p className="text-base text-gray-300 max-w-2xl mx-auto">
+            O foco do sistema é Arena Punter + Arena Live. Mas você leva, sem custo adicional, mais duas ferramentas pra trabalhar sua banca em outros mercados.
+          </p>
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-6">
+          {BONUS.map((b, i) => {
+            const Icon = b.icon;
+            return (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-50px' }}
+                transition={{ duration: 0.5, delay: i * 0.1 }}
+                className={`rounded-2xl border bg-gradient-to-br ${b.accent} p-6 sm:p-7 shadow-xl shadow-black/40`}
+              >
+                <div className="flex items-start gap-4 mb-4">
+                  <div className="shrink-0 h-12 w-12 rounded-xl bg-background/40 backdrop-blur flex items-center justify-center">
+                    <Icon className="h-6 w-6 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <span className={`inline-block px-2.5 py-1 mb-2 bg-[#0a0f1e]/80 backdrop-blur border rounded-full text-[10px] font-bold tracking-wide ${b.badgeColor}`}>
+                      {b.badge}
+                    </span>
+                    <h3 className="text-lg sm:text-xl font-bold text-white leading-snug">{b.title}</h3>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-300 leading-relaxed mb-4">{b.desc}</p>
+                <ul className="space-y-1.5 mb-4">
+                  {b.bullets.map((bullet) => (
+                    <li key={bullet} className="flex items-start gap-2 text-sm text-gray-200">
+                      <span className="text-emerald-400 mt-0.5">✓</span>
+                      <span>{bullet}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-gray-400 italic border-t border-white/10 pt-3 leading-relaxed">
+                  {b.warning}
+                </p>
+              </motion.div>
+            );
+          })}
+        </div>
+
+        <p className="text-center text-xs text-gray-500 mt-8 max-w-2xl mx-auto">
+          Inclusos automaticamente nos planos Iniciante, Profissional e Elite. Nenhum custo adicional.
+        </p>
+      </div>
+    </section>
+  );
+}

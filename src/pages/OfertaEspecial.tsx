@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Check, Sparkles, TrendingUp, Trophy, Rocket, Flame, ArrowLeft, MessageCircle, Ticket } from 'lucide-react';
+import { Check, Sparkles, TrendingUp, Trophy, Rocket, Flame, ArrowLeft, MessageCircle, Ticket, Spade, LineChart } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
@@ -25,6 +25,9 @@ const PLANS = [
       'Push de novos sinais aprovados',
       'Suporte por WhatsApp',
     ],
+    bonus: [
+      'Arena Blackjack — estratégia básica + contagem Hi-Lo',
+    ],
     waText: 'Olá! Tenho interesse no Plano Iniciante (R$ 49,90). Pode me explicar?',
     popular: false,
   },
@@ -42,6 +45,9 @@ const PLANS = [
       'Eventos Raros (LAY Goleada, 2x2…)',
       'Suporte prioritário WhatsApp',
     ],
+    bonus: [
+      'Arena Blackjack com Kelly Híbrido + Modo Ao Vivo',
+    ],
     waText: 'Olá! Tenho interesse no Plano Profissional do Esporte (R$ 149,90). Pode me explicar?',
     popular: true,
   },
@@ -58,6 +64,10 @@ const PLANS = [
       'Chat Mycroft dentro de cada jogo',
       'Sherlock estatístico ilimitado',
       'Mentoria via WhatsApp',
+    ],
+    bonus: [
+      'Arena Blackjack completa (todas as features)',
+      'Arena Trader Financeiro (WIN / WDO / BTC)',
     ],
     waText: 'Olá! Tenho interesse no Plano Trading de Elite (R$ 249,90). Pode me explicar?',
     popular: false,
@@ -177,6 +187,22 @@ export default function OfertaEspecial() {
                       </li>
                     ))}
                   </ul>
+
+                  {plan.bonus && plan.bonus.length > 0 && (
+                    <div className="pt-3 mt-1 border-t border-yellow-500/20">
+                      <div className="text-[10px] font-bold tracking-widest text-yellow-400/90 mb-2">
+                        🎁 BÔNUS INCLUSOS
+                      </div>
+                      <ul className="space-y-1.5 text-sm">
+                        {plan.bonus.map((item) => (
+                          <li key={item} className="flex items-start gap-2 text-foreground/90">
+                            <Sparkles className="w-4 h-4 text-yellow-400 shrink-0 mt-0.5" />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </CardContent>
                 <CardFooter>
                   <a
@@ -225,6 +251,55 @@ export default function OfertaEspecial() {
               Quero o Day Pass R$ 9,90
             </button>
           </a>
+        </div>
+
+        {/* Bônus inclusos — detalhamento */}
+        <div className="space-y-4">
+          <div className="text-center">
+            <Badge className="bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 text-xs px-3 py-1">
+              🎁 BÔNUS INCLUSOS EM TODOS OS PLANOS
+            </Badge>
+            <h2 className="text-xl sm:text-2xl font-bold mt-3">
+              O método do Mycroft <span className="text-yellow-400">além do futebol</span>
+            </h2>
+          </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            <Card className="bg-card/60 backdrop-blur border-violet-500/30">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Spade className="w-5 h-5 text-violet-400" />
+                  Arena Blackjack
+                </CardTitle>
+                <CardDescription>Único jogo de cassino com vantagem matemática do jogador</CardDescription>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground space-y-2">
+                <p>
+                  Não é tigrinho. Não é roleta. Combina <strong className="text-foreground">contagem Hi-Lo</strong>, estratégia básica perfeita (Illustrious 18) e gestão Kelly Híbrido. A casa fica abaixo de 0,5%.
+                </p>
+                <p className="text-xs italic border-l-2 border-yellow-500/40 pl-3 mt-3">
+                  ⚠️ <strong className="text-foreground">Gestão obrigatória:</strong> meta diária R$ 50–R$ 100, stop loss definido, sessões de até 20 minutos. Sessões longas favorecem a casa.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card/60 backdrop-blur border-sky-500/30">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <LineChart className="w-5 h-5 text-sky-400" />
+                  Arena Trader Financeiro
+                </CardTitle>
+                <CardDescription>Mesmo método aplicado a WIN, WDO e BTC</CardDescription>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground space-y-2">
+                <p>
+                  A mesma lógica do Trader Sports, agora no <strong className="text-foreground">mercado financeiro</strong>. R:R ≥ 1:1.5, stop loss automático, leitura técnica em tempo real. Quem opera esporte e quer diversificar sem mudar de método.
+                </p>
+                <p className="text-xs italic border-l-2 border-sky-500/40 pl-3 mt-3">
+                  💡 O Mycroft não torce — ele calcula. Sem promessa de "viver de day trade": é ferramenta de gestão de risco.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         {/* Reassurance */}
