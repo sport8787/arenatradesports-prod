@@ -726,6 +726,12 @@ export default function LandingPage() {
         {pitchUnlocked && <StickyMobileCTA onCTA={ctaHandler('sticky_mobile', 'testar_gratis_7_dias_mobile')} />}
         <FloatingWhatsApp />
       </Suspense>
+
+      {/* Footer +18 */}
+      <footer className="w-full bg-[#0a0f1e] border-t border-white/10 py-4 text-center text-xs text-slate-400">
+        <p><strong className="text-red-400">+18 anos.</strong> Proibido para menores de 18 anos. Apostas esportivas envolvem risco de dependência. Jogue com responsabilidade.</p>
+        <p className="mt-1">© 2026 Oráculo Mycroft. Nenhuma ferramenta pode garantir vitórias ou lucros constantes.</p>
+      </footer>
     </>
   );
 }
