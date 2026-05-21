@@ -116,7 +116,9 @@ export default function OfertaEspecial() {
   };
 
   return (
-    <div className="oferta-light min-h-screen bg-white text-slate-900 p-4 relative overflow-hidden">
+    <>
+      <AgeDisclaimerBanner />
+      <div className="oferta-light min-h-screen bg-white text-slate-900 p-4 relative overflow-hidden">
       <style>{`
         .oferta-light, .oferta-light * { color: #0f172a; }
         .oferta-light .text-muted-foreground { color: #475569 !important; }
