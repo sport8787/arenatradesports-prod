@@ -309,11 +309,16 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
-      {/* VSL: vídeo já está embutido no Hero (frame demo.oraculo-mycroft.com) */}
+      {/* 🔥 PROVA REAL EM PRINTS — substituiu a VSL */}
+      <Suspense fallback={null}>
+        <ProvaRealPrints onCTA={ctaHandler('prova_real_prints', 'testar_gratis_7_dias')} />
+      </Suspense>
 
-      {/* 🔒 GATE: tudo abaixo só aparece após o pitch da VSL (8 min de vídeo assistido) */}
+      {/* Tudo abaixo segue exibido (gate de VSL desativado) */}
       {pitchUnlocked && (
       <>
+
+
 
       {/* Bloco CTA reforçado — pós-Hero/VSL, antes da prova social */}
       <section ref={postVslRef} className="py-12 px-6 bg-gradient-to-b from-[#0a0f1e] to-[#0f1729]">
