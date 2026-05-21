@@ -1,104 +1,65 @@
 import { useEffect } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Check, X, Sparkles, TrendingUp, Trophy, Rocket, Flame, ArrowLeft, Info } from 'lucide-react';
+import { Check, Sparkles, TrendingUp, Trophy, Rocket, Flame, ArrowLeft, MessageCircle, Ticket } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import GoldButton from '@/components/game/GoldButton';
 import { track } from '@/lib/analytics';
 
-/**
- * Mesma matriz do Paywall, com 50% OFF aplicado.
- * Planos alinhados ao banco: starter / base / premium.
- */
+const WHATSAPP_NUMBER = '5534991290648';
+const waLink = (text: string) =>
+  `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
+
 const PLANS = [
   {
-    name: 'Starter',
-    planKey: 'starter' as const,
-    originalPrice: '99,90',
-    price: '49,95',
+    name: 'Plano Iniciante',
+    planKey: 'iniciante' as const,
+    price: '49,90',
     icon: TrendingUp,
-    description: 'Só Arena Live (ao vivo)',
-    includes: [
-      'Arena Live (Trader Sports ao vivo)',
-      'Sinais Mycroft em tempo real',
-      'Push e Telegram VIP ao vivo',
-      'Dashboard de jogos ao vivo',
-      'Suporte por email',
-    ],
-    excludes: [
-      'Arena Punter (sinais pré-jogo)',
-      'Gerador de Múltiplas',
-      'Banca Virtual e Banca Real',
-      'Chat com o Mycroft em cada jogo',
-    ],
-    url: 'https://pay.kiwify.com.br/lcjBFYZ',
-    popular: false,
-  },
-  {
-    name: 'Basic',
-    planKey: 'basic' as const,
-    originalPrice: '99,90',
-    price: '49,95',
-    icon: Trophy,
-    description: 'Só Arena Punter (pré-jogo)',
+    description: 'Para quem está começando a apostar com método',
     includes: [
       'Arena Punter (sinais pré-jogo)',
-      'Asset Score, Kelly e Sherlock',
-      'Telegram VIP Pré-Live',
-      'Liquidações com ROI 7d / 30d',
+      'Asset Score + Edge calculado',
+      'Telegram VIP de sinais',
       'Push de novos sinais aprovados',
-      'Suporte por email',
+      'Suporte por WhatsApp',
     ],
-    excludes: [
-      'Arena Live (Trader Sports ao vivo)',
-      'Gerador de Múltiplas',
-      'Banca Virtual e Banca Real',
-      'Chat com o Mycroft em cada jogo',
-    ],
-    url: 'https://pay.kiwify.com.br/lcjBFYZ',
+    waText: 'Olá! Tenho interesse no Plano Iniciante (R$ 49,90). Pode me explicar?',
     popular: false,
   },
   {
-    name: 'Base',
-    planKey: 'base' as const,
-    originalPrice: '149,90',
-    price: '74,95',
+    name: 'Plano Profissional do Esporte',
+    planKey: 'profissional' as const,
+    price: '149,90',
     icon: Trophy,
-    description: 'Live + Punter (mais escolhido)',
+    description: 'Pré-jogo + ao vivo. O combo dos apostadores sérios.',
     includes: [
-      'Arena Live + Arena Punter (Starter + Basic juntos)',
-      'Arena Punter (sinais pré-jogo)',
-      'Asset Score, Kelly, Sherlock',
-      'Telegram VIP Pré-Live',
-      'Liquidações com ROI 7d / 30d',
-      'Suporte prioritário',
+      'Tudo do Iniciante',
+      'Arena Trader Sports (ao vivo)',
+      'LABAREDA, APROVADO e cash-out em tempo real',
+      'Hórus coach IA anti-tilt',
+      'Eventos Raros (LAY Goleada, 2x2…)',
+      'Suporte prioritário WhatsApp',
     ],
-    excludes: [
-      'Gerador de Múltiplas',
-      'Banca Virtual e Banca Real',
-      'Chat com o Mycroft em cada jogo',
-    ],
-    url: 'https://pay.kiwify.com.br/stAtq0L',
+    waText: 'Olá! Tenho interesse no Plano Profissional do Esporte (R$ 149,90). Pode me explicar?',
     popular: true,
   },
   {
-    name: 'Premium',
-    planKey: 'premium' as const,
-    originalPrice: '199,90',
-    price: '99,95',
+    name: 'Plano Trading de Elite',
+    planKey: 'elite' as const,
+    price: '249,90',
     icon: Rocket,
-    description: 'Tudo liberado + Chat Mycroft',
+    description: 'Para quem vive — ou quer viver — disso.',
     includes: [
-      'Tudo do Base +',
+      'Tudo do Profissional',
       'Gerador de Múltiplas (IA + Kelly)',
-      'Banca Virtual e Banca Real (Betfair)',
-      'Chat com o Mycroft em cada jogo',
-      'Eventos Raros (LAY Goleada, 2x2…)',
-      'Suporte 24/7',
+      'Banca Real Betfair integrada',
+      'Chat Mycroft dentro de cada jogo',
+      'Sherlock estatístico ilimitado',
+      'Mentoria via WhatsApp',
     ],
-    excludes: [],
-    url: 'https://pay.kiwify.com.br/cKhGSCD',
+    waText: 'Olá! Tenho interesse no Plano Trading de Elite (R$ 249,90). Pode me explicar?',
     popular: false,
   },
 ];
@@ -118,26 +79,37 @@ export default function OfertaEspecial() {
 
   const handlePlanClick = (plan: typeof PLANS[0]) => {
     const price = parseFloat(plan.price.replace(',', '.'));
-    track.checkoutInitiated(`${plan.name} - 50% OFF`, price, 'oferta_especial');
+    track.checkoutInitiated(`${plan.name} - WhatsApp`, price, 'oferta_especial');
     if (window.fbq) {
-      window.fbq('track', 'InitiateCheckout', {
-        content_name: `${plan.name} - 50% OFF`,
+      window.fbq('track', 'Lead', {
+        content_name: plan.name,
         currency: 'BRL',
         value: price,
       });
     }
   };
 
+  const handleDayPassClick = () => {
+    track.checkoutInitiated('Day Pass 24h - WhatsApp', 9.9, 'oferta_especial');
+    if (window.fbq) {
+      window.fbq('track', 'Lead', {
+        content_name: 'Day Pass 24h',
+        currency: 'BRL',
+        value: 9.9,
+      });
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-b from-red-500/10 via-transparent to-primary/10" />
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-red-500/10 rounded-full blur-3xl animate-pulse" />
+    <div className="min-h-screen bg-background p-4 relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-b from-yellow-500/5 via-transparent to-primary/10" />
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-yellow-500/10 rounded-full blur-3xl animate-pulse" />
       <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-primary/10 rounded-full blur-2xl" />
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative z-10 w-full max-w-6xl space-y-8"
+        className="relative z-10 w-full max-w-6xl mx-auto py-6 space-y-8"
       >
         <button
           onClick={() => navigate(-1)}
@@ -151,120 +123,75 @@ export default function OfertaEspecial() {
           <motion.div
             initial={{ scale: 0.8 }}
             animate={{ scale: 1 }}
-            className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-red-500 to-orange-500 rounded-2xl shadow-2xl shadow-red-500/30 mb-2"
+            className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-2xl shadow-2xl shadow-yellow-500/30 mb-2"
           >
-            <Flame className="w-10 h-10 text-white" />
+            <Flame className="w-10 h-10 text-black" />
           </motion.div>
-          <Badge className="bg-red-500/20 text-red-400 border border-red-500/40 text-sm px-4 py-1">
-            🔥 OFERTA EXCLUSIVA — POR TEMPO LIMITADO
+          <Badge className="bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 text-sm px-4 py-1">
+            ⚡ INTELIGÊNCIA ARTIFICIAL PARA APOSTAS ESPORTIVAS
           </Badge>
-          <h1 className="text-3xl lg:text-4xl font-bold text-foreground">
-            Não Vá Embora Ainda. <span className="text-red-400">50% OFF</span> Pra Você Ficar.
+          <h1 className="text-3xl lg:text-4xl font-bold text-foreground max-w-3xl mx-auto">
+            Escolha seu <span className="text-yellow-400">plano</span> e pare de deixar dinheiro na mesa.
           </h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Sabemos que o trial acabou. Por isso, liberamos um desconto de{' '}
-            <strong className="text-red-400">50%</strong> em qualquer plano — só hoje, só pra você.
+            3 níveis pensados pra cada momento da sua jornada. Recomendamos{' '}
+            <strong className="text-foreground">conversar primeiro com nosso especialista</strong>{' '}
+            no WhatsApp para acertar o plano ideal pro seu perfil.
           </p>
         </div>
 
-        {/* Trial cortesia */}
-        <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 flex items-start gap-3">
-          <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-          <div className="text-sm text-muted-foreground">
-            <p className="font-medium text-foreground mb-1">O que muda do trial para o plano pago</p>
-            <p>
-              Durante o trial você teve <strong className="text-foreground">todas as arenas
-              liberadas por cortesia</strong>. A partir de agora o acesso passa a respeitar o
-              plano que você escolher abaixo. Cada plano deixa explícito o que inclui e o que não inclui.
-            </p>
-          </div>
-        </div>
-
         {/* Plans */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid md:grid-cols-3 gap-6">
           {PLANS.map((plan) => {
             const Icon = plan.icon;
             return (
               <Card
                 key={plan.name}
                 className={`bg-card/80 backdrop-blur relative flex flex-col ${
-                  plan.popular ? 'border-primary/50 ring-2 ring-primary/30' : 'border-border/50'
+                  plan.popular ? 'border-yellow-500/60 ring-2 ring-yellow-500/30' : 'border-border/50'
                 }`}
               >
                 {plan.popular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge className="bg-primary text-primary-foreground shadow-lg">MAIS ESCOLHIDO</Badge>
+                    <Badge className="bg-yellow-500 text-black shadow-lg font-bold">MAIS ESCOLHIDO</Badge>
                   </div>
                 )}
-                <div className="absolute -top-3 right-3">
-                  <Badge className="bg-red-500 text-white shadow-lg">-50%</Badge>
-                </div>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Icon className="w-5 h-5 text-primary" />
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Icon className="w-5 h-5 text-yellow-400" />
                     {plan.name}
                   </CardTitle>
                   <CardDescription>{plan.description}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4 flex-1">
-                  <div className="space-y-1">
-                    <div className="text-sm text-muted-foreground line-through">
-                      De R$ {plan.originalPrice}/mês
-                    </div>
-                    <div>
-                      <span className="text-3xl font-bold text-red-400">R$ {plan.price}</span>
-                      <span className="text-muted-foreground text-sm">/mês</span>
-                    </div>
-                  </div>
-
                   <div>
-                    <p className="text-xs font-mono uppercase tracking-wider text-emerald-400 mb-2">
-                      Está incluso
-                    </p>
-                    <ul className="space-y-1.5 text-sm">
-                      {plan.includes.map((item) => (
-                        <li key={item} className="flex items-start gap-2 text-muted-foreground">
-                          <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    <span className="text-3xl font-bold text-foreground">R$ {plan.price}</span>
+                    <span className="text-muted-foreground text-sm">/mês</span>
                   </div>
 
-                  {plan.excludes.length > 0 && (
-                    <div>
-                      <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground/70 mb-2">
-                        Não está incluso
-                      </p>
-                      <ul className="space-y-1.5 text-sm">
-                        {plan.excludes.map((item) => (
-                          <li key={item} className="flex items-start gap-2 text-muted-foreground/60">
-                            <X className="w-4 h-4 text-muted-foreground/50 shrink-0 mt-0.5" />
-                            <span className="line-through decoration-muted-foreground/30">{item}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                  <ul className="space-y-1.5 text-sm">
+                    {plan.includes.map((item) => (
+                      <li key={item} className="flex items-start gap-2 text-muted-foreground">
+                        <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </CardContent>
                 <CardFooter>
                   <a
-                    href={plan.url}
+                    href={waLink(plan.waText)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-full"
                     onClick={() => handlePlanClick(plan)}
                   >
-                    {plan.popular ? (
-                      <GoldButton className="w-full gap-2">
-                        <Sparkles className="w-4 h-4" />
-                        Garantir 50% OFF
-                      </GoldButton>
-                    ) : (
-                      <GoldButton variant="outline" className="w-full">
-                        Garantir 50% OFF
-                      </GoldButton>
-                    )}
+                    <button
+                      className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-semibold text-white bg-[#25D366] hover:bg-[#1faa54] transition-colors shadow-lg shadow-[#25D366]/20"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      Quero esse plano (WhatsApp)
+                    </button>
                   </a>
                 </CardFooter>
               </Card>
@@ -272,10 +199,43 @@ export default function OfertaEspecial() {
           })}
         </div>
 
-        {/* Guarantee */}
-        <div className="text-center text-sm text-muted-foreground bg-muted/30 rounded-xl p-4 border border-border/30">
-          <p className="font-medium text-foreground mb-1">✅ Garantia de 7 dias</p>
-          <p>Não gostou? Cancele em até 7 dias e receba 100% do seu dinheiro de volta.</p>
+        {/* Day Pass strip */}
+        <div className="rounded-2xl border border-yellow-500/40 bg-gradient-to-r from-yellow-500/10 via-yellow-500/5 to-transparent p-6 flex flex-col md:flex-row md:items-center gap-4">
+          <div className="flex items-start gap-3 flex-1">
+            <Ticket className="w-8 h-8 text-yellow-400 shrink-0 mt-1" />
+            <div>
+              <div className="text-lg font-bold text-foreground">
+                🎟️ Quer testar antes de assinar?
+              </div>
+              <div className="text-sm text-muted-foreground mt-1">
+                <strong className="text-foreground">Day Pass de 24h por apenas R$ 9,90</strong> —
+                libera tudo (Punter + Trader Sports + Hórus). Solicite seu cupom pelo WhatsApp.
+              </div>
+            </div>
+          </div>
+          <a
+            href={waLink('Olá! Quero o Day Pass de 24h por R$ 9,90.')}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={handleDayPassClick}
+            className="shrink-0"
+          >
+            <button className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg font-semibold text-white bg-[#25D366] hover:bg-[#1faa54] transition-colors shadow-lg shadow-[#25D366]/20">
+              <MessageCircle className="w-4 h-4" />
+              Quero o Day Pass R$ 9,90
+            </button>
+          </a>
+        </div>
+
+        {/* Reassurance */}
+        <div className="text-center text-sm text-muted-foreground bg-muted/30 rounded-xl p-4 border border-border/30 space-y-1">
+          <p className="font-medium text-foreground">✅ Atendimento humano de verdade</p>
+          <p>
+            Fale com um especialista no WhatsApp antes de qualquer pagamento. Sem robô, sem enrolação.
+          </p>
+          <p className="text-xs text-muted-foreground/70 mt-2">
+            Aviso de risco: apostas envolvem perda. Resultados passados não garantem futuros.
+          </p>
         </div>
       </motion.div>
     </div>
