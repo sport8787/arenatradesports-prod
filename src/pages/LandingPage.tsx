@@ -20,6 +20,7 @@ const FloatingWhatsApp = lazy(() => import('@/components/landing/FloatingWhatsAp
 const PromoSlotsCounter = lazy(() => import('@/components/landing/PromoSlotsCounter'));
 const SocialProofSection = lazy(() => import('@/components/landing/SocialProofSection'));
 const ProvaRealPrints = lazy(() => import('@/components/landing/ProvaRealPrints'));
+const BonusInclusos = lazy(() => import('@/components/landing/BonusInclusos'));
 import { useAuth } from '@/hooks/useAuth';
 import { usePromoSlots } from '@/hooks/usePromoSlots';
 import { track } from '@/lib/analytics';
@@ -312,6 +313,11 @@ export default function LandingPage() {
       {/* 🔥 PROVA REAL EM PRINTS — substituiu a VSL */}
       <Suspense fallback={null}>
         <ProvaRealPrints onCTA={ctaHandler('prova_real_prints', 'testar_gratis_7_dias')} />
+      </Suspense>
+
+      {/* 🎁 BÔNUS INCLUSOS — Blackjack + Trader Financeiro */}
+      <Suspense fallback={null}>
+        <BonusInclusos />
       </Suspense>
 
       {/* Tudo abaixo segue exibido (gate de VSL desativado) */}
