@@ -1,7 +1,37 @@
 import { motion } from 'framer-motion';
-import { Spade, LineChart } from 'lucide-react';
+import { Spade, LineChart, TrendingUp, MessageSquare } from 'lucide-react';
 
 const BONUS = [
+  {
+    icon: TrendingUp,
+    badge: '🚀 ALAVANCAGEM · PROFISSIONAL+',
+    title: 'Método dos Ciclos (Nettuno) — Hórus pilota a banca',
+    desc: 'A ferramenta definitiva de crescimento de banca. O Hórus calcula automaticamente o percentual de risco usando o consagrado Método dos Ciclos (B / B / 1.5B / 2B / 3B) para alavancagens seguras. Banca isolada de até 10%, meta de 5% por ciclo com fator redutor 2,5% — matemática pura, sem improviso.',
+    bullets: [
+      '5 ciclos progressivos com stake calculado',
+      'Banca isolada (no máximo 10% da banca principal)',
+      'Modo Assistido ou Simulado (Hórus pilota sozinho)',
+      'Pausa automática após 2 REDs consecutivos',
+    ],
+    warning: '🔓 Destravado a partir do plano Profissional. Sem ele, você opera no improviso.',
+    accent: 'from-amber-500/15 to-amber-900/5 border-amber-500/40',
+    badgeColor: 'text-amber-300 border-amber-500/40',
+  },
+  {
+    icon: MessageSquare,
+    badge: '💬 CHAT AO VIVO · EXCLUSIVO ELITE',
+    title: 'Mycroft em tempo real dentro do jogo',
+    desc: 'Nunca mais opere sozinho sob estresse. No plano Elite você tem um analista de dados exclusivo conversando com você ao vivo durante a partida, ditando a hora exata de entrar no mercado, segurar o trade ou bater o cash-out. Copiloto direto na Betfair Exchange.',
+    bullets: [
+      'Chat Mycroft dentro de cada partida ao vivo',
+      'Decisão de Cash Out assistida em tempo real',
+      'Leitura combinada xG + pressão + momentum',
+      'Integração direta com Banca Real Betfair',
+    ],
+    warning: '🔐 Exclusivo do plano Trading de Elite. É o que separa amador de profissional.',
+    accent: 'from-fuchsia-500/15 to-fuchsia-900/5 border-fuchsia-500/40',
+    badgeColor: 'text-fuchsia-300 border-fuchsia-500/40',
+  },
   {
     icon: Spade,
     badge: '🃏 BÔNUS · BANCA PEQUENA',
@@ -13,7 +43,7 @@ const BONUS = [
       'Progressão D\'Alembert customizada (+2/-2)',
       'Modo ao vivo com até 7 posições',
     ],
-    warning: '⚠️ Gestão obrigatória: meta diária R$ 50–R$ 100, stop loss definido, sessões de no máximo 20 minutos. Sessões longas favorecem a casa.',
+    warning: '⚠️ Gestão obrigatória: meta diária R$ 50–R$ 100, stop loss definido, sessões de no máximo 20 minutos.',
     accent: 'from-violet-500/15 to-violet-900/5 border-violet-500/40',
     badgeColor: 'text-violet-300 border-violet-500/40',
   },
@@ -28,7 +58,7 @@ const BONUS = [
       'BTC escalonado em 0.01 unidades',
       'Stop loss e take profit automáticos',
     ],
-    warning: '💡 Mesma filosofia: o Mycroft não torce, ele calcula. Sem promessa de "viver de day trade" — é ferramenta de gestão de risco.',
+    warning: '💡 Mesma filosofia: o Mycroft não torce, ele calcula. Ferramenta de gestão de risco.',
     accent: 'from-sky-500/15 to-sky-900/5 border-sky-500/40',
     badgeColor: 'text-sky-300 border-sky-500/40',
   },
@@ -40,13 +70,13 @@ export default function BonusInclusos() {
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-12">
           <span className="inline-block px-3 py-1 bg-yellow-500/10 border border-yellow-500/30 rounded-full text-xs uppercase tracking-widest text-yellow-400 mb-4">
-            🎁 Bônus inclusos em todos os planos
+            🎁 O que cada plano destrava
           </span>
           <h2 className="text-3xl sm:text-4xl font-black mb-3 leading-tight">
-            O método do Mycroft vai <span className="text-yellow-400">além do futebol</span>
+            Do método pronto à <span className="text-yellow-400">copilotagem ao vivo</span>
           </h2>
           <p className="text-base text-gray-300 max-w-2xl mx-auto">
-            O foco do sistema é Arena Punter + Arena Live. Mas você leva, sem custo adicional, mais duas ferramentas pra trabalhar sua banca em outros mercados.
+            Iniciante usa os métodos globais. Profissional cria os próprios métodos e alavanca com Hórus. Elite tem Mycroft no ouvido em tempo real.
           </p>
         </div>
 
@@ -59,7 +89,7 @@ export default function BonusInclusos() {
                 initial={{ opacity: 0, y: 24 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: '-50px' }}
-                transition={{ duration: 0.5, delay: i * 0.1 }}
+                transition={{ duration: 0.5, delay: i * 0.08 }}
                 className={`rounded-2xl border bg-gradient-to-br ${b.accent} p-6 sm:p-7 shadow-xl shadow-black/40`}
               >
                 <div className="flex items-start gap-4 mb-4">
@@ -91,7 +121,7 @@ export default function BonusInclusos() {
         </div>
 
         <p className="text-center text-xs text-gray-500 mt-8 max-w-2xl mx-auto">
-          Inclusos automaticamente nos planos Iniciante, Profissional e Elite. Nenhum custo adicional.
+          Ciclos e Blackjack: já no Profissional. Chat ao Vivo + Trader Financeiro completo: exclusivo do Elite.
         </p>
       </div>
     </section>
