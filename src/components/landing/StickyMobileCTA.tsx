@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 
 interface Props {
-  onCTA: () => void;
+  onCTA?: () => void;
 }
 
 export default function StickyMobileCTA({ onCTA }: Props) {
@@ -18,13 +18,14 @@ export default function StickyMobileCTA({ onCTA }: Props) {
 
   return (
     <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 p-3 bg-[#0a0f1e]/95 backdrop-blur-md border-t border-yellow-500/30 shadow-[0_-10px_30px_-10px_rgba(0,0,0,0.5)]">
-      <button
-        onClick={onCTA}
+      <a
+        href="#planos"
+        onClick={() => onCTA?.()}
         className="w-full py-3.5 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg shadow-lg shadow-yellow-500/30 inline-flex items-center justify-center gap-2"
       >
-        TESTAR GRÁTIS POR 7 DIAS
+        CRIAR MINHA CONTA AGORA
         <ArrowRight className="w-4 h-4" />
-      </button>
+      </a>
     </div>
   );
 }
