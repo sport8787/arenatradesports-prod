@@ -545,7 +545,7 @@ export default function LandingPage() {
               href="https://pay.kiwify.com.br/uoPvQjZ"
               target="_blank"
               rel="noopener noreferrer"
-              onClick={() => track.checkoutInitiated('Day Pass 24h', 9.9, 'landing_home')}
+              onClick={() => track.checkoutInitiated('Day Pass 24h', 9.9, 'oferta_especial')}
               className="shrink-0 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg font-bold text-black bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 transition shadow-lg shadow-yellow-500/30"
             >
               QUERO O DAY PASS R$ 9,90
