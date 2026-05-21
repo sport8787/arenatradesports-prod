@@ -10,6 +10,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { applyApprovalBlocks, loadGateConfig } from "../_shared/punterApprovalBlocks.ts";
+import { fetchSportmonksPrematchOdds, listPrematchMarkets, normalizePrematchMarketLabel } from "../_shared/sportmonksPrematchOdds.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,7 +20,6 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const ODDS_KEY = Deno.env.get("THE_ODDS_API_KEY") || "";
 const GROQ_KEY = Deno.env.get("GROQ_API_KEY") || "";
 const SM_TOKEN = Deno.env.get("SPORTMONKS_API_KEY") || "";
 const SM_BASE = "https://api.sportmonks.com/v3";
