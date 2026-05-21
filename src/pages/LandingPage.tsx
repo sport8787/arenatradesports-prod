@@ -761,7 +761,7 @@ const PRICING_PLANS = [
     features: [
       "Tudo do Iniciante +",
       "Arena Trader Sports (ao vivo)",
-      "🚀 Método dos Ciclos (Nettuno) — Hórus pilota alavancagem",
+      "🚀 Método Hórus de Alavancagem — Hórus pilota a banca em ciclos",
       "🛠️ Crie seus próprios métodos (Meu Plano)",
       "LABAREDA, APROVADO e cash-out em tempo real",
       "Eventos Raros (LAY Goleada, 2x2…)",
@@ -794,7 +794,7 @@ const PRICING_PLANS = [
 const FAQ = [
   { question: "Como funciona o acesso após o pagamento?", answer: "Acesso liberado em segundos após a confirmação do pagamento na Kiwify. Você recebe e-mail com os dados de login e já pode entrar nas arenas Punter, Trader Sports (Profissional+) e Elite (Chat AO VIVO + Betfair Exchange)." },
   { question: "Posso testar antes de assinar um plano mensal?", answer: "Sim. Oferecemos um Day Pass de 24h por R$ 9,90 que libera tudo (Punter + Trader Sports + Hórus). É a forma mais barata de conhecer a plataforma na prática antes de escolher seu plano." },
-  { question: "Qual a diferença entre Iniciante, Profissional e Elite?", answer: "Iniciante (R$ 49,90): sinais prontos do Mycroft no Arena Punter + Blackjack básico. Profissional (R$ 149,90): destrava o Trader Sports ao vivo, a criação de métodos personalizados (Meu Plano) e o Método dos Ciclos do Hórus para alavancagem. Elite (R$ 249,90): destrava o Chat AO VIVO com o Mycroft dentro de cada jogo, integração com a Betfair Exchange e o Trader Financeiro (WIN/WDO/BTC)." },
+  { question: "Qual a diferença entre Iniciante, Profissional e Elite?", answer: "Iniciante (R$ 49,90): sinais prontos do Mycroft no Arena Punter + Blackjack básico. Profissional (R$ 149,90): destrava o Trader Sports ao vivo, a criação de métodos personalizados (Meu Plano) e o Método Hórus de Alavancagem. Elite (R$ 249,90): destrava o Chat AO VIVO com o Mycroft dentro de cada jogo, integração com a Betfair Exchange e o Trader Financeiro (WIN/WDO/BTC)." },
   { question: "Vocês são mais uma sala de sinais?", answer: "Não. Salas vendem 'dicas' sem comprovação. Nós somos uma plataforma de investimento esportivo com IA, track record auditável de 1.658 posições e ROI +73% verificável. A diferença é transparência total vs bullshit total." },
   { question: "Como funciona a Garantia Dobro?", answer: "Se você seguir ≥95% das recomendações Mycroft (compliance) por 3 meses consecutivos e não tiver ROI positivo, devolvemos em dobro sua assinatura. Sem letrinhas miúdas. Monitoramos tudo automaticamente." },
   { question: "Preciso entender de apostas esportivas?", answer: "Não. Mycroft faz a análise quantitativa. Hórus te protege de decisões emocionais. Você só precisa: (1) seguir as recomendações, (2) respeitar o stake sugerido, (3) não operar em tilt. O resto é automático." },

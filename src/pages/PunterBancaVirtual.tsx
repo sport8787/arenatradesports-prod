@@ -158,7 +158,7 @@ export default function PunterBancaVirtualPage() {
             <QuickBtn icon={<FileText className="w-3.5 h-3.5" />} label="Análise Manual" onClick={() => navigate('/punter/analise-manual')} />
             <QuickBtn icon={<CheckCircle2 className="w-3.5 h-3.5" />} label="Sinais Liquidados" onClick={() => navigate('/punter')} />
             <QuickBtn icon={<ShieldCheck className="w-3.5 h-3.5" />} label="Auditoria de Apostas" onClick={() => navigate('/punter/auditoria')} />
-            <QuickBtn icon={<TrendingUp className="w-3.5 h-3.5" />} label="Método dos Ciclos" onClick={() => navigate('/punter/ciclos')} />
+            <QuickBtn icon={<TrendingUp className="w-3.5 h-3.5" />} label="Método Hórus" onClick={() => navigate('/punter/ciclos')} />
             <QuickBtn icon={<Zap className="w-3.5 h-3.5" />} label="Sinais Alavanca" onClick={() => navigate('/sinais-alavanca')} />
           </div>
           <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70 mb-2 px-1">
