@@ -21,6 +21,8 @@ const PromoSlotsCounter = lazy(() => import('@/components/landing/PromoSlotsCoun
 const SocialProofSection = lazy(() => import('@/components/landing/SocialProofSection'));
 const ProvaRealPrints = lazy(() => import('@/components/landing/ProvaRealPrints'));
 const BonusInclusos = lazy(() => import('@/components/landing/BonusInclusos'));
+const HouseEdgeEducation = lazy(() => import('@/components/landing/HouseEdgeEducation'));
+const ComunicadoImportante = lazy(() => import('@/components/landing/HouseEdgeEducation').then(m => ({ default: m.ComunicadoImportante })));
 import { useAuth } from '@/hooks/useAuth';
 import { usePromoSlots } from '@/hooks/usePromoSlots';
 import { track } from '@/lib/analytics';
