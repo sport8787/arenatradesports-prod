@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import GoldButton from '@/components/game/GoldButton';
 import { track } from '@/lib/analytics';
 import HouseEdgeEducation, { ComunicadoImportante } from '@/components/landing/HouseEdgeEducation';
+import AgeDisclaimerBanner from '@/components/landing/AgeDisclaimerBanner';
 
 const WHATSAPP_NUMBER = '5534991290648';
 const waLink = (text: string) =>
@@ -115,7 +116,9 @@ export default function OfertaEspecial() {
   };
 
   return (
-    <div className="oferta-light min-h-screen bg-white text-slate-900 p-4 relative overflow-hidden">
+    <>
+      <AgeDisclaimerBanner />
+      <div className="oferta-light min-h-screen bg-white text-slate-900 p-4 relative overflow-hidden">
       <style>{`
         .oferta-light, .oferta-light * { color: #0f172a; }
         .oferta-light .text-muted-foreground { color: #475569 !important; }
@@ -331,12 +334,19 @@ export default function OfertaEspecial() {
           </p>
         </div>
       </motion.div>
+      </div>
 
       {/* Educativo + Comunicado importante (fora do container claro, fundo escuro próprio) */}
       <div className="mt-12 -mx-4">
         <HouseEdgeEducation />
         <ComunicadoImportante />
       </div>
-    </div>
+
+      {/* Footer +18 */}
+      <footer className="w-full bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">
+        <p><strong className="text-red-500">+18 anos.</strong> Proibido para menores de 18 anos. Apostas esportivas envolvem risco de dependência. Jogue com responsabilidade.</p>
+        <p className="mt-1">© 2026 Oráculo Mycroft. Nenhuma ferramenta pode garantir vitórias ou lucros constantes.</p>
+      </footer>
+    </>
   );
 }

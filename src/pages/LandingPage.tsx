@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import logoOraculo from '@/assets/logo_oraculo_mycroft_nobg.png';
 import WhatsAppSupportButton from '@/components/WhatsAppSupportButton';
+import AgeDisclaimerBanner from '@/components/landing/AgeDisclaimerBanner';
 const WhatIsOracleSection = lazy(() => import('@/components/landing/WhatIsOracleSection'));
 const LiveStatsCounter = lazy(() => import('@/components/landing/LiveStatsCounter'));
 const SocialProofBetsSection = lazy(() => import('@/components/landing/SocialProofBetsSection'));
@@ -89,7 +90,8 @@ export default function LandingPage() {
 
   return (
     <>
-    <div className="bg-[#0a0f1e] text-white min-h-screen">
+      <AgeDisclaimerBanner />
+      <div className="bg-[#0a0f1e] text-white min-h-screen">
       {/* Header */}
       <header className="fixed top-0 w-full bg-[#0a0f1e]/80 backdrop-blur-md border-b border-white/10 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -724,6 +726,12 @@ export default function LandingPage() {
         {pitchUnlocked && <StickyMobileCTA onCTA={ctaHandler('sticky_mobile', 'testar_gratis_7_dias_mobile')} />}
         <FloatingWhatsApp />
       </Suspense>
+
+      {/* Footer +18 */}
+      <footer className="w-full bg-[#0a0f1e] border-t border-white/10 py-4 text-center text-xs text-slate-400">
+        <p><strong className="text-red-400">+18 anos.</strong> Proibido para menores de 18 anos. Apostas esportivas envolvem risco de dependência. Jogue com responsabilidade.</p>
+        <p className="mt-1">© 2026 Oráculo Mycroft. Nenhuma ferramenta pode garantir vitórias ou lucros constantes.</p>
+      </footer>
     </>
   );
 }
