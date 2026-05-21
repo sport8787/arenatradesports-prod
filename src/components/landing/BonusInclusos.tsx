@@ -5,8 +5,8 @@ const BONUS = [
   {
     icon: TrendingUp,
     badge: '🚀 ALAVANCAGEM · PROFISSIONAL+',
-    title: 'Método dos Ciclos (Nettuno) — Hórus pilota a banca',
-    desc: 'A ferramenta definitiva de crescimento de banca. O Hórus calcula automaticamente o percentual de risco usando o consagrado Método dos Ciclos (B / B / 1.5B / 2B / 3B) para alavancagens seguras. Banca isolada de até 10%, meta de 5% por ciclo com fator redutor 2,5% — matemática pura, sem improviso.',
+    title: 'Método Hórus de Alavancagem — Hórus pilota a banca',
+    desc: 'A ferramenta definitiva de crescimento de banca. O Hórus calcula automaticamente o percentual de risco usando o Método Hórus de Alavancagem em 5 ciclos progressivos (B / B / 1.5B / 2B / 3B). Banca isolada de até 10%, meta de 5% por ciclo com fator redutor 2,5% — matemática pura, sem improviso.',
     bullets: [
       '5 ciclos progressivos com stake calculado',
       'Banca isolada (no máximo 10% da banca principal)',

@@ -1,4 +1,4 @@
-// Método dos Ciclos (Nettuno) — funções puras
+// Método Hórus de Alavancagem — funções puras
 // Meta inicial 5%, fator redutor 2,5% por green dentro do mesmo ciclo
 // 5 ciclos: stake e saques proporcionais à banca inicial B
 

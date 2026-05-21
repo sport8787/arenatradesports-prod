@@ -41,7 +41,7 @@ const PLANS = [
     includes: [
       'Tudo do Iniciante',
       'Arena Trader Sports (ao vivo)',
-      '🚀 Método dos Ciclos (Nettuno) — Hórus pilota alavancagem',
+      '🚀 Método Hórus de Alavancagem — banca pilotada em 5 ciclos',
       '🛠️ Crie seus próprios métodos personalizados (Meu Plano)',
       'LABAREDA, APROVADO e cash-out em tempo real',
       'Hórus coach IA anti-tilt',

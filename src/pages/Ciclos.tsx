@@ -98,7 +98,7 @@ export default function Ciclos() {
     }
     setStarting(false);
     if (error) { toast.error(error.message); return; }
-    toast.success(setupMode === 'horus' ? '🤖 Hórus Pilota ativado — banca independente' : 'Método dos Ciclos iniciado');
+    toast.success(setupMode === 'horus' ? '🤖 Hórus Pilota ativado — banca independente' : 'Método Hórus de Alavancagem iniciado');
     load();
   };
 
@@ -173,7 +173,7 @@ export default function Ciclos() {
           <button onClick={() => navigate('/lobby')} className="text-muted-foreground hover:text-foreground" aria-label="Voltar">
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="font-mono text-sm font-semibold tracking-tight">MÉTODO DOS CICLOS · ALAVANCAGEM</h1>
+          <h1 className="font-mono text-sm font-semibold tracking-tight">MÉTODO HÓRUS · ALAVANCAGEM</h1>
         </div>
       </header>
 
@@ -232,8 +232,8 @@ function SetupCard({
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-border rounded-xl p-6 space-y-5">
       <div className="space-y-1">
-        <h2 className="font-orbitron text-lg font-bold flex items-center gap-2"><TrendingUp className="w-5 h-5 text-primary" /> Configurar Método dos Ciclos</h2>
-        <p className="text-xs text-muted-foreground">Método do Nettuno: dobre uma fração isolada da sua banca em 5 ciclos sequenciais. Meta 5% por entrada com fator redutor de 2,5% a cada green.</p>
+        <h2 className="font-orbitron text-lg font-bold flex items-center gap-2"><TrendingUp className="w-5 h-5 text-primary" /> Configurar Método Hórus de Alavancagem</h2>
+        <p className="text-xs text-muted-foreground">Dobre uma fração isolada da sua banca em 5 ciclos sequenciais. Meta 5% por entrada com fator redutor de 2,5% a cada green.</p>
       </div>
 
       {/* Mode tabs */}
@@ -258,7 +258,7 @@ function SetupCard({
             <div className="space-y-1.5">
               <Label className="text-xs">Banca independente do método (R$)</Label>
               <Input type="number" min={0} value={horusBankroll} onChange={(e) => setHorusBankroll(e.target.value)} placeholder="200.00" />
-              <p className="text-[10px] text-muted-foreground">Sugestão Nettuno: R$ 200 — banca pequena, separada do resto.</p>
+              <p className="text-[10px] text-muted-foreground">Sugestão Hórus: R$ 200 — banca pequena, separada do resto.</p>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Modo de operação</Label>
@@ -275,7 +275,7 @@ function SetupCard({
             </div>
           </div>
           <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs space-y-1">
-            <p className="text-foreground flex items-center gap-1.5"><Bot className="w-3.5 h-3.5 text-primary" /> <strong>Hórus Pilota</strong> — automação 100% fiel ao Nettuno:</p>
+            <p className="text-foreground flex items-center gap-1.5"><Bot className="w-3.5 h-3.5 text-primary" /> <strong>Hórus Pilota</strong> — automação 100% fiel ao método:</p>
             <ul className="list-disc pl-5 text-muted-foreground space-y-0.5">
               <li>Apenas mercado <strong>Match Odds (1X2)</strong> é automatizado.</li>
               <li>Banca de <strong>{fmtBRL(hb)}</strong> independente da sua banca virtual.</li>
@@ -300,14 +300,14 @@ function SetupCard({
           <div className="rounded-lg border border-warning/30 bg-warning/5 p-3 text-xs space-y-1">
             <p className="text-foreground">Banca inicial do método (<strong>B</strong>): <span className="text-primary font-bold">{fmtBRL(initial)}</span></p>
             <p className="text-muted-foreground">Objetivo final do método: <strong>{fmtBRL(initial * 6)}</strong> (após os 5 ciclos)</p>
-            <p className="text-muted-foreground">Recomendação Nettuno: nunca use mais que 10% da sua banca total — assim você pode tentar o método várias vezes em caso de erro.</p>
+            <p className="text-muted-foreground">Recomendação Hórus: nunca use mais que 10% da sua banca total — assim você pode tentar o método várias vezes em caso de erro.</p>
           </div>
         </>
       )}
 
       <Button onClick={onStart} disabled={starting || !canStart} className="w-full">
         {starting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-        {setupMode === 'horus' ? 'Ativar Hórus Pilota' : 'Iniciar Método dos Ciclos'}
+        {setupMode === 'horus' ? 'Ativar Hórus Pilota' : 'Iniciar Método Hórus'}
       </Button>
     </motion.div>
   );
@@ -415,7 +415,7 @@ function ActivePanel({ bk, onOpenRegister, onAdvance, onReset }: { bk: CycleBank
           <AlertTriangle className="w-5 h-5 text-destructive mt-0.5" />
           <div className="flex-1 text-sm space-y-2">
             <p className="font-semibold text-destructive">Stake perdida — método encerrado.</p>
-            <p className="text-xs text-muted-foreground">Use outra parcela da sua banca total e reinicie. O Nettuno recomenda manter pelo menos 10 tentativas em mãos.</p>
+            <p className="text-xs text-muted-foreground">Use outra parcela da sua banca total e reinicie. O Hórus recomenda manter pelo menos 10 tentativas em mãos.</p>
             <Button size="sm" variant="outline" onClick={onReset}><RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Reiniciar método</Button>
           </div>
         </div>
@@ -538,7 +538,7 @@ function EntriesHistory({ entries }: { entries: CycleEntry[] }) {
 function NettunoRules() {
   return (
     <details className="bg-card border border-border rounded-xl p-4 text-xs">
-      <summary className="cursor-pointer font-mono uppercase tracking-wide text-muted-foreground">Dicas do Nettuno</summary>
+      <summary className="cursor-pointer font-mono uppercase tracking-wide text-muted-foreground">Dicas do Método Hórus</summary>
       <ul className="mt-3 space-y-1.5 list-disc pl-5 text-muted-foreground">
         <li>Entradas SEMPRE a favor do tempo (Back em quem ganha, Lay em quem perde).</li>
         <li>Prefira mercado de Match Odds — movimentação mais previsível.</li>
