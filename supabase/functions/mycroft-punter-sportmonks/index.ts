@@ -438,30 +438,9 @@ function calcScoreBTTS(h: HtBttsSummary, a: HtBttsSummary, h2h: { btts_rate: num
 // Extrai odd Over 0.5 HT (totals 0.5 first half) e BTTS Yes do payload The Odds API.
 // Fallback: usa "totals" 0.5 (FT) — improvável de existir, mas tenta.
 function extractHtBttsOdds(game: any): { oddOver05HT: number | null; oddBtts: number | null; bm: string } {
-  let oddOver05HT: number | null = null;
-  let oddBtts: number | null = null;
-  let bm = "?";
-  for (const b of (game.bookmakers || [])) {
-    for (const m of (b.markets || [])) {
-      const key = String(m.key || "").toLowerCase();
-      // Over 0.5 HT — chaves comuns: totals_h1, alternate_totals_h1
-      if (oddOver05HT === null && (key === "totals_h1" || key === "alternate_totals_h1")) {
-        const o = (m.outcomes || []).find((x: any) =>
-          String(x.name).toLowerCase() === "over" && Number(x.point) === 0.5
-        );
-        if (o?.price) { oddOver05HT = Number(o.price); bm = b.title || bm; }
-      }
-      // BTTS — chave "btts" (sim/yes)
-      if (oddBtts === null && (key === "btts" || key === "both_teams_to_score")) {
-        const o = (m.outcomes || []).find((x: any) =>
-          ["yes", "sim"].includes(String(x.name).toLowerCase())
-        );
-        if (o?.price) { oddBtts = Number(o.price); bm = b.title || bm; }
-      }
-    }
-    if (oddOver05HT && oddBtts) break;
-  }
-  return { oddOver05HT, oddBtts, bm };
+  const prematchOdds = game.prematch_odds || {};
+  const oddBtts = prematchOdds['BTTS Sim'] ?? null;
+  return { oddOver05HT: null, oddBtts, bm: 'sportmonks-prematch' };
 }
 
 async function persistHtBttsSignal(
