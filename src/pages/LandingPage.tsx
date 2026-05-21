@@ -568,6 +568,11 @@ export default function LandingPage() {
         <ObjectionsSection />
       </Suspense>
 
+      {/* Educativo: house edge + amador vs profissional + sorte vs estratégia */}
+      <Suspense fallback={null}>
+        <HouseEdgeEducation />
+      </Suspense>
+
       {/* FAQ */}
       <section className="py-20 bg-[#0f1729]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
