@@ -485,7 +485,7 @@ export default function LandingPage() {
                 <h3 className="text-2xl font-bold text-white mb-2">GARANTIA DOBRO OU SEU DINHEIRO DE VOLTA</h3>
                 <p className="text-gray-300 leading-relaxed">Se você seguir 95%+ das recomendações e não tiver ROI positivo em 3 meses, devolvemos em dobro sua assinatura. Sem letrinhas miúdas.</p>
               </div>
-              <button onClick={ctaHandler('resultados', 'garantia_dobro_quero_testar')} className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-lg">QUERO TESTAR</button>
+              <a href="#planos" onClick={() => track.funnelCtaClicked('resultados', 'quero_vencer_a_casa')} className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-lg whitespace-nowrap">QUERO VENCER A CASA</a>
             </div>
           </div>
         </div>
