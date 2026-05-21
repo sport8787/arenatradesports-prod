@@ -253,6 +253,55 @@ export default function OfertaEspecial() {
           </a>
         </div>
 
+        {/* Bônus inclusos — detalhamento */}
+        <div className="space-y-4">
+          <div className="text-center">
+            <Badge className="bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 text-xs px-3 py-1">
+              🎁 BÔNUS INCLUSOS EM TODOS OS PLANOS
+            </Badge>
+            <h2 className="text-xl sm:text-2xl font-bold mt-3">
+              O método do Mycroft <span className="text-yellow-400">além do futebol</span>
+            </h2>
+          </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            <Card className="bg-card/60 backdrop-blur border-violet-500/30">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Spade className="w-5 h-5 text-violet-400" />
+                  Arena Blackjack
+                </CardTitle>
+                <CardDescription>Único jogo de cassino com vantagem matemática do jogador</CardDescription>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground space-y-2">
+                <p>
+                  Não é tigrinho. Não é roleta. Combina <strong className="text-foreground">contagem Hi-Lo</strong>, estratégia básica perfeita (Illustrious 18) e gestão Kelly Híbrido. A casa fica abaixo de 0,5%.
+                </p>
+                <p className="text-xs italic border-l-2 border-yellow-500/40 pl-3 mt-3">
+                  ⚠️ <strong className="text-foreground">Gestão obrigatória:</strong> meta diária R$ 50–R$ 100, stop loss definido, sessões de até 20 minutos. Sessões longas favorecem a casa.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card/60 backdrop-blur border-sky-500/30">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <LineChart className="w-5 h-5 text-sky-400" />
+                  Arena Trader Financeiro
+                </CardTitle>
+                <CardDescription>Mesmo método aplicado a WIN, WDO e BTC</CardDescription>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground space-y-2">
+                <p>
+                  A mesma lógica do Trader Sports, agora no <strong className="text-foreground">mercado financeiro</strong>. R:R ≥ 1:1.5, stop loss automático, leitura técnica em tempo real. Quem opera esporte e quer diversificar sem mudar de método.
+                </p>
+                <p className="text-xs italic border-l-2 border-sky-500/40 pl-3 mt-3">
+                  💡 O Mycroft não torce — ele calcula. Sem promessa de "viver de day trade": é ferramenta de gestão de risco.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
         {/* Reassurance */}
         <div className="text-center text-sm text-muted-foreground bg-muted/30 rounded-xl p-4 border border-border/30 space-y-1">
           <p className="font-medium text-foreground">✅ Atendimento humano de verdade</p>
