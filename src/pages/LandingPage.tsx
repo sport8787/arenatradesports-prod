@@ -527,6 +527,31 @@ export default function LandingPage() {
               </motion.div>
             ))}
           </div>
+
+          {/* Day Pass — teste 24h */}
+          <div className="mt-10 rounded-2xl border border-yellow-500/40 bg-gradient-to-r from-yellow-500/10 via-yellow-500/5 to-transparent p-6 flex flex-col md:flex-row md:items-center gap-4">
+            <div className="flex items-start gap-3 flex-1">
+              <div className="w-12 h-12 rounded-xl bg-yellow-500/20 border border-yellow-500/40 flex items-center justify-center shrink-0">
+                <span className="text-2xl">🎟️</span>
+              </div>
+              <div>
+                <div className="text-lg font-bold text-white">Quer testar antes de assinar?</div>
+                <div className="text-sm text-gray-300 mt-1">
+                  <strong className="text-white">Day Pass de 24h por R$ 9,90</strong> — libera tudo (Punter + Trader Sports + Hórus) por um dia inteiro.
+                </div>
+              </div>
+            </div>
+            <a
+              href="https://pay.kiwify.com.br/uoPvQjZ"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => track.checkoutInitiated('Day Pass 24h', 9.9, 'landing_home')}
+              className="shrink-0 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg font-bold text-black bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 transition shadow-lg shadow-yellow-500/30"
+            >
+              QUERO O DAY PASS R$ 9,90
+            </a>
+          </div>
+
           <p className="text-center text-gray-400 mt-8">💳 Aceita PIX, cartão e boleto • 🔒 Seguro e criptografado • 🔄 Cancele quando quiser</p>
         </div>
       </section>
