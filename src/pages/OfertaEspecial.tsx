@@ -103,6 +103,7 @@ export default function OfertaEspecial() {
         value: price,
       });
     }
+    fireAdsConversion(price);
   };
 
   const handleDayPassClick = () => {
@@ -114,6 +115,7 @@ export default function OfertaEspecial() {
         value: 9.9,
       });
     }
+    fireAdsConversion(9.9);
   };
 
   return (
