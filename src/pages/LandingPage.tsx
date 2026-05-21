@@ -73,35 +73,15 @@ export default function LandingPage() {
   const VTURB_PLAYER_ID = '6a00acb708dd22f8e61508b7';
   const VTURB_SCRIPT_SRC = `https://scripts.converteai.net/425e46be-1934-41ee-ac61-375afed6531f/players/${VTURB_PLAYER_ID}/v4/player.js`;
 
-  // Tracking do player VSL
-  useVturbTracking(`vid-${VTURB_PLAYER_ID}`, shouldLoadVturb);
-  const { unlocked: pitchUnlocked, currentTime: vslCurrentTime } = useVslDelay(
-    VTURB_PLAYER_ID,
-    VSL_PITCH_DELAY_SECONDS,
-    shouldLoadVturb,
-  );
+  // VSL removida: a prova agora vem em prints reais (ProvaRealPrints).
+  // Mantemos hooks como no-op para preservar telemetria existente sem efeitos colaterais.
+  useVturbTracking(`vid-${VTURB_PLAYER_ID}`, false);
+  useVslDelay(VTURB_PLAYER_ID, VSL_PITCH_DELAY_SECONDS, false);
+  const pitchUnlocked = true;
+  const vslCurrentTime = 0;
   const [showDemo, setShowDemo] = useState(false);
-  const [vturbReloadKey, setVturbReloadKey] = useState(0);
+  const [vturbReloadKey] = useState(0);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const isMobileViewport = window.matchMedia('(max-width: 768px)').matches;
-    const isSlowConnection =
-      'connection' in navigator &&
-      ((navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection?.saveData ||
-        ['slow-2g', '2g', '3g'].includes(
-          (navigator as Navigator & { connection?: { effectiveType?: string } }).connection?.effectiveType || ''
-        ));
-
-    if (!isMobileViewport && !isSlowConnection) {
-      setShouldLoadVturb(true);
-      return;
-    }
-
-    const timer = window.setTimeout(() => setShouldLoadVturb(true), 1800);
-    return () => window.clearTimeout(timer);
-  }, []);
 
   // Telemetria: marca momento em que decidimos começar a carregar o player
   useEffect(() => {
