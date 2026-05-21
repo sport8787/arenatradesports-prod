@@ -71,9 +71,9 @@ export default function PunterMenuPage() {
       <header className="relative z-10 sticky top-0 border-b border-border bg-card/95 backdrop-blur-xl">
         <div className="container mx-auto px-4 py-2.5 flex items-center gap-3">
           <button
-            onClick={() => navigate('/menu')}
+            onClick={() => navigate('/lobby')}
             className="text-muted-foreground hover:text-foreground transition-colors"
-            aria-label="Voltar para o menu principal"
+            aria-label="Voltar para o lobby"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>

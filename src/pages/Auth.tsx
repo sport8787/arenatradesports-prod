@@ -57,7 +57,7 @@ const Auth = () => {
       setShowNicknameSetup(true);
       return;
     }
-    navigate('/menu', { replace: true });
+    navigate('/lobby', { replace: true });
   }, [isAuthenticated, loading, profile, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -229,7 +229,7 @@ const Auth = () => {
     
     sessionStorage.setItem('guestMode', 'true');
     sessionStorage.setItem('guestNickname', guestNickname);
-    navigate('/menu');
+    navigate('/lobby');
   };
 
   const handleSaveNickname = async () => {
@@ -247,7 +247,7 @@ const Auth = () => {
       toast({ title: 'Erro', description: 'Falha ao salvar nickname', variant: 'destructive' });
     } else {
       toast({ title: 'Nickname salvo!', description: `Bem-vindo, ${newNickname}!` });
-      navigate('/menu');
+      navigate('/lobby');
     }
   };
 

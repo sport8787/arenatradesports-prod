@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Activity, Target, LineChart, Spade, Trophy, LogOut } from 'lucide-react';
+import { Activity, Target, LineChart, Spade, Trophy, LogOut, Settings2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import logoOraculo from '@/assets/logo_oraculo_mycroft.png';
@@ -42,6 +42,13 @@ const arenas = [
     href: '/loja-bc',
     icon: Trophy,
     accent: 'from-purple-500/20 to-purple-700/10 border-purple-500/40',
+  },
+  {
+    title: 'Funções Avançadas',
+    description: 'Configurações, ferramentas e ajustes do Oráculo.',
+    href: '/menu',
+    icon: Settings2,
+    accent: 'from-slate-500/20 to-slate-700/10 border-slate-500/40',
   },
 ];
 
