@@ -27,6 +27,7 @@ const ComunicadoImportante = lazy(() => import('@/components/landing/HouseEdgeEd
 import { useAuth } from '@/hooks/useAuth';
 import { usePromoSlots } from '@/hooks/usePromoSlots';
 import { track } from '@/lib/analytics';
+import { fireAdsConversion } from '@/lib/googleAds';
 import { useSectionTracking } from '@/hooks/useSectionTracking';
 import { useVturbTracking } from '@/hooks/useVturbTracking';
 import { useVslDelay } from '@/hooks/useVslDelay';
@@ -525,7 +526,7 @@ export default function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <a href={plan.url} target="_blank" rel="noopener noreferrer" className={`w-full py-3 rounded-lg font-bold transition block text-center ${plan.popular ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black hover:from-yellow-600 hover:to-yellow-700 shadow-lg shadow-yellow-500/25' : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'}`}>
+                <a href={plan.url} target="_blank" rel="noopener noreferrer" onClick={() => { const price = parseFloat(plan.price.replace(',', '.')); track.checkoutInitiated(plan.name, price, 'paywall'); fireAdsConversion(price); }} className={`w-full py-3 rounded-lg font-bold transition block text-center ${plan.popular ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black hover:from-yellow-600 hover:to-yellow-700 shadow-lg shadow-yellow-500/25' : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'}`}>
                   {plan.cta}
                 </a>
               </motion.div>
@@ -549,7 +550,7 @@ export default function LandingPage() {
               href="https://pay.kiwify.com.br/uoPvQjZ"
               target="_blank"
               rel="noopener noreferrer"
-              onClick={() => track.checkoutInitiated('Day Pass 24h', 9.9, 'oferta_especial')}
+              onClick={() => { track.checkoutInitiated('Day Pass 24h', 9.9, 'oferta_especial'); fireAdsConversion(9.9); }}
               className="shrink-0 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg font-bold text-black bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 transition shadow-lg shadow-yellow-500/30"
             >
               QUERO O DAY PASS R$ 9,90

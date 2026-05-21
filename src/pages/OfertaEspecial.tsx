@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import GoldButton from '@/components/game/GoldButton';
 import { track } from '@/lib/analytics';
+import { fireAdsConversion } from '@/lib/googleAds';
 import HouseEdgeEducation, { ComunicadoImportante } from '@/components/landing/HouseEdgeEducation';
 import AgeDisclaimerBanner from '@/components/landing/AgeDisclaimerBanner';
 
@@ -102,6 +103,7 @@ export default function OfertaEspecial() {
         value: price,
       });
     }
+    fireAdsConversion(price);
   };
 
   const handleDayPassClick = () => {
@@ -113,6 +115,7 @@ export default function OfertaEspecial() {
         value: 9.9,
       });
     }
+    fireAdsConversion(9.9);
   };
 
   return (
