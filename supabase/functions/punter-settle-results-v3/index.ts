@@ -321,7 +321,6 @@ function dbResult(res: Resultado): "green" | "red" | "void" {
 // Ordem [Fase 2 migração]:
 //  1) Futodds /matches-ended (cobre 70-80% dos casos com gols/escanteios)
 //  2) Sportmonks (reforço com corners + status FT)
-//  3) The Odds API (fallback final)
 // Mercados de jogador permanecem desabilitados; corners caem para Sportmonks.
 function marketIsCorners(market: string): boolean {
   return /escante|corner/i.test(market || "");
@@ -353,14 +352,6 @@ async function resolveFixtureForSettlement(
         };
         fonte = "sportmonks";
       }
-    } catch (_) { /* ignore */ }
-  }
-
-  // 3) The Odds API fallback final
-  if (!fx) {
-    try {
-      const oa = await buscarPorOddsAPI(home, away);
-      if (oa) { fx = oa; fonte = "the-odds-api"; }
     } catch (_) { /* ignore */ }
   }
 
@@ -445,7 +436,7 @@ serve(async (req) => {
           resulted_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           fonte_liquidacao: "nao_encontrado",
-          void_reason: "Jogo não encontrado em Futodds, Sportmonks ou The Odds API",
+          void_reason: "Jogo não encontrado em Futodds ou Sportmonks",
         }).eq("id", s.id);
         results.push({ id: s.id, status: "void_not_found", match: `${home} x ${away}` });
         continue;
