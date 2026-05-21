@@ -331,6 +331,12 @@ export default function OfertaEspecial() {
           </p>
         </div>
       </motion.div>
+
+      {/* Educativo + Comunicado importante (fora do container claro, fundo escuro próprio) */}
+      <div className="mt-12 -mx-4">
+        <HouseEdgeEducation />
+        <ComunicadoImportante />
+      </div>
     </div>
   );
 }
