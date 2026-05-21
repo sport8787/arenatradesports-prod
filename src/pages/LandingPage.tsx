@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import logoOraculo from '@/assets/logo_oraculo_mycroft_nobg.png';
 import WhatsAppSupportButton from '@/components/WhatsAppSupportButton';
+import AgeDisclaimerBanner from '@/components/landing/AgeDisclaimerBanner';
 const WhatIsOracleSection = lazy(() => import('@/components/landing/WhatIsOracleSection'));
 const LiveStatsCounter = lazy(() => import('@/components/landing/LiveStatsCounter'));
 const SocialProofBetsSection = lazy(() => import('@/components/landing/SocialProofBetsSection'));
