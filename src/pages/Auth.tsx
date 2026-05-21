@@ -57,7 +57,7 @@ const Auth = () => {
       setShowNicknameSetup(true);
       return;
     }
-    navigate('/menu', { replace: true });
+    navigate('/lobby', { replace: true });
   }, [isAuthenticated, loading, profile, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
