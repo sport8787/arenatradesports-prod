@@ -10,6 +10,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { applyApprovalBlocks, loadGateConfig } from "../_shared/punterApprovalBlocks.ts";
+import { getUpcomingFixturesSM } from "../_shared/sportmonks-af-adapter.ts";
+import { fetchSportmonksPrematchOdds, listPrematchMarkets, normalizePrematchMarketLabel } from "../_shared/sportmonksPrematchOdds.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,7 +21,6 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const ODDS_KEY = Deno.env.get("THE_ODDS_API_KEY") || "";
 const GROQ_KEY = Deno.env.get("GROQ_API_KEY") || "";
 const SM_TOKEN = Deno.env.get("SPORTMONKS_API_KEY") || "";
 const SM_BASE = "https://api.sportmonks.com/v3";
@@ -213,18 +214,10 @@ function parseJsonRobust(raw: string): any | null {
 // Build prompt
 // ──────────────────────────────────────────────
 function buildPrompt(game: any, home: TeamSummary, away: TeamSummary): { sys: string; user: string } {
-  const oddsBlock = (game.bookmakers || []).slice(0, 3).map((b: any) => {
-    const h2h = b.markets?.find((m: any) => m.key === "h2h");
-    const tot = b.markets?.find((m: any) => m.key === "totals");
-    const lines: string[] = [`${b.title}:`];
-    if (h2h) {
-      for (const o of h2h.outcomes || []) lines.push(`  ${o.name}: ${o.price}`);
-    }
-    if (tot) {
-      for (const o of tot.outcomes || []) lines.push(`  ${o.name} ${o.point}: ${o.price}`);
-    }
-    return lines.join("\n");
-  }).join("\n\n");
+  const prematchMarkets = Array.isArray(game.prematch_markets) ? game.prematch_markets : [];
+  const oddsBlock = prematchMarkets.length > 0
+    ? prematchMarkets.map((entry: any) => `  ${entry.market}: ${entry.odd}`).join("\n")
+    : "Sem odds disponíveis";
 
   const sys = `Você é Mycroft Punter — analista probabilístico DISCIPLINADO. Sistema de 3 blocos:
 
@@ -255,7 +248,7 @@ ${away.name}: ${away.recent_form} | ${away.played} jogos | ${away.wins}V ${away.
   Over 2.5: ${away.over25_pct}% | Over 1.5: ${away.over15_pct}% | BTTS: ${away.btts_pct}%
 
 ═══ ODDS DE MERCADO ═══
-${oddsBlock || "Sem odds disponíveis"}
+${oddsBlock}
 
 ═══ INSTRUÇÕES ═══
 1. Calcule prob estimada via stats (Poisson + médias). Edge = (prob × odd) − 1.
@@ -446,30 +439,9 @@ function calcScoreBTTS(h: HtBttsSummary, a: HtBttsSummary, h2h: { btts_rate: num
 // Extrai odd Over 0.5 HT (totals 0.5 first half) e BTTS Yes do payload The Odds API.
 // Fallback: usa "totals" 0.5 (FT) — improvável de existir, mas tenta.
 function extractHtBttsOdds(game: any): { oddOver05HT: number | null; oddBtts: number | null; bm: string } {
-  let oddOver05HT: number | null = null;
-  let oddBtts: number | null = null;
-  let bm = "?";
-  for (const b of (game.bookmakers || [])) {
-    for (const m of (b.markets || [])) {
-      const key = String(m.key || "").toLowerCase();
-      // Over 0.5 HT — chaves comuns: totals_h1, alternate_totals_h1
-      if (oddOver05HT === null && (key === "totals_h1" || key === "alternate_totals_h1")) {
-        const o = (m.outcomes || []).find((x: any) =>
-          String(x.name).toLowerCase() === "over" && Number(x.point) === 0.5
-        );
-        if (o?.price) { oddOver05HT = Number(o.price); bm = b.title || bm; }
-      }
-      // BTTS — chave "btts" (sim/yes)
-      if (oddBtts === null && (key === "btts" || key === "both_teams_to_score")) {
-        const o = (m.outcomes || []).find((x: any) =>
-          ["yes", "sim"].includes(String(x.name).toLowerCase())
-        );
-        if (o?.price) { oddBtts = Number(o.price); bm = b.title || bm; }
-      }
-    }
-    if (oddOver05HT && oddBtts) break;
-  }
-  return { oddOver05HT, oddBtts, bm };
+  const prematchOdds = game.prematch_odds || {};
+  const oddBtts = prematchOdds['BTTS Sim'] ?? null;
+  return { oddOver05HT: null, oddBtts, bm: 'sportmonks-prematch' };
 }
 
 async function persistHtBttsSignal(
@@ -564,7 +536,6 @@ serve(async (req) => {
   const sb = createClient(SUPABASE_URL, SERVICE_KEY);
 
   try {
-    if (!ODDS_KEY) throw new Error("THE_ODDS_API_KEY missing");
     if (!SM_TOKEN) throw new Error("SPORTMONKS_API_KEY missing");
     if (!GROQ_KEY) throw new Error("GROQ_API_KEY missing");
 
@@ -585,36 +556,45 @@ serve(async (req) => {
     ];
     const hours_ahead = body.hours_ahead || 72;
 
-    // 1) Coleta jogos
+    // 1) Coleta jogos via Sportmonks + odds pré-jogo da própria Sportmonks
     const now = Date.now();
     const horizon = now + hours_ahead * 3_600_000;
+    const leagueIdToKey: Record<number, string> = {
+      71: 'soccer_brazil_campeonato',
+      72: 'soccer_brazil_serie_b',
+      13: 'soccer_conmebol_copa_libertadores',
+      11: 'soccer_conmebol_copa_sudamericana',
+      2: 'soccer_uefa_champs_league',
+      3: 'soccer_uefa_europa_league',
+      39: 'soccer_epl',
+      140: 'soccer_spain_la_liga',
+      135: 'soccer_italy_serie_a',
+      78: 'soccer_germany_bundesliga',
+      61: 'soccer_france_ligue_one',
+      128: 'soccer_argentina_primera_division',
+    };
+    const selectedLeagueIds = Object.entries(leagueIdToKey)
+      .filter(([, key]) => sports.includes(key))
+      .map(([id]) => Number(id));
+    const fixturesRaw = await getUpcomingFixturesSM(selectedLeagueIds, hours_ahead);
     const games: any[] = [];
-    for (const league of sports) {
-      let arr: any[] = [];
-      // Try with all markets first; fallback to h2h+totals if 422
-      const tryFetch = async (markets: string) => {
-        const r = await fetch(
-          `https://api.the-odds-api.com/v4/sports/${league}/odds?apiKey=${ODDS_KEY}&regions=eu,uk&markets=${markets}&oddsFormat=decimal`,
-        );
-        return r;
-      };
-      try {
-        let r = await tryFetch("h2h,totals,btts,totals_h1");
-        if (r.status === 422) {
-          console.warn(`[sm-punter] ${league} 422 com markets extras, tentando h2h,totals`);
-          r = await tryFetch("h2h,totals");
-        }
-        if (!r.ok) { console.warn(`[sm-punter] odds ${league} HTTP ${r.status}`); continue; }
-        arr = await r.json();
-      } catch (e) { console.warn(`[sm-punter] err ${league}`, (e as Error).message); continue; }
-
-      let added = 0; const total = arr.length;
-      for (const g of arr) {
-        const t = new Date(g.commence_time).getTime();
-        if (t < now || t > horizon) continue;
-        games.push(g); added++;
-      }
-      console.log(`[sm-punter] ${league}: ${added}/${total} dentro da janela`);
+    for (const fixture of fixturesRaw) {
+      const t = new Date(fixture.fixture.date).getTime();
+      if (t < now || t > horizon) continue;
+      const prematchOdds = await fetchSportmonksPrematchOdds(fixture.fixture.id);
+      const prematchMarkets = listPrematchMarkets(prematchOdds);
+      if (prematchMarkets.length === 0) continue;
+      games.push({
+        id: String(fixture.fixture.id),
+        fixture_id: fixture.fixture.id,
+        commence_time: fixture.fixture.date,
+        home_team: fixture.teams.home.name,
+        away_team: fixture.teams.away.name,
+        sport_title: fixture.league.name,
+        league_id: fixture.league.id,
+        prematch_odds: prematchOdds,
+        prematch_markets: prematchMarkets,
+      });
       if (games.length >= MAX_GAMES) break;
     }
 
@@ -669,6 +649,25 @@ serve(async (req) => {
         const txt = await callGemini(sys, user);
         const an = parseJsonRobust(txt);
         if (!an) { errors++; continue; }
+
+        const normalizedMarket = normalizePrematchMarketLabel(String(an.market || ''));
+        const derivedOdd = normalizedMarket ? g.prematch_odds?.[normalizedMarket] : null;
+        if (derivedOdd && Number.isFinite(Number(derivedOdd))) {
+          an.odd = Number(derivedOdd);
+          an.bookmaker = an.bookmaker || 'sportmonks-prematch';
+          const estProb = Number(an.estimated_probability) || 0;
+          if (estProb > 0) {
+            an.fair_odd = Number((100 / estProb).toFixed(2));
+            an.implied_probability = Number((100 / Number(derivedOdd)).toFixed(1));
+            an.value_percentage = Number((((Number(derivedOdd) * estProb) / 100 - 1) * 100).toFixed(1));
+          }
+        }
+
+        if (!an.odd || Number(an.odd) <= 1.01) {
+          console.log(`[sm-punter] sem odd real para ${g.home_team} vs ${g.away_team} mercado=${an.market}`);
+          vetoed++;
+          continue;
+        }
 
         // ─── BLOCK GATE (3 blocos A/B/C + 4 vetos determinísticos) ───
         const gate = applyApprovalBlocks({

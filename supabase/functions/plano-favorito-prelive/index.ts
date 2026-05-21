@@ -12,6 +12,7 @@ import {
   getRecentFixturesSM,
   getTeamStatsSM,
 } from '../_shared/sportmonks-af-adapter.ts'
+import { fetchSportmonksPrematchOdds } from '../_shared/sportmonksPrematchOdds.ts'
 import {
   getAllowedLeagueIds,
   getOddsSportKeyMap,
@@ -290,7 +291,22 @@ async function getOdds(
     }
   }
 
-  // Fallback: API-Football odds endpoint
+  const smOdds = await fetchSportmonksPrematchOdds(fixtureId)
+  const homeOdd = smOdds['Casa'] ?? null
+  const awayOdd = smOdds['Fora'] ?? null
+  if (homeOdd && awayOdd) {
+    const isFavHome = homeOdd <= awayOdd
+    return {
+      over15: smOdds['Over 1.5'] ?? null,
+      over25: smOdds['Over 2.5'] ?? null,
+      favOdd: isFavHome ? homeOdd : awayOdd,
+      undOdd: isFavHome ? awayOdd : homeOdd,
+      homeOdd,
+      awayOdd,
+    }
+  }
+
+  // Fallback final legado
   return await getOddsFromAF(fixtureId)
 }
 

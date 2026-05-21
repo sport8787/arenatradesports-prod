@@ -68,8 +68,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SVC_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-// [Fase 2 migração] API-Football removida. Liquidação usa Futodds → Sportmonks → The Odds API.
-const ODDS_API_KEY = Deno.env.get("THE_ODDS_API_KEY") || "";
+// [Fase 2 migração] API-Football removida. Liquidação usa Futodds → Sportmonks.
 
 type Resultado = "GREEN" | "RED" | "VOID" | "MEIO_GREEN" | "MEIO_RED" | "REEMBOLSO";
 interface FixtureResult {
@@ -211,33 +210,6 @@ async function fetchCorners(fixtureId: number): Promise<{ home: number; away: nu
   return { home: h, away: a };
 }
 
-const ODDS_SPORTS = [
-  "soccer_epl","soccer_spain_la_liga","soccer_italy_serie_a","soccer_germany_bundesliga","soccer_france_ligue_one",
-  "soccer_brazil_campeonato","soccer_netherlands_eredivisie","soccer_portugal_primeira_liga","soccer_germany_bundesliga2",
-  "soccer_italy_serie_b","soccer_france_ligue_two","soccer_turkey_super_league","soccer_belgium_first_div",
-  "soccer_scotland_premiership","soccer_greece_super_league","soccer_saudi_pro_league","soccer_argentina_primera_division",
-  "soccer_mexico_ligamx","soccer_usa_mls","soccer_uefa_champs_league","soccer_uefa_europa_league",
-];
-async function buscarPorOddsAPI(home: string, away: string): Promise<FixtureResult | null> {
-  if (!ODDS_API_KEY) return null;
-  for (const sport of ODDS_SPORTS) {
-    try {
-      const r = await fetch(`https://api.the-odds-api.com/v4/sports/${sport}/scores/?apiKey=${ODDS_API_KEY}&daysFrom=3`);
-      if (!r.ok) continue;
-      const data = await r.json() as any[];
-      for (const g of data) {
-        if (!g.completed || !g.scores) continue;
-        if (!teamsMatch(g.home_team, home) || !teamsMatch(g.away_team, away)) continue;
-        const hs = g.scores.find((s: any) => s.name === g.home_team);
-        const as = g.scores.find((s: any) => s.name === g.away_team);
-        if (!hs || !as) continue;
-        return { homeTeam: g.home_team, awayTeam: g.away_team, goalsHome: parseInt(hs.score), goalsAway: parseInt(as.score), status: "FT" };
-      }
-    } catch { continue; }
-  }
-  return null;
-}
-
 // Cache Sportmonks por data — 1 fetch /fixtures/date/{ymd} por dia único.
 // findFixtureByTeamsAndDate original faz isso internamente sem cache,
 // então usamos um wrapper que serializa as chamadas por chave home|away|date
@@ -349,7 +321,6 @@ function dbResult(res: Resultado): "green" | "red" | "void" {
 // Ordem [Fase 2 migração]:
 //  1) Futodds /matches-ended (cobre 70-80% dos casos com gols/escanteios)
 //  2) Sportmonks (reforço com corners + status FT)
-//  3) The Odds API (fallback final)
 // Mercados de jogador permanecem desabilitados; corners caem para Sportmonks.
 function marketIsCorners(market: string): boolean {
   return /escante|corner/i.test(market || "");
@@ -381,14 +352,6 @@ async function resolveFixtureForSettlement(
         };
         fonte = "sportmonks";
       }
-    } catch (_) { /* ignore */ }
-  }
-
-  // 3) The Odds API fallback final
-  if (!fx) {
-    try {
-      const oa = await buscarPorOddsAPI(home, away);
-      if (oa) { fx = oa; fonte = "the-odds-api"; }
     } catch (_) { /* ignore */ }
   }
 
@@ -473,7 +436,7 @@ serve(async (req) => {
           resulted_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           fonte_liquidacao: "nao_encontrado",
-          void_reason: "Jogo não encontrado em Futodds, Sportmonks ou The Odds API",
+          void_reason: "Jogo não encontrado em Futodds ou Sportmonks",
         }).eq("id", s.id);
         results.push({ id: s.id, status: "void_not_found", match: `${home} x ${away}` });
         continue;
