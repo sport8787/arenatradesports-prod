@@ -19,6 +19,7 @@ const StickyMobileCTA = lazy(() => import('@/components/landing/StickyMobileCTA'
 const FloatingWhatsApp = lazy(() => import('@/components/landing/FloatingWhatsApp'));
 const PromoSlotsCounter = lazy(() => import('@/components/landing/PromoSlotsCounter'));
 const SocialProofSection = lazy(() => import('@/components/landing/SocialProofSection'));
+const ProvaRealPrints = lazy(() => import('@/components/landing/ProvaRealPrints'));
 import { useAuth } from '@/hooks/useAuth';
 import { usePromoSlots } from '@/hooks/usePromoSlots';
 import { track } from '@/lib/analytics';
