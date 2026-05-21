@@ -639,18 +639,13 @@ export default function LandingPage() {
               Fechar ✕
             </button>
             <div className="rounded-xl overflow-hidden shadow-2xl border border-white/10 bg-black flex items-center justify-center">
-              {shouldLoadVturb && !vturbFailed ? (
-                <vturb-smartplayer
-                  key={`modal-${VTURB_PLAYER_ID}-${vturbReloadKey}`}
-                  id={`vid-${VTURB_PLAYER_ID}`}
-                  style={{ display: 'block', margin: '0 auto', width: '100%', maxWidth: '400px' }}
-                />
-              ) : (
-                <div className="flex aspect-video items-center justify-center px-6 py-10 text-center text-sm text-gray-400">
-                  Carregando demonstração…
-                </div>
-              )}
+              <img
+                src={new URL('@/assets/prints-reais/resultado-punter-7d.png', import.meta.url).href}
+                alt="Resultado real Punter 7 dias"
+                className="w-full h-auto"
+              />
             </div>
+
             <div className="mt-4 text-center">
               <button onClick={ctaHandler('demo_modal', 'comecar_agora_modal')} className="px-8 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/25">
                 COMEÇAR AGORA — 7 DIAS GRÁTIS
