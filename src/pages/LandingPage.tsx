@@ -36,9 +36,8 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const { isAuthenticated, loading } = useAuth();
   const { decrementSlot } = usePromoSlots();
-  const [shouldLoadVturb, setShouldLoadVturb] = useState(false);
-  const [vturbFailed, setVturbFailed] = useState(false);
   // Headline fixa (variante B) — A/B test pausado a pedido
+
   const [h1Variant] = useState(() => { getH1Variant(); return H1_VARIANTS.B; });
 
   // Track landing view (com UTMs anexadas) — uma vez por sessão
