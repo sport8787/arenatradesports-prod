@@ -535,7 +535,6 @@ serve(async (req) => {
   const sb = createClient(SUPABASE_URL, SERVICE_KEY);
 
   try {
-    if (!ODDS_KEY) throw new Error("THE_ODDS_API_KEY missing");
     if (!SM_TOKEN) throw new Error("SPORTMONKS_API_KEY missing");
     if (!GROQ_KEY) throw new Error("GROQ_API_KEY missing");
 
@@ -556,36 +555,45 @@ serve(async (req) => {
     ];
     const hours_ahead = body.hours_ahead || 72;
 
-    // 1) Coleta jogos
+    // 1) Coleta jogos via Sportmonks + odds pré-jogo da própria Sportmonks
     const now = Date.now();
     const horizon = now + hours_ahead * 3_600_000;
+    const leagueIdToKey: Record<number, string> = {
+      71: 'soccer_brazil_campeonato',
+      72: 'soccer_brazil_serie_b',
+      13: 'soccer_conmebol_copa_libertadores',
+      11: 'soccer_conmebol_copa_sudamericana',
+      2: 'soccer_uefa_champs_league',
+      3: 'soccer_uefa_europa_league',
+      39: 'soccer_epl',
+      140: 'soccer_spain_la_liga',
+      135: 'soccer_italy_serie_a',
+      78: 'soccer_germany_bundesliga',
+      61: 'soccer_france_ligue_one',
+      128: 'soccer_argentina_primera_division',
+    };
+    const selectedLeagueIds = Object.entries(leagueIdToKey)
+      .filter(([, key]) => sports.includes(key))
+      .map(([id]) => Number(id));
+    const fixturesRaw = await getUpcomingFixturesSM(selectedLeagueIds, hours_ahead);
     const games: any[] = [];
-    for (const league of sports) {
-      let arr: any[] = [];
-      // Try with all markets first; fallback to h2h+totals if 422
-      const tryFetch = async (markets: string) => {
-        const r = await fetch(
-          `https://api.the-odds-api.com/v4/sports/${league}/odds?apiKey=${ODDS_KEY}&regions=eu,uk&markets=${markets}&oddsFormat=decimal`,
-        );
-        return r;
-      };
-      try {
-        let r = await tryFetch("h2h,totals,btts,totals_h1");
-        if (r.status === 422) {
-          console.warn(`[sm-punter] ${league} 422 com markets extras, tentando h2h,totals`);
-          r = await tryFetch("h2h,totals");
-        }
-        if (!r.ok) { console.warn(`[sm-punter] odds ${league} HTTP ${r.status}`); continue; }
-        arr = await r.json();
-      } catch (e) { console.warn(`[sm-punter] err ${league}`, (e as Error).message); continue; }
-
-      let added = 0; const total = arr.length;
-      for (const g of arr) {
-        const t = new Date(g.commence_time).getTime();
-        if (t < now || t > horizon) continue;
-        games.push(g); added++;
-      }
-      console.log(`[sm-punter] ${league}: ${added}/${total} dentro da janela`);
+    for (const fixture of fixturesRaw) {
+      const t = new Date(fixture.fixture.date).getTime();
+      if (t < now || t > horizon) continue;
+      const prematchOdds = await fetchSportmonksPrematchOdds(fixture.fixture.id);
+      const prematchMarkets = listPrematchMarkets(prematchOdds);
+      if (prematchMarkets.length === 0) continue;
+      games.push({
+        id: String(fixture.fixture.id),
+        fixture_id: fixture.fixture.id,
+        commence_time: fixture.fixture.date,
+        home_team: fixture.teams.home.name,
+        away_team: fixture.teams.away.name,
+        sport_title: fixture.league.name,
+        league_id: fixture.league.id,
+        prematch_odds: prematchOdds,
+        prematch_markets: prematchMarkets,
+      });
       if (games.length >= MAX_GAMES) break;
     }
 
