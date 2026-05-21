@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import GoldButton from '@/components/game/GoldButton';
 import { track } from '@/lib/analytics';
+import HouseEdgeEducation, { ComunicadoImportante } from '@/components/landing/HouseEdgeEducation';
 
 const WHATSAPP_NUMBER = '5534991290648';
 const waLink = (text: string) =>
@@ -330,6 +331,12 @@ export default function OfertaEspecial() {
           </p>
         </div>
       </motion.div>
+
+      {/* Educativo + Comunicado importante (fora do container claro, fundo escuro próprio) */}
+      <div className="mt-12 -mx-4">
+        <HouseEdgeEducation />
+        <ComunicadoImportante />
+      </div>
     </div>
   );
 }

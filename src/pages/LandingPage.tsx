@@ -21,6 +21,8 @@ const PromoSlotsCounter = lazy(() => import('@/components/landing/PromoSlotsCoun
 const SocialProofSection = lazy(() => import('@/components/landing/SocialProofSection'));
 const ProvaRealPrints = lazy(() => import('@/components/landing/ProvaRealPrints'));
 const BonusInclusos = lazy(() => import('@/components/landing/BonusInclusos'));
+const HouseEdgeEducation = lazy(() => import('@/components/landing/HouseEdgeEducation'));
+const ComunicadoImportante = lazy(() => import('@/components/landing/HouseEdgeEducation').then(m => ({ default: m.ComunicadoImportante })));
 import { useAuth } from '@/hooks/useAuth';
 import { usePromoSlots } from '@/hooks/usePromoSlots';
 import { track } from '@/lib/analytics';
@@ -566,6 +568,11 @@ export default function LandingPage() {
         <ObjectionsSection />
       </Suspense>
 
+      {/* Educativo: house edge + amador vs profissional + sorte vs estratégia */}
+      <Suspense fallback={null}>
+        <HouseEdgeEducation />
+      </Suspense>
+
       {/* FAQ */}
       <section className="py-20 bg-[#0f1729]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -610,6 +617,11 @@ export default function LandingPage() {
 
       </>
       )}
+
+      {/* Comunicado importante (educativo) */}
+      <Suspense fallback={null}>
+        <ComunicadoImportante />
+      </Suspense>
 
       {/* Footer */}
       <footer className="bg-[#0a0f1e] border-t border-gray-800 py-12">
