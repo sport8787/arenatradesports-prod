@@ -649,6 +649,25 @@ serve(async (req) => {
         const an = parseJsonRobust(txt);
         if (!an) { errors++; continue; }
 
+        const normalizedMarket = normalizePrematchMarketLabel(String(an.market || ''));
+        const derivedOdd = normalizedMarket ? g.prematch_odds?.[normalizedMarket] : null;
+        if (derivedOdd && Number.isFinite(Number(derivedOdd))) {
+          an.odd = Number(derivedOdd);
+          an.bookmaker = an.bookmaker || 'sportmonks-prematch';
+          const estProb = Number(an.estimated_probability) || 0;
+          if (estProb > 0) {
+            an.fair_odd = Number((100 / estProb).toFixed(2));
+            an.implied_probability = Number((100 / Number(derivedOdd)).toFixed(1));
+            an.value_percentage = Number((((Number(derivedOdd) * estProb) / 100 - 1) * 100).toFixed(1));
+          }
+        }
+
+        if (!an.odd || Number(an.odd) <= 1.01) {
+          console.log(`[sm-punter] sem odd real para ${g.home_team} vs ${g.away_team} mercado=${an.market}`);
+          vetoed++;
+          continue;
+        }
+
         // ─── BLOCK GATE (3 blocos A/B/C + 4 vetos determinísticos) ───
         const gate = applyApprovalBlocks({
           verdict: String(an.verdict || "VETADO"),
