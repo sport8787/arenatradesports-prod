@@ -96,7 +96,7 @@ const VERDICT_META: Record<string, { icon: string; label: string; tone: string; 
   opportunity: { icon: '✅', label: 'OPORTUNIDADE ATIVA', tone: 'border-success/40 bg-success/10 text-success', isActive: true },
   LABAREDA: { icon: '🔥', label: 'APROVADO LABAREDAS — ALTO RISCO', tone: 'border-orange-500/40 bg-orange-500/10 text-orange-400', isActive: true },
   CUIDADO: { icon: '🟡', label: 'NÃO ENTRE — OBSERVANDO', tone: 'border-yellow-500/40 bg-yellow-500/10 text-yellow-400' },
-  AGUARDAR: { icon: '⏳', label: 'AINDA SEM SINAL', tone: 'border-border bg-muted/20 text-muted-foreground' },
+  AGUARDAR: { icon: '🔎', label: 'MYCROFT ANALISANDO O JOGO', tone: 'border-primary/40 bg-primary/10 text-primary' },
   analyzing: { icon: '🧠', label: 'ANALISANDO', tone: 'border-border bg-muted/20 text-muted-foreground' },
   JOGO_MORTO: { icon: '🛑', label: 'JOGO MORTO', tone: 'border-destructive/40 bg-destructive/10 text-destructive', isCancel: true },
   VETADO: { icon: '⛔', label: 'ENTRADA CANCELADA', tone: 'border-destructive/40 bg-destructive/10 text-destructive', isCancel: true },
