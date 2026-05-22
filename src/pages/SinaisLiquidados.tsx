@@ -63,8 +63,8 @@ const isSettledResult = (result: Signal["result"]): result is "GREEN" | "RED" =>
   result === "GREEN" || result === "RED";
 
 function normalizePeriod(value: string | null | undefined): Period {
-  if (value === "yesterday" || value === "7d" || value === "14d" || value === "30d") return value;
-  return "today";
+  if (value === "today" || value === "yesterday" || value === "7d" || value === "14d" || value === "30d") return value;
+  return "30d";
 }
 
 function normalizeViewFilter(value: string | null | undefined): ViewFilter {
