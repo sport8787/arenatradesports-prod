@@ -1,4 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { recordOddsApiUsage } from "../_shared/oddsApiQuota.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,13 +19,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    // The Odds API returns usage info in response headers of any call
     const res = await fetch(
       `https://api.the-odds-api.com/v4/sports/?apiKey=${oddsApiKey}`
     );
 
     const remainingRequests = res.headers.get('x-requests-remaining');
     const usedRequests = res.headers.get('x-requests-used');
+
+    // Persiste no DB + dispara alerta Telegram se < 500.
+    await recordOddsApiUsage(res.headers);
 
     return new Response(JSON.stringify({
       requests_remaining: remainingRequests,
