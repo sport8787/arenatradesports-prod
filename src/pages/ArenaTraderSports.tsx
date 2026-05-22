@@ -752,6 +752,11 @@ export default function ArenaTraderSports() {
             <ShadowAiApprovedTab />
           )}
 
+          {statusFilter === 'det_vs_ia' && isAdmin && (
+            <ComparativoDetVsIaTab />
+          )}
+
+
           {/* Simulation Panel - shown when "Simulado" tab is active */}
           {statusFilter === 'simulado' && (
             <SimulationPanel onFetched={refetch} />
