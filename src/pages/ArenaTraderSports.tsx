@@ -672,6 +672,12 @@ export default function ArenaTraderSports() {
                   Aprovados (IA)
                 </TabsTrigger>
               )}
+              {isAdmin && (
+                <TabsTrigger value="det_vs_ia" className="gap-1.5 border border-emerald-500/40 text-emerald-600">
+                  <FlaskConical className="w-3 h-3" />
+                  Det × IA
+                </TabsTrigger>
+              )}
             </TabsList>
           </Tabs>
 
