@@ -1,6 +1,8 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { logEdgeError } from "../_shared/logEdgeError.ts";
 import { findFixtureByTeamsAndDate } from "../_shared/sportmonks.ts";
+import { getOddsSportKeyMap } from "../_shared/leaguesRegistry.ts";
+import { canCallOddsApi, recordOddsApiUsage } from "../_shared/oddsApiQuota.ts";
 
 
 const corsHeaders = {
