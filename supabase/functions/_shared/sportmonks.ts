@@ -341,6 +341,8 @@ export interface SmSettlementFixture {
   status: string;          // "FT" | "HT" | etc (mapeado)
   cornersHome?: number;
   cornersAway?: number;
+  htHome?: number | null;
+  htAway?: number | null;
 }
 
 function smNormalize(n: string): string {
