@@ -83,7 +83,7 @@ function readPersisted(): { period: Period; view: ViewFilter } {
       };
     }
   } catch {}
-  return { period: "today", view: "all" };
+  return { period: "30d", view: "all" };
 }
 
 export default function SinaisLiquidados() {
