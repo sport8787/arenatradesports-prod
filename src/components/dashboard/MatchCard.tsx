@@ -120,7 +120,7 @@ function getStatusConfig(status: Match['mycroftStatus']) {
     case 'AGUARDAR':
       return {
         bg: 'bg-[#713F12]', border: 'border-[#F59E0B]', text: 'text-[#FBBF24]',
-        label: '⏳ AINDA SEM SINAL', animate: '', icon: <Clock className="w-4 h-4" />,
+        label: '🔎 MYCROFT ANALISANDO O JOGO', animate: 'animate-pulse', icon: <Clock className="w-4 h-4" />,
       };
     case 'analyzing':
       return {
