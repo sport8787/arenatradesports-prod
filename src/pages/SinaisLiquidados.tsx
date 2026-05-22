@@ -57,6 +57,8 @@ const PERIOD_LABELS: Record<Period, string> = {
 
 const STORAGE_KEY = "live_sinais_filters_v1";
 
+type Source = "deterministico" | "ia";
+
 const isSettledResult = (result: Signal["result"]): result is "GREEN" | "RED" =>
   result === "GREEN" || result === "RED";
 
@@ -93,6 +95,9 @@ export default function SinaisLiquidados() {
   const [viewFilter, setViewFilter] = useState<ViewFilter>(
     normalizeViewFilter(searchParams.get("view") || searchParams.get("result") || persisted.view),
   );
+  const [source, setSource] = useState<Source>(
+    (searchParams.get("source") === "ia" ? "ia" : "deterministico") as Source,
+  );
   const [signals, setSignals] = useState<Signal[]>([]);
   const [summary, setSummary] = useState<Summary>({
     total: 0,
@@ -114,16 +119,18 @@ export default function SinaisLiquidados() {
     const next = new URLSearchParams(searchParams);
     next.set("period", period);
     next.set("view", viewFilter);
+    next.set("source", source);
     next.delete("result");
     setSearchParams(next, { replace: true });
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ period, view: viewFilter }));
-  }, [period, viewFilter]);
+  }, [period, viewFilter, source]);
 
   // Load data
   const loadData = useCallback(async () => {
     let cancelled = false;
     setLoading(true);
-    const { data, error } = await supabase.rpc("get_live_sinais_summary", { _period: period });
+    const rpcName = source === "ia" ? "get_live_sinais_ia_summary" : "get_live_sinais_summary";
+    const { data, error } = await supabase.rpc(rpcName as any, { _period: period });
     if (cancelled) return;
     if (error) {
       console.error("get_live_sinais_summary error:", error);
@@ -160,7 +167,7 @@ export default function SinaisLiquidados() {
     return () => {
       cancelled = true;
     };
-  }, [period]);
+  }, [period, source]);
 
   useEffect(() => {
     loadData();
@@ -227,6 +234,17 @@ export default function SinaisLiquidados() {
             Rodar liquidação manual
           </Button>
         </div>
+
+        <Tabs value={source} onValueChange={(v) => setSource(v as Source)}>
+          <TabsList className="bg-secondary/50 grid grid-cols-2 w-full md:w-auto md:inline-flex">
+            <TabsTrigger value="deterministico" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              🧮 Determinístico
+            </TabsTrigger>
+            <TabsTrigger value="ia" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
+              🤖 IA (Gemini)
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
 
         <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)}>
           <TabsList className="bg-secondary/50 flex flex-wrap h-auto">
