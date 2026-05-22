@@ -7536,6 +7536,21 @@ export type Database = {
         }
         Relationships: []
       }
+      v_comparativo_ao_vivo: {
+        Row: {
+          aprovados: number | null
+          fonte: string | null
+          green: number | null
+          hit_rate_pct: number | null
+          odd_media: number | null
+          pendentes: number | null
+          pl_total: number | null
+          red: number | null
+          roi_pct: number | null
+          stake_total: number | null
+        }
+        Relationships: []
+      }
       v_email_sequencia_status: {
         Row: {
           assinante: boolean | null
