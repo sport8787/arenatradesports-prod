@@ -57,6 +57,8 @@ const PERIOD_LABELS: Record<Period, string> = {
 
 const STORAGE_KEY = "live_sinais_filters_v1";
 
+type Source = "deterministico" | "ia";
+
 const isSettledResult = (result: Signal["result"]): result is "GREEN" | "RED" =>
   result === "GREEN" || result === "RED";
 
