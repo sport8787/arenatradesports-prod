@@ -167,7 +167,7 @@ export default function SinaisLiquidados() {
     return () => {
       cancelled = true;
     };
-  }, [period]);
+  }, [period, source]);
 
   useEffect(() => {
     loadData();
