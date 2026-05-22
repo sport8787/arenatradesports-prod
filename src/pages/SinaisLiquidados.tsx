@@ -119,16 +119,18 @@ export default function SinaisLiquidados() {
     const next = new URLSearchParams(searchParams);
     next.set("period", period);
     next.set("view", viewFilter);
+    next.set("source", source);
     next.delete("result");
     setSearchParams(next, { replace: true });
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ period, view: viewFilter }));
-  }, [period, viewFilter]);
+  }, [period, viewFilter, source]);
 
   // Load data
   const loadData = useCallback(async () => {
     let cancelled = false;
     setLoading(true);
-    const { data, error } = await supabase.rpc("get_live_sinais_summary", { _period: period });
+    const rpcName = source === "ia" ? "get_live_sinais_ia_summary" : "get_live_sinais_summary";
+    const { data, error } = await supabase.rpc(rpcName as any, { _period: period });
     if (cancelled) return;
     if (error) {
       console.error("get_live_sinais_summary error:", error);
