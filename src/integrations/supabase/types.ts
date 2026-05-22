@@ -7816,6 +7816,7 @@ export type Database = {
         Args: { p_recording_id: string }
         Returns: string
       }
+      get_live_sinais_ia_summary: { Args: { _period?: string }; Returns: Json }
       get_live_sinais_summary: { Args: { _period?: string }; Returns: Json }
       get_performance_punter: {
         Args: { p_days?: number }
