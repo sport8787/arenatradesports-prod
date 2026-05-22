@@ -95,6 +95,9 @@ export default function SinaisLiquidados() {
   const [viewFilter, setViewFilter] = useState<ViewFilter>(
     normalizeViewFilter(searchParams.get("view") || searchParams.get("result") || persisted.view),
   );
+  const [source, setSource] = useState<Source>(
+    (searchParams.get("source") === "ia" ? "ia" : "deterministico") as Source,
+  );
   const [signals, setSignals] = useState<Signal[]>([]);
   const [summary, setSummary] = useState<Summary>({
     total: 0,
