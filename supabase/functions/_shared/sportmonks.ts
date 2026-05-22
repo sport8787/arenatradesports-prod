@@ -341,6 +341,8 @@ export interface SmSettlementFixture {
   status: string;          // "FT" | "HT" | etc (mapeado)
   cornersHome?: number;
   cornersAway?: number;
+  htHome?: number | null;
+  htAway?: number | null;
 }
 
 function smNormalize(n: string): string {
@@ -401,6 +403,15 @@ function smParseFixture(f: any): SmSettlementFixture | null {
   const stateName = f.state?.short_name || f.state?.name || "";
   const status = mapStateToShort(stateName).short;
 
+  // HT score (description "1ST_HALF")
+  let htH: number | null = null, htA: number | null = null;
+  for (const s of scores) {
+    const desc = String(s.description || "").toUpperCase();
+    if (desc !== "1ST_HALF") continue;
+    if (s.score?.participant === "home" && htH === null) htH = Number(s.score.goals);
+    if (s.score?.participant === "away" && htA === null) htA = Number(s.score.goals);
+  }
+
   // Corners (statistics inline)
   let ch = 0, ca = 0, hasCorners = false;
   const stats = f.statistics || [];
@@ -421,6 +432,8 @@ function smParseFixture(f: any): SmSettlementFixture | null {
     status,
     cornersHome: hasCorners ? ch : undefined,
     cornersAway: hasCorners ? ca : undefined,
+    htHome: htH,
+    htAway: htA,
   };
 }
 
