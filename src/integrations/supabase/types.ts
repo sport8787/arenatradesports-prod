@@ -6035,6 +6035,30 @@ export type Database = {
         }
         Relationships: []
       }
+      the_odds_api_quota: {
+        Row: {
+          id: number
+          last_alert_at: string | null
+          remaining: number | null
+          updated_at: string
+          used: number | null
+        }
+        Insert: {
+          id?: number
+          last_alert_at?: string | null
+          remaining?: number | null
+          updated_at?: string
+          used?: number | null
+        }
+        Update: {
+          id?: number
+          last_alert_at?: string | null
+          remaining?: number | null
+          updated_at?: string
+          used?: number | null
+        }
+        Relationships: []
+      }
       trader_leagues: {
         Row: {
           country: string | null
