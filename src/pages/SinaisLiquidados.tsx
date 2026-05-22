@@ -235,6 +235,17 @@ export default function SinaisLiquidados() {
           </Button>
         </div>
 
+        <Tabs value={source} onValueChange={(v) => setSource(v as Source)}>
+          <TabsList className="bg-secondary/50 grid grid-cols-2 w-full md:w-auto md:inline-flex">
+            <TabsTrigger value="deterministico" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              🧮 Determinístico
+            </TabsTrigger>
+            <TabsTrigger value="ia" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
+              🤖 IA (Gemini)
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)}>
           <TabsList className="bg-secondary/50 flex flex-wrap h-auto">
             <TabsTrigger value="today">Hoje</TabsTrigger>
