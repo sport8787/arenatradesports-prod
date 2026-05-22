@@ -102,8 +102,8 @@ async function smFallback(home: string, away: string, isoDate: string): Promise<
     return {
       home: Number(sm.goalsHome),
       away: Number(sm.goalsAway),
-      ht_home: null,
-      ht_away: null,
+      ht_home: sm.htHome ?? null,
+      ht_away: sm.htAway ?? null,
       status: sm.status || "FT",
       source: "sportmonks",
     };
