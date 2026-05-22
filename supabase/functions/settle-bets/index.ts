@@ -285,47 +285,64 @@ Deno.serve(async (req) => {
 
     // Fallback to The Odds API if Sportmonks unavailable or returned nothing
     if (completedGames.length === 0 && oddsApiKey) {
-      console.log('[settle-bets] Falling back to The Odds API...');
+      // Quota guard global — pula direto se quota crítica.
+      const okQuota = await canCallOddsApi(200);
+      if (!okQuota) {
+        console.warn('[settle-bets] ⚠️ Quota The Odds API < 200 — pulando fallback');
+      } else {
+        console.log('[settle-bets] Falling back to The Odds API...');
 
-      const allLeagues = [
-        'soccer_brazil_campeonato', 'soccer_brazil_serie_b',
-        'soccer_epl', 'soccer_spain_la_liga', 'soccer_germany_bundesliga',
-        'soccer_italy_serie_a', 'soccer_france_ligue_one',
-        'soccer_uefa_champs_league', 'soccer_uefa_europa_league',
-        'soccer_uefa_europa_conference_league',
-        'soccer_conmebol_libertadores', 'soccer_south_america_copa_sudamericana',
-        'soccer_argentina_primera_division',
-      ];
-
-      for (const league of allLeagues) {
-        try {
-          const res = await fetch(
-            `https://api.the-odds-api.com/v4/sports/${league}/scores/?apiKey=${oddsApiKey}&daysFrom=3&dateFormat=iso`
-          );
-          if (res.ok) {
-            const data = await res.json();
-            for (const g of data) {
-              if (g.completed && g.scores) {
-                const homeScore = g.scores.find((s: any) => s.name === g.home_team)?.score;
-                const awayScore = g.scores.find((s: any) => s.name === g.away_team)?.score;
-                if (homeScore != null && awayScore != null) {
-                  completedGames.push({
-                    home_team: g.home_team,
-                    away_team: g.away_team,
-                    score_home: parseInt(homeScore),
-                    score_away: parseInt(awayScore),
-                    commence_time: g.commence_time,
-                    league: '',
-                  });
+        // Mapeia league_id de cada aposta pendente → 1 único sport_key.
+        // Em vez de varrer 13+ esportes, só consulta os realmente necessários.
+        const sportKeyMap = await getOddsSportKeyMap();
+        const neededKeys = new Set<string>();
+        for (const it of allItems) {
+          const lid = Number((it as any).league_id);
+          if (Number.isFinite(lid) && sportKeyMap[lid]) {
+            neededKeys.add(sportKeyMap[lid]);
+          }
+        }
+        if (neededKeys.size === 0) {
+          console.log('[settle-bets] Nenhum league_id mapeado — pulando fallback (0 chamadas).');
+        } else {
+          console.log(`[settle-bets] Odds API: ${neededKeys.size} sport_keys (de ${allItems.length} apostas)`);
+          for (const league of neededKeys) {
+            // re-check quota a cada iteração (caso outra rota consuma em paralelo)
+            if (!(await canCallOddsApi(200))) {
+              console.warn(`[settle-bets] ⚠️ Quota caiu < 200 mid-loop — abortando em ${league}`);
+              break;
+            }
+            try {
+              const res = await fetch(
+                `https://api.the-odds-api.com/v4/sports/${league}/scores/?apiKey=${oddsApiKey}&daysFrom=3&dateFormat=iso`
+              );
+              await recordOddsApiUsage(res.headers);
+              if (res.ok) {
+                const data = await res.json();
+                for (const g of data) {
+                  if (g.completed && g.scores) {
+                    const homeScore = g.scores.find((s: any) => s.name === g.home_team)?.score;
+                    const awayScore = g.scores.find((s: any) => s.name === g.away_team)?.score;
+                    if (homeScore != null && awayScore != null) {
+                      completedGames.push({
+                        home_team: g.home_team,
+                        away_team: g.away_team,
+                        score_home: parseInt(homeScore),
+                        score_away: parseInt(awayScore),
+                        commence_time: g.commence_time,
+                        league: '',
+                      });
+                    }
+                  }
                 }
               }
+            } catch (e) {
+              console.error(`Error fetching ${league}:`, e);
             }
           }
-        } catch (e) {
-          console.error(`Error fetching ${league}:`, e);
+          console.log(`[settle-bets] ${completedGames.length} completed games from Odds API (fallback)`);
         }
       }
-      console.log(`[settle-bets] ${completedGames.length} completed games from Odds API (fallback)`);
     }
 
     // 4. Settle eligible bets
