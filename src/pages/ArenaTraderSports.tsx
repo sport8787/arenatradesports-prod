@@ -154,7 +154,7 @@ export default function ArenaTraderSports() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(() => {
     if (typeof window === 'undefined') return 'all';
     const saved = window.localStorage.getItem('arenaTraderSports.statusFilter');
-    const valid: StatusFilter[] = ['all','proximos','live','aprovados','meus_sinais','aprovados_af','aprovados_ai','scheduled','finished','simulado'];
+    const valid: StatusFilter[] = ['all','proximos','live','aprovados','meus_sinais','aprovados_af','aprovados_ai','det_vs_ia','scheduled','finished','simulado'];
     return (valid.includes(saved as StatusFilter) ? (saved as StatusFilter) : 'all');
   });
   useEffect(() => {
