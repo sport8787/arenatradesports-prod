@@ -1,10 +1,11 @@
 // Service Worker - Web Push Notifications (GREEN/RED + APROVADO)
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
+  // Evita takeover imediato da página aberta, que pode parecer um refresh visual.
+  // A nova versão do SW assume no próximo ciclo natural.
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(Promise.resolve());
 });
 
 self.addEventListener('push', (event) => {
