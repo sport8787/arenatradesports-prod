@@ -14,6 +14,7 @@
  */
 
 export const REVALIDATE_EVENT = 'app:revalidate';
+export const LEGACY_FOCUS_EVENT = 'app:focus';
 
 type RevalidateReason = 'visibility' | 'focus' | 'hotkey' | 'manual';
 
@@ -36,6 +37,11 @@ function dispatchRevalidate(reason: RevalidateReason) {
         detail: { reason, at: now },
       })
     );
+    window.dispatchEvent(
+      new CustomEvent<RevalidateDetail>(LEGACY_FOCUS_EVENT, {
+        detail: { reason, at: now },
+      })
+    );
   } catch {
     /* noop */
   }
@@ -52,6 +58,14 @@ export function setupVisibilityManager(): () => void {
     }
   };
 
+  const onFocus = () => {
+    dispatchRevalidate('focus');
+  };
+
+  const onPageShow = () => {
+    dispatchRevalidate('focus');
+  };
+
   const onKeyDown = (e: KeyboardEvent) => {
     // F5
     const isF5 = e.key === 'F5';
@@ -66,10 +80,14 @@ export function setupVisibilityManager(): () => void {
   };
 
   document.addEventListener('visibilitychange', onVisibility);
+  window.addEventListener('focus', onFocus);
+  window.addEventListener('pageshow', onPageShow);
   window.addEventListener('keydown', onKeyDown, { capture: true });
 
   return () => {
     document.removeEventListener('visibilitychange', onVisibility);
+    window.removeEventListener('focus', onFocus);
+    window.removeEventListener('pageshow', onPageShow);
     window.removeEventListener('keydown', onKeyDown, { capture: true } as any);
     installed = false;
   };

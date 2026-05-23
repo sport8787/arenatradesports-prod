@@ -1,7 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useAdmin } from '@/hooks/useAdmin';
+import { onRevalidate } from '@/utils/visibilityManager';
 
 export type ArenaKey =
   | 'arena_live'
@@ -44,6 +45,7 @@ export function useSubscription() {
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
   const [daysLeft, setDaysLeft] = useState(0);
+  const lastRevalidateRef = useRef(0);
 
   const fetchSubscription = useCallback(async () => {
     // Enquanto o auth ainda está hidratando, NÃO marca loading=false:
@@ -103,21 +105,16 @@ export function useSubscription() {
     fetchSubscription();
   }, [fetchSubscription]);
 
-  // Refetch APENAS quando a janela ganha foco após >5min (evita "recarregar" a cada alt-tab).
-  // Realtime via channel abaixo já cobre updates instantâneos quando o admin altera o plano.
+  // Revalidação silenciosa quando a aba volta, mas só em intervalos longos.
   useEffect(() => {
     if (!user) return;
-    let lastFetch = Date.now();
-    const onFocus = () => {
-      if (Date.now() - lastFetch > 5 * 60 * 1000) {
-        lastFetch = Date.now();
+    lastRevalidateRef.current = Date.now();
+    return onRevalidate(() => {
+      if (Date.now() - lastRevalidateRef.current > 5 * 60 * 1000) {
+        lastRevalidateRef.current = Date.now();
         fetchSubscription();
       }
-    };
-    window.addEventListener('focus', onFocus);
-    return () => {
-      window.removeEventListener('focus', onFocus);
-    };
+    });
   }, [user, fetchSubscription]);
 
   // Realtime: se a subscription do usuário for atualizada (admin grant, webhook Kiwify), refaz fetch automaticamente.

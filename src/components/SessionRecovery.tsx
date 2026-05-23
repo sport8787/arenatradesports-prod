@@ -13,22 +13,22 @@ import { useLocation, useNavigate } from 'react-router-dom';
  */
 const KEY = 'lov-session:last-route';
 const SCROLL_KEY = 'lov-session:last-scroll';
+const SHOULD_RESTORE_KEY = 'lov-session:should-restore';
 
 export default function SessionRecovery() {
   const location = useLocation();
   const navigate = useNavigate();
-
-  // Restaura rota apenas no primeiro mount, se a URL atual for "/" mas havia uma rota salva
+  // Restaura rota/scroll em reloads reais ou quando a URL cai em "/" por acidente.
   useEffect(() => {
     try {
       const saved = sessionStorage.getItem(KEY);
+      const shouldRestore = sessionStorage.getItem(SHOULD_RESTORE_KEY) === '1';
       if (!saved) return;
-      // Só restaura se o usuário caiu em "/" sem querer (ex.: F5 num ambiente que perdeu o path)
-      // e a rota salva era diferente. Não interfere em navegação normal.
       const current = window.location.pathname + window.location.search;
-      if (current === '/' && saved !== '/' && !saved.startsWith('/?')) {
+      if ((shouldRestore || current === '/') && current !== saved && saved !== '/' && !saved.startsWith('/?')) {
         navigate(saved, { replace: true });
       }
+      sessionStorage.removeItem(SHOULD_RESTORE_KEY);
     } catch {
       /* noop */
     }
@@ -48,31 +48,45 @@ export default function SessionRecovery() {
   useEffect(() => {
     const save = () => {
       try {
+        sessionStorage.setItem(SHOULD_RESTORE_KEY, '1');
+        sessionStorage.setItem(KEY, window.location.pathname + window.location.search);
         sessionStorage.setItem(SCROLL_KEY, String(window.scrollY));
       } catch {
         /* noop */
       }
     };
     window.addEventListener('beforeunload', save);
-    return () => window.removeEventListener('beforeunload', save);
+    window.addEventListener('pagehide', save);
+    return () => {
+      window.removeEventListener('beforeunload', save);
+      window.removeEventListener('pagehide', save);
+    };
   }, []);
 
-  // Restaura scroll uma vez por sessão
+  // Restaura scroll após navegação recuperada ou reload real.
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem(SCROLL_KEY);
       if (raw) {
         const y = Number(raw);
         if (!Number.isNaN(y) && y > 0) {
-          // Aguarda render para garantir altura da página
-          requestAnimationFrame(() => window.scrollTo(0, y));
+          let attempts = 0;
+          const restore = () => {
+            requestAnimationFrame(() => {
+              window.scrollTo(0, y);
+              attempts += 1;
+              const delta = Math.abs(window.scrollY - y);
+              if (delta > 4 && attempts < 8) restore();
+            });
+          };
+          restore();
         }
         sessionStorage.removeItem(SCROLL_KEY);
       }
     } catch {
       /* noop */
     }
-  }, []);
+  }, [location.key]);
 
   return null;
 }
