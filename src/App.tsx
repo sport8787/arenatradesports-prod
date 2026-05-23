@@ -14,6 +14,8 @@ import { RequireSubscription } from "@/components/RequireSubscription";
 import { RequireArena } from "@/components/RequireArena";
 import { getAudioCacheStats } from "./services/audioCacheService";
 import { getHorusCacheProgress } from "./services/horusCacheService";
+import { setupVisibilityManager } from "@/utils/visibilityManager";
+import SessionRecovery from "@/components/SessionRecovery";
 
 const HardRedirect = ({ to }: { to: string }) => {
   useEffect(() => {
@@ -127,7 +129,11 @@ const App = () => {
     // Captura UTMs (fbclid, utm_source, utm_campaign etc) no primeiro hit
     // e registra como super-properties no PostHog (vão em TODOS os eventos).
     captureUTMs();
+    // Substitui qualquer "recarregar a página" ao trocar de aba/F5/Ctrl+R
+    // por revalidação silenciosa via evento app:revalidate.
+    const teardown = setupVisibilityManager();
     console.log('[App] 🎭 Pre-cache DISABLED on startup - will run only when entering a game room');
+    return teardown;
   }, []);
 
   return (
@@ -137,6 +143,7 @@ const App = () => {
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <SessionRecovery />
             <TrialBanner />
             <BCRewardToastsMount />
             <React.Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center" />}>
