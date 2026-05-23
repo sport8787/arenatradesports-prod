@@ -14,6 +14,8 @@ import { RequireSubscription } from "@/components/RequireSubscription";
 import { RequireArena } from "@/components/RequireArena";
 import { getAudioCacheStats } from "./services/audioCacheService";
 import { getHorusCacheProgress } from "./services/horusCacheService";
+import { setupVisibilityManager } from "@/utils/visibilityManager";
+import SessionRecovery from "@/components/SessionRecovery";
 
 const HardRedirect = ({ to }: { to: string }) => {
   useEffect(() => {
