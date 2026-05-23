@@ -8031,6 +8031,17 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      settle_ht_markets_for_match: {
+        Args: {
+          p_match_id: string
+          p_minute: number
+          p_period: string
+          p_score_away: number
+          p_score_home: number
+          p_status: string
+        }
+        Returns: undefined
+      }
       settle_mycroft_analysis: {
         Args: {
           p_analysis_id: string
