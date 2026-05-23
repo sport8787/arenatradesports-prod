@@ -25,15 +25,12 @@ export default function MeusSinaisPanel() {
       if (!cancel) setPlans(rows);
     };
     void syncPlans();
-    return onRevalidate(() => {
+    const stopRevalidate = onRevalidate(() => {
       void syncPlans();
-      return undefined;
     });
-  }, []);
-
-  useEffect(() => {
     return () => {
       cancel = true;
+      stopRevalidate();
     };
   }, []);
 
