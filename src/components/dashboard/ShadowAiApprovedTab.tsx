@@ -232,9 +232,13 @@ export default function ShadowAiApprovedTab() {
           Liquidação automática ao fim do jogo (Over/Under/BTTS/Próximo Gol).
         </p>
 
-        <div className="grid grid-cols-4 gap-2 text-center text-xs">
+        <div className="grid grid-cols-5 gap-2 text-center text-xs">
+          <div className="border rounded p-2 bg-violet-500/10">
+            <div className="text-muted-foreground">Ao vivo</div>
+            <div className="text-lg font-bold text-violet-600">{visibleSignals.length}</div>
+          </div>
           <div className="border rounded p-2">
-            <div className="text-muted-foreground">Aprovados</div>
+            <div className="text-muted-foreground">Aprovados ({period})</div>
             <div className="text-lg font-bold">{signals.length}</div>
           </div>
           <div className="border rounded p-2">
