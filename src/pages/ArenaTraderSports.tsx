@@ -41,6 +41,7 @@ import { Star } from 'lucide-react';
 import TraderViewModeToggle from '@/components/arena-trader/TraderViewModeToggle';
 import MeusSinaisPanel from '@/components/arena-trader/MeusSinaisPanel';
 import { useTraderViewMode } from '@/hooks/useTraderViewMode';
+import { usePersistedState } from '@/hooks/usePersistedState';
 
 
 const getChampionshipColor = (name: string): Match['championshipColor'] => {
@@ -153,15 +154,8 @@ export default function ArenaTraderSports() {
   const { bankroll, loading: bankrollLoading, placeBet, cashOut, settleBets, updateInitialBalance } = useSportsBankroll();
   const { games: scheduledGames, loading: scheduledLoading } = useScheduledGames();
   const { requestPush, isSupported: pushSupported } = usePushNotifications();
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>(() => {
-    if (typeof window === 'undefined') return 'all';
-    const saved = window.localStorage.getItem('arenaTraderSports.statusFilter');
-    const valid: StatusFilter[] = ['all','proximos','live','aprovados','meus_sinais','aprovados_af','aprovados_ai','det_vs_ia','scheduled','finished','simulado'];
-    return (valid.includes(saved as StatusFilter) ? (saved as StatusFilter) : 'all');
-  });
-  useEffect(() => {
-    try { window.localStorage.setItem('arenaTraderSports.statusFilter', statusFilter); } catch { /* ignore */ }
-  }, [statusFilter]);
+  const validStatusFilters: StatusFilter[] = ['all','proximos','live','aprovados','meus_sinais','aprovados_af','aprovados_ai','det_vs_ia','scheduled','finished','simulado'];
+  const [statusFilter, setStatusFilter] = usePersistedState<StatusFilter>('arenaTraderSports.statusFilter', 'all');
   const [selectedChampionships, setSelectedChampionships] = useState<string[]>(() => {
     if (typeof window === 'undefined') return [];
     try { const raw = window.localStorage.getItem('arenaTraderSports.selectedChampionships'); if (raw) return JSON.parse(raw); } catch { /* ignore */ }
@@ -229,12 +223,8 @@ export default function ArenaTraderSports() {
   const [isSettling, setIsSettling] = useState(false);
   const [isAnalyzingCorners, setIsAnalyzingCorners] = useState(false);
   const [bettedMatchIds, setBettedMatchIds] = useState<Set<string>>(new Set());
-  const [viewMode, setViewMode] = useState<'cards' | 'table'>(() => {
-    if (typeof window === 'undefined') return 'cards';
-    const saved = window.localStorage.getItem('arenaTraderSports.viewMode');
-    return saved === 'table' || saved === 'cards' ? saved : 'cards';
-  });
-  const [onlyFavorites, setOnlyFavorites] = useState(false);
+  const [viewMode, setViewMode] = usePersistedState<'cards' | 'table'>('arenaTraderSports.viewMode', 'cards');
+  const [onlyFavorites, setOnlyFavorites] = usePersistedState('arenaTraderSports.onlyFavorites', false);
   const { isMatchFavorite, favs } = useFavorites();
 
   // Sinais sonoros realtime: determinístico (sirene) + Gemini IA (arpejo sci-fi distinto)
@@ -242,12 +232,10 @@ export default function ArenaTraderSports() {
   useApprovedAiSignalSound(true);
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem('arenaTraderSports.viewMode', viewMode);
-    } catch {
-      /* ignore storage errors */
+    if (!validStatusFilters.includes(statusFilter)) {
+      setStatusFilter('all');
     }
-  }, [viewMode]);
+  }, [statusFilter, setStatusFilter]);
   const [currentUserId, setCurrentUserId] = useState<string | undefined>();
 
   // Fetch betted match IDs to prevent duplicates
