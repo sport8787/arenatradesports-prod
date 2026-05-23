@@ -134,7 +134,7 @@ export default function ShadowAiApprovedTab() {
       if (ids.length > 0) {
         const { data: lm } = await supabase
           .from('live_matches')
-          .select('match_id, home_team, away_team, championship, minute, score_home, score_away, home_logo, away_logo, stats, odds_live')
+          .select('match_id, home_team, away_team, championship, minute, score_home, score_away, status, home_logo, away_logo, stats, odds_live')
           .in('match_id', ids);
         const map: Record<string, MatchInfo> = {};
         const extras: Record<string, any> = {};
