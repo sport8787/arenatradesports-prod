@@ -31,6 +31,104 @@ function normMarket(m: string): string {
     .trim();
 }
 
+function applyMarketSanityVeto(params: {
+  verdict: string;
+  market: string;
+  minute: number;
+  period?: string | null;
+  scoreHome: number;
+  scoreAway: number;
+  thesis?: string | null;
+}) {
+  const activeVerdicts = ["APROVADO", "APROVADO_SITUACIONAL", "LABAREDA"];
+  if (!activeVerdicts.includes(params.verdict)) {
+    return {
+      verdict: params.verdict,
+      thesis: params.thesis ?? null,
+      vetoed: false,
+      vetoReason: null as string | null,
+    };
+  }
+
+  const marketLower = String(params.market || "").toLowerCase();
+  const minute = Number(params.minute ?? 0);
+  const sh = Number(params.scoreHome ?? 0);
+  const sa = Number(params.scoreAway ?? 0);
+  const totalGoals = sh + sa;
+  const period = String(params.period || "").toLowerCase();
+  const isHTMarket = /(ht|1t|1[ºo]?\s*tempo|primeiro\s*tempo|first\s*half)/.test(marketLower);
+  const isSecondHalf = /(second|2nd|2t|2º|2o\s*tempo|segundo|halftime|intervalo|ft|full_time)/.test(period) || minute > 45;
+
+  let vetoReason: string | null = null;
+
+  const isOver05HT =
+    /over\s*0\.?5/.test(marketLower) &&
+    /(ht|1t|1[ºo]?\s*tempo|primeiro\s*tempo|first\s*half)/.test(marketLower);
+  if (isOver05HT) {
+    if (minute < 5 || minute > 20 || totalGoals >= 1) {
+      vetoReason = `Over 0.5 HT bloqueado: minuto ${minute}, placar ${sh}x${sa}. Janela válida: minuto 5–20 e placar 0x0.`;
+    }
+  }
+
+  if (!vetoReason) {
+    const isBTTS = /(btts|ambas\s*marcam|both\s*teams)/.test(marketLower);
+    const isBTTSNo = isBTTS && /(não|nao|\bno\b)/.test(marketLower);
+    const isBTTSYes = isBTTS && !isBTTSNo;
+
+    if (isBTTSYes) {
+      if (sh >= 1 && sa >= 1) vetoReason = `BTTS Sim já decidido (${sh}x${sa})`;
+      else if (minute >= 75 && (sh === 0 || sa === 0)) vetoReason = `BTTS Sim com pouco tempo restante (${minute}', ${sh}x${sa})`;
+    }
+
+    if (!vetoReason && isBTTSNo && sh >= 1 && sa >= 1) {
+      vetoReason = `BTTS Não já perdido (${sh}x${sa})`;
+    }
+
+    if (!vetoReason && !isHTMarket) {
+      const overFTMatch = marketLower.match(/over\s*(\d)\.?5/);
+      if (overFTMatch) {
+        const line = Number(overFTMatch[1]);
+        if (totalGoals >= line + 1) vetoReason = `Over ${line}.5 FT já batido (${totalGoals} gols)`;
+        else if (line >= 1 && minute > 70 && params.verdict !== "LABAREDA") vetoReason = `Over ${line}.5 FT fora da janela (${minute}')`;
+      }
+    }
+
+    if (!vetoReason && isHTMarket) {
+      const overHTMatch = marketLower.match(/over\s*(\d)\.?5/);
+      if (overHTMatch) {
+        const line = Number(overHTMatch[1]);
+        if (totalGoals >= line + 1) vetoReason = `Over ${line}.5 HT já batido (${totalGoals} gols)`;
+        else if (isSecondHalf) vetoReason = `Over ${line}.5 HT com 1º tempo encerrado`;
+        else if (minute > 40) vetoReason = `Over ${line}.5 HT fora da janela (${minute}')`;
+      }
+    }
+
+    if (!vetoReason) {
+      const underMatch = marketLower.match(/under\s*(\d)\.?5/);
+      if (underMatch) {
+        const line = Number(underMatch[1]);
+        if (totalGoals >= line + 1) vetoReason = `Under ${line}.5 já estourado (${totalGoals} gols)`;
+      }
+    }
+  }
+
+  if (!vetoReason) {
+    return {
+      verdict: params.verdict,
+      thesis: params.thesis ?? null,
+      vetoed: false,
+      vetoReason: null as string | null,
+    };
+  }
+
+  return {
+    verdict: "AGUARDAR",
+    thesis: `[SAFETY NET] ${vetoReason}. ${params.thesis || ""}`.trim(),
+    vetoed: true,
+    vetoReason,
+  };
+}
+
 async function callGemini(prompt: string, timeoutMs = 20_000): Promise<{ json: any; ms: number; raw: string }> {
   const t0 = Date.now();
   const ctrl = new AbortController();
@@ -182,8 +280,25 @@ Deno.serve(async (req) => {
         const a = aiRes.json;
         if (!a || !a.verdict) { skipped++; continue; }
 
-        const verdict = String(a.verdict).toUpperCase();
+        let verdict = String(a.verdict).toUpperCase();
         const market = String(a.market || "").trim();
+        let thesis = a.thesis ?? null;
+
+        const vetoed = applyMarketSanityVeto({
+          verdict,
+          market,
+          minute,
+          period: m.period,
+          scoreHome: Number(m.score_home ?? 0),
+          scoreAway: Number(m.score_away ?? 0),
+          thesis,
+        });
+        verdict = vetoed.verdict;
+        thesis = vetoed.thesis;
+        if (vetoed.vetoed) {
+          console.log(`[ShadowAI] 🚫 VETO ${m.home_team} vs ${m.away_team} — ${vetoed.vetoReason} | market=\"${market}\"`);
+        }
+
         const isApproved = ["APROVADO", "APROVADO_SITUACIONAL", "LABAREDA"].includes(verdict);
 
         // Dedup: não empilha — se já há sinal aprovado p/ mesmo mercado neste jogo, pula
@@ -205,7 +320,7 @@ Deno.serve(async (req) => {
           championship: m.championship ?? null,
           verdict,
           market: market || "N/A",
-          thesis: a.thesis ?? null,
+          thesis,
           odd: typeof a.odd === "number" && a.odd > 0 ? a.odd : null,
           confidence: typeof a.confidence === "number" ? Math.round(a.confidence) : null,
           alerts: Array.isArray(a.alerts) ? a.alerts : [],
