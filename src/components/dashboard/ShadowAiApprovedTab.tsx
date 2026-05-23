@@ -185,6 +185,16 @@ export default function ShadowAiApprovedTab() {
   const reds = liquidated.filter((s) => s.result === 'red').length;
   const winRate = liquidated.length > 0 ? Math.round((greens / liquidated.length) * 100) : null;
 
+  // Mostrar apenas sinais com jogo AO VIVO e ainda não liquidados — mesma lógica da aba "Sinais Aprovados" (determinística).
+  // Jogos finalizados saem automaticamente da aba.
+  const visibleSignals = signals.filter((s) => {
+    if (s.result === 'green' || s.result === 'red') return false;
+    const m = matches[s.match_id];
+    if (!m) return false;
+    const eff = m.status === 'halftime' ? 'live' : m.status;
+    return eff === 'live';
+  });
+
   return (
     <Card className="border-violet-500/40 bg-violet-500/5">
       <CardHeader>
