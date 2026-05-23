@@ -49,6 +49,7 @@ interface MatchInfo {
   minute: number | null;
   score_home: number | null;
   score_away: number | null;
+  status: string | null;
 }
 
 const APPROVED = ['APROVADO', 'APROVADO_SITUACIONAL', 'LABAREDA'];
@@ -133,7 +134,7 @@ export default function ShadowAiApprovedTab() {
       if (ids.length > 0) {
         const { data: lm } = await supabase
           .from('live_matches')
-          .select('match_id, home_team, away_team, championship, minute, score_home, score_away, home_logo, away_logo, stats, odds_live')
+          .select('match_id, home_team, away_team, championship, minute, score_home, score_away, status, home_logo, away_logo, stats, odds_live')
           .in('match_id', ids);
         const map: Record<string, MatchInfo> = {};
         const extras: Record<string, any> = {};
@@ -184,6 +185,16 @@ export default function ShadowAiApprovedTab() {
   const reds = liquidated.filter((s) => s.result === 'red').length;
   const winRate = liquidated.length > 0 ? Math.round((greens / liquidated.length) * 100) : null;
 
+  // Mostrar apenas sinais com jogo AO VIVO e ainda não liquidados — mesma lógica da aba "Sinais Aprovados" (determinística).
+  // Jogos finalizados saem automaticamente da aba.
+  const visibleSignals = signals.filter((s) => {
+    if (s.result === 'green' || s.result === 'red') return false;
+    const m = matches[s.match_id];
+    if (!m) return false;
+    const eff = m.status === 'halftime' ? 'live' : m.status;
+    return eff === 'live';
+  });
+
   return (
     <Card className="border-violet-500/40 bg-violet-500/5">
       <CardHeader>
@@ -221,9 +232,13 @@ export default function ShadowAiApprovedTab() {
           Liquidação automática ao fim do jogo (Over/Under/BTTS/Próximo Gol).
         </p>
 
-        <div className="grid grid-cols-4 gap-2 text-center text-xs">
+        <div className="grid grid-cols-5 gap-2 text-center text-xs">
+          <div className="border rounded p-2 bg-violet-500/10">
+            <div className="text-muted-foreground">Ao vivo</div>
+            <div className="text-lg font-bold text-violet-600">{visibleSignals.length}</div>
+          </div>
           <div className="border rounded p-2">
-            <div className="text-muted-foreground">Aprovados</div>
+            <div className="text-muted-foreground">Aprovados ({period})</div>
             <div className="text-lg font-bold">{signals.length}</div>
           </div>
           <div className="border rounded p-2">
@@ -246,21 +261,19 @@ export default function ShadowAiApprovedTab() {
           <div className="flex items-center justify-center py-8 text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin mr-2" /> Carregando...
           </div>
-        ) : signals.length === 0 ? (
+        ) : visibleSignals.length === 0 ? (
           <div className="text-center py-8 text-sm text-muted-foreground">
-            Nenhum sinal Shadow AI no período. Clique em <strong>Rodar agora</strong> para disparar análise paralela com Gemini.
+            Nenhum sinal IA ao vivo no momento. Jogos finalizados saem desta aba automaticamente — veja o histórico em <strong>Sinais Liquidados</strong>.
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {signals.map((s, i) => {
+            {visibleSignals.map((s, i) => {
               const m = matches[s.match_id];
               const match = shadowAiSignalToMatch(s, m, lmExtras[s.match_id]);
               return (
                 <div key={s.id} className="relative">
                   <div className="absolute top-2 right-2 z-10 flex flex-wrap gap-1 justify-end max-w-[60%]">
-                    {s.result === 'green' && <Badge className="bg-success text-[10px]">GREEN</Badge>}
-                    {s.result === 'red' && <Badge variant="destructive" className="text-[10px]">RED</Badge>}
-                    {!s.result && <Badge variant="secondary" className="text-[10px]">pendente</Badge>}
+                    <Badge variant="secondary" className="text-[10px]">pendente</Badge>
                     <Badge variant="outline" className="border-violet-500 text-violet-600 text-[10px]">IA</Badge>
                   </div>
                   <MatchCardWithEntries
