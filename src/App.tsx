@@ -143,6 +143,7 @@ const App = () => {
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <SessionRecovery />
             <TrialBanner />
             <BCRewardToastsMount />
             <React.Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center" />}>
