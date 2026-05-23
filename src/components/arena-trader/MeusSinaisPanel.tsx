@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Target, ChevronRight, Settings2 } from 'lucide-react';
 import { useLiveMatches } from '@/hooks/useLiveMatches';
 import { loadUserPlans, evaluatePlan, logUserPlanSignal, type UserMarket, type UserPlan } from '@/lib/userTraderPlan';
+import { onRevalidate } from '@/utils/visibilityManager';
 
 const MARKET_LABEL: Record<UserMarket, string> = {
   '1x2': '1X2',
@@ -19,14 +20,21 @@ export default function MeusSinaisPanel() {
 
   useEffect(() => {
     let cancel = false;
-    (async () => {
+    const syncPlans = async () => {
       const rows = await loadUserPlans();
       if (!cancel) setPlans(rows);
-    })();
-    // Recarrega quando volta o foco na aba (usuário editou o plano em outra)
-    const onFocus = () => { void loadUserPlans().then((rows) => !cancel && setPlans(rows)); };
-    window.addEventListener('focus', onFocus);
-    return () => { cancel = true; window.removeEventListener('focus', onFocus); };
+    };
+    void syncPlans();
+    return onRevalidate(() => {
+      void syncPlans();
+      return undefined;
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      cancel = true;
+    };
   }, []);
 
   const activePlans = useMemo(() => plans.filter((p) => p.enabled), [plans]);
