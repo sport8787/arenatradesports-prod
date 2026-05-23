@@ -261,21 +261,19 @@ export default function ShadowAiApprovedTab() {
           <div className="flex items-center justify-center py-8 text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin mr-2" /> Carregando...
           </div>
-        ) : signals.length === 0 ? (
+        ) : visibleSignals.length === 0 ? (
           <div className="text-center py-8 text-sm text-muted-foreground">
-            Nenhum sinal Shadow AI no período. Clique em <strong>Rodar agora</strong> para disparar análise paralela com Gemini.
+            Nenhum sinal IA ao vivo no momento. Jogos finalizados saem desta aba automaticamente — veja o histórico em <strong>Sinais Liquidados</strong>.
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {signals.map((s, i) => {
+            {visibleSignals.map((s, i) => {
               const m = matches[s.match_id];
               const match = shadowAiSignalToMatch(s, m, lmExtras[s.match_id]);
               return (
                 <div key={s.id} className="relative">
                   <div className="absolute top-2 right-2 z-10 flex flex-wrap gap-1 justify-end max-w-[60%]">
-                    {s.result === 'green' && <Badge className="bg-success text-[10px]">GREEN</Badge>}
-                    {s.result === 'red' && <Badge variant="destructive" className="text-[10px]">RED</Badge>}
-                    {!s.result && <Badge variant="secondary" className="text-[10px]">pendente</Badge>}
+                    <Badge variant="secondary" className="text-[10px]">pendente</Badge>
                     <Badge variant="outline" className="border-violet-500 text-violet-600 text-[10px]">IA</Badge>
                   </div>
                   <MatchCardWithEntries
