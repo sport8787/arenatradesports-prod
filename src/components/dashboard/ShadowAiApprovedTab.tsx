@@ -49,6 +49,7 @@ interface MatchInfo {
   minute: number | null;
   score_home: number | null;
   score_away: number | null;
+  status: string | null;
 }
 
 const APPROVED = ['APROVADO', 'APROVADO_SITUACIONAL', 'LABAREDA'];
