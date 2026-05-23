@@ -237,8 +237,9 @@ export default function ArenaTraderSports() {
   const [onlyFavorites, setOnlyFavorites] = useState(false);
   const { isMatchFavorite, favs } = useFavorites();
 
-  // Sinal sonoro ao detectar nova análise APROVADA / SITUACIONAL / LABAREDA via realtime
+  // Sinais sonoros realtime: determinístico (sirene) + Gemini IA (arpejo sci-fi distinto)
   useApprovedSignalSound(true);
+  useApprovedAiSignalSound(true);
 
   useEffect(() => {
     try {
