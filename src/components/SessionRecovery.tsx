@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 /**
@@ -18,8 +18,6 @@ const SHOULD_RESTORE_KEY = 'lov-session:should-restore';
 export default function SessionRecovery() {
   const location = useLocation();
   const navigate = useNavigate();
-  const restoredRef = useRef(false);
-
   // Restaura rota/scroll em reloads reais ou quando a URL cai em "/" por acidente.
   useEffect(() => {
     try {
@@ -28,7 +26,6 @@ export default function SessionRecovery() {
       if (!saved) return;
       const current = window.location.pathname + window.location.search;
       if ((shouldRestore || current === '/') && current !== saved && saved !== '/' && !saved.startsWith('/?')) {
-        restoredRef.current = true;
         navigate(saved, { replace: true });
       }
       sessionStorage.removeItem(SHOULD_RESTORE_KEY);
@@ -60,7 +57,10 @@ export default function SessionRecovery() {
     };
     window.addEventListener('beforeunload', save);
     window.addEventListener('pagehide', save);
-    return () => window.removeEventListener('beforeunload', save);
+    return () => {
+      window.removeEventListener('beforeunload', save);
+      window.removeEventListener('pagehide', save);
+    };
   }, []);
 
   // Restaura scroll após navegação recuperada ou reload real.
