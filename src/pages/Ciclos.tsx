@@ -159,10 +159,12 @@ export default function Ciclos() {
   };
 
   const handleReset = async () => {
-    if (!confirm('Reiniciar o método? O histórico será apagado.')) return;
-    const { error } = await supabase.rpc('reset_cycle_method' as any);
+    if (!confirm('Resetar o método e voltar para a configuração inicial? O histórico será apagado.')) return;
+    const { error } = await supabase.rpc('delete_cycle_method' as any);
     if (error) { toast.error(error.message); return; }
-    toast.success('Método reiniciado');
+    toast.success('Método resetado — escolha o novo modo');
+    setBk(null);
+    setEntries([]);
     load();
   };
 
