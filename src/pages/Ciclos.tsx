@@ -396,6 +396,16 @@ function ActivePanel({ bk, onOpenRegister, onAdvance, onReset }: { bk: CycleBank
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+      {/* Always-available reconfigure action */}
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/20 px-4 py-2.5">
+        <div className="text-xs text-muted-foreground">
+          Mudou de ideia? Reinicie e escolha outro modo (ex: <strong className="text-foreground">Hórus Pilota</strong> ou <strong className="text-foreground">Manual</strong>).
+        </div>
+        <Button size="sm" variant="outline" onClick={onReset} className="shrink-0">
+          <RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Resetar e reconfigurar
+        </Button>
+      </div>
+
       {/* Status banner */}
       {isAwaiting && (
         <div className="rounded-xl border border-success/40 bg-success/10 p-4 flex items-start gap-3">
