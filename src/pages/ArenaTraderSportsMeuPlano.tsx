@@ -267,7 +267,7 @@ export default function ArenaTraderSportsMeuPlano() {
   const [plans, setPlans] = useState<UserPlan[]>(() => loadUserPlansSync());
   const [loading, setLoading] = useState(true);
   const [visibility, setVisibility] = useState<PlanVisibility>(() => loadPlanVisibility());
-  const [tab, setTab] = useState<'list' | 'editor'>('list');
+  const [tab, setTab] = useState<'list' | 'editor' | 'results'>('list');
   const [editing, setEditing] = useState<UserPlan | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
