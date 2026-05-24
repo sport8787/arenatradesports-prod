@@ -30,6 +30,37 @@ const PERIOD_LABELS: Record<Period, string> = {
   '30d': '30 dias',
 };
 
+function getBrasiliaNow(): Date {
+  const now = new Date();
+  const brasiliaOffset = now.getTimezoneOffset() + 180; // UTC → UTC-3
+  return new Date(now.getTime() - brasiliaOffset * 60 * 1000);
+}
+
+function getDateRangeText(period: Period): string {
+  const now = getBrasiliaNow();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const fmt = (d: Date) => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
+  let start = new Date(now);
+  switch (period) {
+    case 'today':
+      return `${fmt(now)} (hoje)`;
+    case 'yesterday':
+      start.setDate(start.getDate() - 1);
+      return `${fmt(start)} (ontem)`;
+    case '7d':
+      start.setDate(start.getDate() - 6);
+      return `${fmt(start)} – ${fmt(now)}`;
+    case '14d':
+      start.setDate(start.getDate() - 13);
+      return `${fmt(start)} – ${fmt(now)}`;
+    case '30d':
+      start.setDate(start.getDate() - 29);
+      return `${fmt(start)} – ${fmt(now)}`;
+    default:
+      return '';
+  }
+}
+
 // Mesma chave usada em /arena-trader-sports/sinais-liquidados — mantém o recorte sincronizado.
 const STORAGE_KEY = 'live_sinais_filters_v1';
 
@@ -95,18 +126,26 @@ export default function ComparativoDetVsIaTab() {
     <div className="space-y-4">
       <Card className="p-4 border-violet-500/30">
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Scale className="w-4 h-4 text-violet-500" />
-            <h3 className="font-semibold">
-              Determinístico × IA — Trader Sports · <span className="text-primary">{PERIOD_LABELS[period]}</span>
-            </h3>
+            <div>
+              <h3 className="font-semibold">
+                Determinístico × IA — Trader Sports
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Período: <span className="font-medium text-foreground">{getDateRangeText(period)}</span>
+                {updatedAt && (
+                  <span className="ml-2">
+                    · Última atualização:{' '}
+                    <span className="font-medium text-foreground">
+                      {updatedAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    </span>
+                  </span>
+                )}
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
-            {updatedAt && (
-              <span className="text-[11px] text-muted-foreground">
-                Atualizado {updatedAt.toLocaleTimeString('pt-BR')}
-              </span>
-            )}
             <Button size="sm" variant="outline" onClick={load} disabled={loading}>
               <RefreshCw className={`w-3 h-3 mr-1 ${loading ? 'animate-spin' : ''}`} />
               Atualizar
