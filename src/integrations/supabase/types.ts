@@ -7864,6 +7864,7 @@ export type Database = {
         Args: { p_amount: number; p_user_id: string }
         Returns: boolean
       }
+      delete_cycle_method: { Args: never; Returns: undefined }
       expire_old_bc_rewards: {
         Args: never
         Returns: {
