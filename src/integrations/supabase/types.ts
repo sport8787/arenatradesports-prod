@@ -1058,6 +1058,7 @@ export type Database = {
         Row: {
           asaas_charge_id: string | null
           asaas_customer_id: string | null
+          asaas_subscription_id: string | null
           billing_type: string
           created_at: string
           description: string | null
@@ -1080,6 +1081,7 @@ export type Database = {
         Insert: {
           asaas_charge_id?: string | null
           asaas_customer_id?: string | null
+          asaas_subscription_id?: string | null
           billing_type?: string
           created_at?: string
           description?: string | null
@@ -1102,6 +1104,7 @@ export type Database = {
         Update: {
           asaas_charge_id?: string | null
           asaas_customer_id?: string | null
+          asaas_subscription_id?: string | null
           billing_type?: string
           created_at?: string
           description?: string | null
@@ -2017,6 +2020,84 @@ export type Database = {
           total_bets?: number | null
           total_profit?: number | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      day_pass_lifecycle_log: {
+        Row: {
+          channel: string
+          error_message: string | null
+          id: string
+          sent_at: string
+          status: string
+          touch: string
+          user_id: string
+        }
+        Insert: {
+          channel: string
+          error_message?: string | null
+          id?: string
+          sent_at?: string
+          status?: string
+          touch: string
+          user_id: string
+        }
+        Update: {
+          channel?: string
+          error_message?: string | null
+          id?: string
+          sent_at?: string
+          status?: string
+          touch?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      day_pass_upsells: {
+        Row: {
+          asaas_subscription_id: string | null
+          cancelled_at: string | null
+          created_at: string
+          first_charge_id: string | null
+          first_payment_at: string | null
+          id: string
+          last_payment_at: string | null
+          next_due_date: string | null
+          status: string
+          trigger_source: string | null
+          updated_at: string
+          user_id: string
+          value: number
+        }
+        Insert: {
+          asaas_subscription_id?: string | null
+          cancelled_at?: string | null
+          created_at?: string
+          first_charge_id?: string | null
+          first_payment_at?: string | null
+          id?: string
+          last_payment_at?: string | null
+          next_due_date?: string | null
+          status?: string
+          trigger_source?: string | null
+          updated_at?: string
+          user_id: string
+          value?: number
+        }
+        Update: {
+          asaas_subscription_id?: string | null
+          cancelled_at?: string | null
+          created_at?: string
+          first_charge_id?: string | null
+          first_payment_at?: string | null
+          id?: string
+          last_payment_at?: string | null
+          next_due_date?: string | null
+          status?: string
+          trigger_source?: string | null
+          updated_at?: string
+          user_id?: string
+          value?: number
         }
         Relationships: []
       }
