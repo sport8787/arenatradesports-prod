@@ -157,7 +157,7 @@ Deno.serve(async (req) => {
       plan_target: "premium",
       duration_hours: 24,
       raw_create_response: payJson,
-      environment: "sandbox",
+      environment: ASAAS_ENV,
     });
     if (insErr) console.warn("[asaas-create-charge] insert error:", insErr);
 
