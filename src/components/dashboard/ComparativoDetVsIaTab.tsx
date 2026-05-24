@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Scale, ArrowUp, ArrowDown, Minus } from 'lucide-react';
+import { RefreshCw, Scale, ArrowUp, ArrowDown, Minus, Download } from 'lucide-react';
 
 type ViewMode = 'table' | 'sideBySide';
 
