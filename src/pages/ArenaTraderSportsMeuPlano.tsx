@@ -450,6 +450,11 @@ export default function ArenaTraderSportsMeuPlano() {
             )}
           </TabsContent>
 
+          {/* RESULTADOS */}
+          <TabsContent value="results" className="mt-5">
+            <PlanResultsTab />
+          </TabsContent>
+
           {/* EDITOR */}
           <TabsContent value="editor" className="mt-5">
             {editing ? (
