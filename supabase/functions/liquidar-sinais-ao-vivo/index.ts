@@ -248,8 +248,19 @@ Deno.serve(async (req) => {
         futoddsByDayCache.set(signalDay, await futoddsByDate(signalDay));
       }
       fs = findFutodds(futoddsByDayCache.get(signalDay) ?? [], home, away);
+      let sourceTag = fs ? "futodds" : null;
       if (!fs) {
         fs = await smFallback(home, away, sig.match_date);
+        if (fs) sourceTag = "sportmonks";
+      }
+      if (!fs) {
+        fs = await sofaFallback(home, away, sig.match_date);
+        if (fs) sourceTag = "sofascore";
+      }
+      if (fs && sourceTag) {
+        console.log(`[liquidar] ✅ score via ${sourceTag}: ${home} ${fs.home}-${fs.away} ${away} (ht ${fs.ht_home ?? "?"}-${fs.ht_away ?? "?"})`);
+      } else if (!fs) {
+        console.log(`[liquidar] ⚠️ sem placar: ${home} vs ${away} @ ${signalDay}`);
       }
       fsCache.set(cacheKey, fs);
     }
