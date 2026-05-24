@@ -18,6 +18,7 @@ function ConditionalTrialBanner() {
   return <TrialBanner />;
 }
 import BCRewardToastsMount from "@/components/BCRewardToastsMount";
+import UpsellGate from "@/components/upsell/UpsellGate";
 import { RequireSubscription } from "@/components/RequireSubscription";
 import { RequireArena } from "@/components/RequireArena";
 import { getAudioCacheStats } from "./services/audioCacheService";
