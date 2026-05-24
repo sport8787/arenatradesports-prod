@@ -3432,6 +3432,7 @@ export type Database = {
           categoria: string
           codigo: string
           conceito: string | null
+          contexto: string[] | null
           criado_em: string | null
           criterios: Json
           emoji: string | null
@@ -3441,6 +3442,7 @@ export type Database = {
           mercado: string
           nome: string
           observacao: string | null
+          prioridade: number | null
           risco: string
           versao: number | null
           vetos: Json
@@ -3451,6 +3453,7 @@ export type Database = {
           categoria: string
           codigo: string
           conceito?: string | null
+          contexto?: string[] | null
           criado_em?: string | null
           criterios?: Json
           emoji?: string | null
@@ -3460,6 +3463,7 @@ export type Database = {
           mercado: string
           nome: string
           observacao?: string | null
+          prioridade?: number | null
           risco: string
           versao?: number | null
           vetos?: Json
@@ -3470,6 +3474,7 @@ export type Database = {
           categoria?: string
           codigo?: string
           conceito?: string | null
+          contexto?: string[] | null
           criado_em?: string | null
           criterios?: Json
           emoji?: string | null
@@ -3479,6 +3484,7 @@ export type Database = {
           mercado?: string
           nome?: string
           observacao?: string | null
+          prioridade?: number | null
           risco?: string
           versao?: number | null
           vetos?: Json
