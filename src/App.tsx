@@ -6,9 +6,17 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { TrialBanner } from "@/components/TrialBanner";
+
+// Esconde TrialBanner em rotas do funil Day Pass (lead ainda não pagou).
+const HIDE_TRIAL_BANNER = ["/lobby-preview", "/day-pass"];
+function ConditionalTrialBanner() {
+  const { pathname } = useLocation();
+  if (HIDE_TRIAL_BANNER.some((p) => pathname.startsWith(p))) return null;
+  return <TrialBanner />;
+}
 import BCRewardToastsMount from "@/components/BCRewardToastsMount";
 import { RequireSubscription } from "@/components/RequireSubscription";
 import { RequireArena } from "@/components/RequireArena";
@@ -146,7 +154,7 @@ const App = () => {
           <Sonner />
           <BrowserRouter>
             <SessionRecovery />
-            <TrialBanner />
+            <ConditionalTrialBanner />
             <BCRewardToastsMount />
             <React.Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center" />}>
               <Routes>

@@ -9,7 +9,10 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const ASAAS_BASE = "https://sandbox.asaas.com/api/v3";
+const ASAAS_ENV = (Deno.env.get("ASAAS_ENV") || "production").toLowerCase();
+const ASAAS_BASE = ASAAS_ENV === "sandbox"
+  ? "https://sandbox.asaas.com/api/v3"
+  : "https://api.asaas.com/v3";
 const DAY_PASS_VALUE = 9.90;
 const DAY_PASS_DESCRIPTION = "Day Pass 24h - Oráculo Mycroft";
 
@@ -154,7 +157,7 @@ Deno.serve(async (req) => {
       plan_target: "premium",
       duration_hours: 24,
       raw_create_response: payJson,
-      environment: "sandbox",
+      environment: ASAAS_ENV,
     });
     if (insErr) console.warn("[asaas-create-charge] insert error:", insErr);
 
