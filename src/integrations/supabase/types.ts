@@ -7924,6 +7924,7 @@ export type Database = {
         Returns: string
       }
       norm_market_text: { Args: { _t: string }; Returns: string }
+      normalize_market: { Args: { m: string }; Returns: string }
       normalize_match_id: { Args: { mid: string }; Returns: string }
       punter_check_signal_quality: {
         Args: { _league: string; _market: string; _odd: number }
