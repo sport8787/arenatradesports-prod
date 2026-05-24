@@ -165,6 +165,56 @@ export default function ComparativoDetVsIaTab() {
   const deltaOdd = det && ia && det.odd_media !== null && ia.odd_media !== null
     ? Number(ia.odd_media) - Number(det.odd_media) : null;
 
+  const handleExportCsv = useCallback(async () => {
+    setExporting(true);
+    try {
+      const { data, error } = await supabase.rpc('compare_det_vs_ia_export' as any, { _period: period });
+      if (error || !data || !Array.isArray(data)) {
+        alert('Erro ao buscar dados para exportação.');
+        return;
+      }
+      const rows = data as Array<{
+        fonte: string; data_evento: string; league: string; home_team: string;
+        away_team: string; market: string; odd: number | null; result: string | null;
+        profit_loss: number | null; verdict: string | null;
+      }>;
+
+      const escape = (v: string | number | null | undefined) => {
+        const s = v == null ? '' : String(v).replace(/"/g, '""');
+        return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s}"` : s;
+      };
+
+      const headers = ['Fonte','Data','Liga','Casa','Fora','Mercado','Odd','Resultado','P/L (u)','Veredicto'];
+      const csv = [
+        headers.join(','),
+        ...rows.map(r => [
+          escape(r.fonte),
+          escape(r.data_evento ? new Date(r.data_evento).toLocaleString('pt-BR') : ''),
+          escape(r.league),
+          escape(r.home_team),
+          escape(r.away_team),
+          escape(r.market),
+          escape(r.odd),
+          escape(r.result),
+          escape(r.profit_loss),
+          escape(r.verdict),
+        ].join(','))
+      ].join('\n');
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `auditoria_det_vs_ia_${period}_${new Date().toISOString().slice(0,10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  }, [period]);
+
   return (
     <div className="space-y-4">
       <Card className="p-4 border-violet-500/30">
@@ -198,6 +248,10 @@ export default function ComparativoDetVsIaTab() {
             <Button size="sm" variant="outline" onClick={load} disabled={loading}>
               <RefreshCw className={`w-3 h-3 mr-1 ${loading ? 'animate-spin' : ''}`} />
               Atualizar
+            </Button>
+            <Button size="sm" variant="secondary" onClick={handleExportCsv} disabled={exporting}>
+              <Download className={`w-3 h-3 mr-1 ${exporting ? 'animate-bounce' : ''}`} />
+              {exporting ? 'Exportando…' : 'Exportar CSV'}
             </Button>
           </div>
         </div>
