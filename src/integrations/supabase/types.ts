@@ -1054,6 +1054,111 @@ export type Database = {
         }
         Relationships: []
       }
+      asaas_charges: {
+        Row: {
+          asaas_charge_id: string | null
+          asaas_customer_id: string | null
+          billing_type: string
+          created_at: string
+          description: string | null
+          duration_hours: number
+          environment: string
+          id: string
+          invoice_url: string | null
+          paid_at: string | null
+          pix_expires_at: string | null
+          pix_payload: string | null
+          pix_qr_code: string | null
+          plan_target: string
+          product_slug: string
+          raw_create_response: Json | null
+          status: string
+          updated_at: string
+          user_id: string
+          value: number
+        }
+        Insert: {
+          asaas_charge_id?: string | null
+          asaas_customer_id?: string | null
+          billing_type?: string
+          created_at?: string
+          description?: string | null
+          duration_hours?: number
+          environment?: string
+          id?: string
+          invoice_url?: string | null
+          paid_at?: string | null
+          pix_expires_at?: string | null
+          pix_payload?: string | null
+          pix_qr_code?: string | null
+          plan_target?: string
+          product_slug?: string
+          raw_create_response?: Json | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          value: number
+        }
+        Update: {
+          asaas_charge_id?: string | null
+          asaas_customer_id?: string | null
+          billing_type?: string
+          created_at?: string
+          description?: string | null
+          duration_hours?: number
+          environment?: string
+          id?: string
+          invoice_url?: string | null
+          paid_at?: string | null
+          pix_expires_at?: string | null
+          pix_payload?: string | null
+          pix_qr_code?: string | null
+          plan_target?: string
+          product_slug?: string
+          raw_create_response?: Json | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          value?: number
+        }
+        Relationships: []
+      }
+      asaas_webhook_events: {
+        Row: {
+          asaas_charge_id: string | null
+          asaas_event_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          process_error: string | null
+          processed: boolean
+          raw_payload: Json | null
+          user_id: string | null
+        }
+        Insert: {
+          asaas_charge_id?: string | null
+          asaas_event_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          process_error?: string | null
+          processed?: boolean
+          raw_payload?: Json | null
+          user_id?: string | null
+        }
+        Update: {
+          asaas_charge_id?: string | null
+          asaas_event_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          process_error?: string | null
+          processed?: boolean
+          raw_payload?: Json | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       audios_horus_punter: {
         Row: {
           ativo: boolean

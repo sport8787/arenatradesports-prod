@@ -34,6 +34,8 @@ const Links = React.lazy(() => import("./pages/Links"));
 const Auth = React.lazy(() => import("./pages/Auth"));
 const ChangePassword = React.lazy(() => import("./pages/ChangePassword"));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
+const DayPassSignup = React.lazy(() => import("./pages/DayPassSignup"));
+const LobbyPreview = React.lazy(() => import("./pages/LobbyPreview"));
 const MinhasApostas = React.lazy(() => import("./pages/MinhasApostas"));
 const PrivacyPolicy = React.lazy(() => import("./pages/PrivacyPolicy"));
 const ArenaTraderSports = React.lazy(() => import("./pages/ArenaTraderSports"));
@@ -156,6 +158,8 @@ const App = () => {
                 <Route path="/lobby" element={<Index />} />
                 <Route path="/links" element={<Links />} />
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/day-pass" element={<DayPassSignup />} />
+                <Route path="/lobby-preview" element={<LobbyPreview />} />
                 <Route path="/trocar-senha" element={<ChangePassword />} />
                 <Route path="/privacidade" element={<PrivacyPolicy />} />
                 <Route path="/paywall" element={<Paywall />} />
