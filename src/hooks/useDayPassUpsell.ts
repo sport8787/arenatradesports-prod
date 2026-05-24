@@ -29,12 +29,12 @@ export function useDayPassUpsell() {
   useEffect(() => {
     if (!user) { setHasUpsell(null); return; }
     let cancelled = false;
-    supabase
+    (supabase as any)
       .from("day_pass_upsells")
       .select("status")
       .eq("user_id", user.id)
       .maybeSingle()
-      .then(({ data }) => {
+      .then(({ data }: any) => {
         if (!cancelled) setHasUpsell(data?.status === "active");
       });
     return () => { cancelled = true; };
