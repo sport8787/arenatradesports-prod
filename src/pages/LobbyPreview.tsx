@@ -30,17 +30,24 @@ export default function LobbyPreview() {
   const [charge, setCharge] = useState<ChargeResponse | null>(null);
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    if (!authLoading && !user) navigate("/day-pass", { replace: true });
-  }, [user, authLoading, navigate]);
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useSubscription } from "@/hooks/useSubscription";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Loader2, Copy, CheckCircle2, Lock, Zap } from "lucide-react";
+import { toast } from "sonner";
 
-  // Quando o webhook confirmar e a subscription virar 'premium', joga direto pro punter.
-  useEffect(() => {
-    if (!subLoading && hasAccess) {
-      toast.success("Pagamento confirmado! Liberando acesso...");
-      setTimeout(() => navigate("/punter", { replace: true }), 800);
-    }
-  }, [hasAccess, subLoading, navigate]);
+interface ChargeResponse {
+  charge_id: string;
+  invoice_url: string;
+  pix_qr_code: string | null;
+  pix_payload: string | null;
+  value: number;
+  reused?: boolean;
+}
 
   const generatePix = async () => {
     if (generating) return;
