@@ -25,7 +25,7 @@ interface ChargeResponse {
 export default function LobbyPreview() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const { hasAccess, loading: subLoading } = useSubscription();
+  const { subscription, loading: subLoading } = useSubscription();
   const [generating, setGenerating] = useState(false);
   const [charge, setCharge] = useState<ChargeResponse | null>(null);
   const [copied, setCopied] = useState(false);
@@ -34,13 +34,19 @@ export default function LobbyPreview() {
     if (!authLoading && !user) navigate("/day-pass", { replace: true });
   }, [user, authLoading, navigate]);
 
-  // Quando o webhook confirmar e a subscription virar 'premium', joga direto pro punter.
+  // Só redireciona quando o webhook confirmar PREMIUM ATIVO (não confunde com trial cortesia).
   useEffect(() => {
-    if (!subLoading && hasAccess) {
+    if (subLoading || !subscription) return;
+    const isPaidPremium =
+      subscription.plan === "premium" &&
+      subscription.is_active &&
+      (!subscription.subscription_ends_at || new Date(subscription.subscription_ends_at) > new Date());
+    if (isPaidPremium) {
       toast.success("Pagamento confirmado! Liberando acesso...");
       setTimeout(() => navigate("/punter", { replace: true }), 800);
     }
-  }, [hasAccess, subLoading, navigate]);
+  }, [subscription, subLoading, navigate]);
+
 
   const generatePix = async () => {
     if (generating) return;
