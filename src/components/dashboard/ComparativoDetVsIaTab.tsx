@@ -195,6 +195,20 @@ export default function ComparativoDetVsIaTab() {
           </div>
         </div>
 
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button size="sm" variant={mode === 'table' ? 'default' : 'outline'} onClick={() => setMode('table')}>
+              Tabela
+            </Button>
+            <Button size="sm" variant={mode === 'sideBySide' ? 'default' : 'outline'} onClick={() => setMode('sideBySide')}>
+              Lado a Lado
+            </Button>
+            <Button size="sm" variant="outline" onClick={load} disabled={loading}>
+              <RefreshCw className={`w-3 h-3 mr-1 ${loading ? 'animate-spin' : ''}`} />
+              Atualizar
+            </Button>
+          </div>
+        </div>
+
         <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)} className="mb-3">
           <TabsList className="grid grid-cols-5 w-full max-w-md">
             <TabsTrigger value="today">Hoje</TabsTrigger>
