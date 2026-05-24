@@ -386,6 +386,17 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
                   </span>
                 )}
               </div>
+              {(() => {
+                const rawPlan = (match.planName || '').toString().replace(/^plano\s+/i, '').trim();
+                const displayPlan = rawPlan || getPlanNameByMarket(match.market)?.replace(/^Plano\s+/i, '') || null;
+                return displayPlan ? (
+                  <div className="text-center py-1 rounded-md bg-amber-400/15 border border-amber-300/40">
+                    <span className="text-[11px] md:text-xs font-orbitron font-black text-amber-300 uppercase tracking-widest">
+                      🔱 MYCROFT ATIVOU O PLANO {displayPlan}
+                    </span>
+                  </div>
+                ) : null;
+              })()}
               {match.market && (
                 <div className="text-center py-1 rounded-md bg-success/20 border border-success/40">
                   <span className="text-base md:text-lg font-orbitron font-black text-white uppercase tracking-wide leading-tight">
