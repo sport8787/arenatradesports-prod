@@ -1,8 +1,9 @@
 // liquidar-sinais-ao-vivo
-// Roda a cada 10min via pg_cron. Liquida live_sinais pendentes de HOJE.
-// Provedores: Futodds /matches-ended (primário) → Sportmonks (fallback).
+// Roda a cada 10min via pg_cron. Liquida live_sinais pendentes.
+// Provedores: Futodds /matches-ended (primário) → Sportmonks (fallback) → SofaScore (fallback 2).
 // Liquidação 100% delegada à RPC settle_signal (fonte única de verdade).
 // Fase 2 (18/05/2026): API-Football removida.
+// 24/05/2026: SofaScore adicionado como fallback final (cobertura ampla + HT score nativo).
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { findFixtureByTeamsAndDate } from "../_shared/sportmonks.ts";
 
