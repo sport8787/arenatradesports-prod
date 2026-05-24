@@ -147,7 +147,6 @@ export default function ComparativoDetVsIaTab() {
           </div>
           <div className="flex items-center gap-2">
             <Button size="sm" variant="outline" onClick={load} disabled={loading}>
-            <Button size="sm" variant="outline" onClick={load} disabled={loading}>
               <RefreshCw className={`w-3 h-3 mr-1 ${loading ? 'animate-spin' : ''}`} />
               Atualizar
             </Button>
