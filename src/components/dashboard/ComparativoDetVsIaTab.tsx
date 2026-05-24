@@ -154,6 +154,16 @@ export default function ComparativoDetVsIaTab() {
   const det = rows.find(r => r.fonte?.toLowerCase().includes('deter'));
   const ia = rows.find(r => r.fonte?.toLowerCase().includes('ia'));
 
+  // Deltas IA − Det (IA é a referência da estratégia). Positivo = IA superior.
+  const deltaRoi = det && ia && det.roi_pct !== null && ia.roi_pct !== null
+    ? Number(ia.roi_pct) - Number(det.roi_pct) : null;
+  const deltaHit = det && ia && det.hit_rate_pct !== null && ia.hit_rate_pct !== null
+    ? Number(ia.hit_rate_pct) - Number(det.hit_rate_pct) : null;
+  const deltaPl = det && ia && det.pl_total !== null && ia.pl_total !== null
+    ? Number(ia.pl_total) - Number(det.pl_total) : null;
+  const deltaOdd = det && ia && det.odd_media !== null && ia.odd_media !== null
+    ? Number(ia.odd_media) - Number(det.odd_media) : null;
+
   return (
     <div className="space-y-4">
       <Card className="p-4 border-violet-500/30">
