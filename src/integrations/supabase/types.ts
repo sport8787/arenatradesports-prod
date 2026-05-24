@@ -7895,6 +7895,23 @@ export type Database = {
         }[]
       }
       get_trader_balance: { Args: { p_user_id: string }; Returns: number }
+      get_user_plan_results: {
+        Args: { _period?: string }
+        Returns: {
+          avg_odd: number
+          greens: number
+          hit_rate: number
+          last_signal_at: string
+          market: string
+          pending: number
+          plan_id: string
+          plan_name: string
+          profit_loss: number
+          reds: number
+          roi: number
+          total: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -8113,6 +8130,12 @@ export type Database = {
         Returns: {
           profit_loss: number
           result: string
+        }[]
+      }
+      settle_user_plan_signals: {
+        Args: never
+        Returns: {
+          settled: number
         }[]
       }
       spend_nt_balance: {
