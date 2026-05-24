@@ -156,6 +156,7 @@ const App = () => {
           <BrowserRouter>
             <SessionRecovery />
             <ConditionalTrialBanner />
+            <UpsellGate />
             <BCRewardToastsMount />
             <React.Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center" />}>
               <Routes>
