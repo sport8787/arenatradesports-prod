@@ -1,8 +1,9 @@
 // liquidar-sinais-ao-vivo
-// Roda a cada 10min via pg_cron. Liquida live_sinais pendentes de HOJE.
-// Provedores: Futodds /matches-ended (primário) → Sportmonks (fallback).
+// Roda a cada 10min via pg_cron. Liquida live_sinais pendentes.
+// Provedores: Futodds /matches-ended (primário) → Sportmonks (fallback) → SofaScore (fallback 2).
 // Liquidação 100% delegada à RPC settle_signal (fonte única de verdade).
 // Fase 2 (18/05/2026): API-Football removida.
+// 24/05/2026: SofaScore adicionado como fallback final (cobertura ampla + HT score nativo).
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { findFixtureByTeamsAndDate } from "../_shared/sportmonks.ts";
 
@@ -75,18 +76,31 @@ function findFutodds(ended: any[], home: string, away: string): FinalScore | nul
     const a = m.away_name || m.away_team || m.away || "";
     if (!teamMatches(home, h) || !teamMatches(away, a)) continue;
     let gh: number | null = null, ga: number | null = null;
-    if (typeof m.scores === "string" && m.scores.includes("-")) {
+    let hth: number | null = null, hta: number | null = null;
+
+    // Formato atual (2026): score: { ft_home, ft_away, ht_home, ht_away }
+    if (m.score && typeof m.score === "object") {
+      const fh = Number(m.score.ft_home); const fa = Number(m.score.ft_away);
+      if (!isNaN(fh) && !isNaN(fa)) { gh = fh; ga = fa; }
+      const hh = Number(m.score.ht_home); const ha = Number(m.score.ht_away);
+      if (!isNaN(hh)) hth = hh;
+      if (!isNaN(ha)) hta = ha;
+    }
+    // Formato legado: "1-2"
+    if ((gh == null || isNaN(gh)) && typeof m.scores === "string" && m.scores.includes("-")) {
       const [x, y] = m.scores.split("-"); gh = Number(x); ga = Number(y);
     }
     if (gh == null || isNaN(gh)) gh = Number(m.home_goals);
     if (ga == null || isNaN(ga)) ga = Number(m.away_goals);
     if (gh == null || isNaN(gh) || ga == null || isNaN(ga)) continue;
 
-    let hth: number | null = null, hta: number | null = null;
-    const hts = m.ht_score || m.ht_scores || m.score_ht;
-    if (typeof hts === "string" && hts.includes("-")) {
-      const [x, y] = hts.split("-"); hth = Number(x); hta = Number(y);
-      if (isNaN(hth)) hth = null; if (isNaN(hta)) hta = null;
+    if (hth == null) {
+      const hts = m.ht_score || m.ht_scores || m.score_ht;
+      if (typeof hts === "string" && hts.includes("-")) {
+        const [x, y] = hts.split("-"); const hh = Number(x); const ha = Number(y);
+        if (!isNaN(hh)) hth = hh;
+        if (!isNaN(ha)) hta = ha;
+      }
     }
     return { home: gh, away: ga, ht_home: hth, ht_away: hta, status: m.status || "FT", source: "futodds" };
   }
@@ -109,6 +123,99 @@ async function smFallback(home: string, away: string, isoDate: string): Promise<
     };
   } catch (e) {
     console.error("[sm-fallback]", e);
+    return null;
+  }
+}
+
+// Fallback 2: SofaScore — cobertura ampla + HT score nativo (period1).
+// API pública (não documentada): https://api.sofascore.com/api/v1
+const SOFA_BASE = "https://api.sofascore.com/api/v1";
+const SOFA_HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Accept": "application/json, text/plain, */*",
+  "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
+  "Referer": "https://www.sofascore.com/",
+  "Origin": "https://www.sofascore.com",
+};
+const NOISE_TOKENS = new Set([
+  "fc","cf","sc","ac","club","clube","cd","sd","ud","rcd","fk","aa","ec","ca","se","cr","rb","afc","cfc",
+  "city","united","de","do","da","of","the","w","fem","feminino","feminina",
+]);
+function sofaSimplify(s: string): string {
+  return (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter(Boolean)
+    .filter((t) => !NOISE_TOKENS.has(t)).join("");
+}
+function sofaTeamsMatch(eventName: string, target: string): boolean {
+  const e = sofaSimplify(eventName); const t = sofaSimplify(target);
+  if (!e || !t) return false;
+  if (e === t) return true;
+  if (e.length >= 4 && t.includes(e)) return true;
+  if (t.length >= 4 && e.includes(t)) return true;
+  return false;
+}
+async function sofaFetch(path: string): Promise<any | null> {
+  const url = `${SOFA_BASE}${path}`;
+  try {
+    const r = await fetch(url, { headers: SOFA_HEADERS });
+    if (r.ok) return await r.json();
+    if (r.status !== 403 && r.status !== 429) return null;
+  } catch {}
+  // Fallback: Firecrawl (alguns IPs do edge runtime caem em 403 direto)
+  const fcKey = Deno.env.get("FIRECRAWL_API_KEY");
+  if (!fcKey) return null;
+  try {
+    const fr = await fetch("https://api.firecrawl.dev/v2/scrape", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${fcKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ url, formats: ["rawHtml"], onlyMainContent: false, waitFor: 800 }),
+    });
+    if (!fr.ok) return null;
+    const fd = await fr.json();
+    const raw: string = fd?.data?.rawHtml || fd?.rawHtml || "";
+    const jsonStr = raw.replace(/<[^>]+>/g, "").trim();
+    if (!jsonStr.startsWith("{")) return null;
+    return JSON.parse(jsonStr);
+  } catch { return null; }
+}
+const sofaScheduledCache = new Map<string, any[]>();
+async function sofaScheduledByDate(ymd: string): Promise<any[]> {
+  if (sofaScheduledCache.has(ymd)) return sofaScheduledCache.get(ymd)!;
+  const data = await sofaFetch(`/sport/football/scheduled-events/${ymd}`);
+  const events = (data?.events ?? []) as any[];
+  sofaScheduledCache.set(ymd, events);
+  return events;
+}
+async function sofaFallback(home: string, away: string, isoDate: string): Promise<FinalScore | null> {
+  try {
+    const base = new Date(isoDate);
+    if (isNaN(base.getTime())) return null;
+    for (const offset of [0, -1, 1]) {
+      const d = new Date(base); d.setUTCDate(d.getUTCDate() + offset);
+      const ymd = d.toISOString().slice(0, 10);
+      const events = await sofaScheduledByDate(ymd);
+      for (const ev of events) {
+        const eHome = ev.homeTeam?.name || "";
+        const eAway = ev.awayTeam?.name || "";
+        if (!sofaTeamsMatch(eHome, home) || !sofaTeamsMatch(eAway, away)) continue;
+        const statusType = ev.status?.type || "";
+        if (statusType !== "finished") continue;
+        const gh = ev.homeScore?.current;
+        const ga = ev.awayScore?.current;
+        if (gh == null || ga == null) continue;
+        const hth = ev.homeScore?.period1 ?? null;
+        const hta = ev.awayScore?.period1 ?? null;
+        return {
+          home: Number(gh), away: Number(ga),
+          ht_home: hth == null ? null : Number(hth),
+          ht_away: hta == null ? null : Number(hta),
+          status: "FT", source: "sofascore",
+        };
+      }
+    }
+    return null;
+  } catch (e) {
+    console.error("[sofa-fallback]", e);
     return null;
   }
 }
@@ -171,8 +278,19 @@ Deno.serve(async (req) => {
         futoddsByDayCache.set(signalDay, await futoddsByDate(signalDay));
       }
       fs = findFutodds(futoddsByDayCache.get(signalDay) ?? [], home, away);
+      let sourceTag = fs ? "futodds" : null;
       if (!fs) {
         fs = await smFallback(home, away, sig.match_date);
+        if (fs) sourceTag = "sportmonks";
+      }
+      if (!fs) {
+        fs = await sofaFallback(home, away, sig.match_date);
+        if (fs) sourceTag = "sofascore";
+      }
+      if (fs && sourceTag) {
+        console.log(`[liquidar] ✅ score via ${sourceTag}: ${home} ${fs.home}-${fs.away} ${away} (ht ${fs.ht_home ?? "?"}-${fs.ht_away ?? "?"})`);
+      } else if (!fs) {
+        console.log(`[liquidar] ⚠️ sem placar: ${home} vs ${away} @ ${signalDay}`);
       }
       fsCache.set(cacheKey, fs);
     }

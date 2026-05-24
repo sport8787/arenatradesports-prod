@@ -37,18 +37,27 @@ async function buscarPorFutoddsEnded(home: string, away: string, isoDate: string
       const fhome = m.home_name || m.home || "";
       const faway = m.away_name || m.away || "";
       if (!teamsMatch(fhome, home) || !teamsMatch(faway, away)) continue;
-      // scores: pode vir em "scores" ("2-1") ou home_goals/away_goals
+      // Formato Futodds 2026: score: { ft_home, ft_away, ht_home, ht_away }
+      // Legado: "scores" string ou home_goals/away_goals
       let gh: number | null = null, ga: number | null = null;
-      if (typeof m.scores === "string" && m.scores.includes("-")) {
+      if (m.score && typeof m.score === "object") {
+        const fh = Number(m.score.ft_home); const fa = Number(m.score.ft_away);
+        if (!isNaN(fh) && !isNaN(fa)) { gh = fh; ga = fa; }
+      }
+      if ((gh == null || isNaN(gh)) && typeof m.scores === "string" && m.scores.includes("-")) {
         const [a, b] = m.scores.split("-");
         gh = Number(a); ga = Number(b);
       }
       if (gh == null || isNaN(gh)) gh = Number(m.home_goals);
       if (ga == null || isNaN(ga)) ga = Number(m.away_goals);
       if (gh == null || isNaN(gh) || ga == null || isNaN(ga)) continue;
-      // corners se o provedor expuser
-      const ch = Number(m.home_corners ?? m.corners_home);
-      const ca = Number(m.away_corners ?? m.corners_away);
+      // corners: formato novo m.corners.ft_home/ft_away; legado m.home_corners
+      let ch = NaN, ca = NaN;
+      if (m.corners && typeof m.corners === "object") {
+        ch = Number(m.corners.ft_home); ca = Number(m.corners.ft_away);
+      }
+      if (isNaN(ch)) ch = Number(m.home_corners ?? m.corners_home);
+      if (isNaN(ca)) ca = Number(m.away_corners ?? m.corners_away);
       return {
         homeTeam: fhome, awayTeam: faway,
         goalsHome: gh, goalsAway: ga,
