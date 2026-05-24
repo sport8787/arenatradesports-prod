@@ -122,6 +122,18 @@
   .avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#facc15,#f59e0b);display:inline-flex;align-items:center;justify-content:center;color:#0a0f1e;font-weight:800;font-size:14px}
   @media(max-width:680px){.testimonials{grid-template-columns:1fr}}
 
+  /* Real proof gallery */
+  .proof-gallery{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:28px}
+  .proof-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+  .proof-card.wide{grid-column:1/-1}
+  .proof-card img{display:block;width:100%;height:auto;background:#0a0f1e}
+  .proof-card .cap{padding:12px 16px;font-size:13px;color:#cbd5e1;border-top:1px solid rgba(255,255,255,.06)}
+  .proof-card .cap b{color:#22c55e}
+  .proof-tag{display:inline-block;background:rgba(34,197,94,.12);color:#22c55e;font-size:11px;font-weight:700;letter-spacing:.6px;padding:3px 8px;border-radius:999px;margin-right:8px;text-transform:uppercase}
+  .proof-tag.amber{background:rgba(250,204,21,.12);color:#facc15}
+  .proof-tag.live{background:rgba(239,68,68,.12);color:#f87171}
+  @media(max-width:680px){.proof-gallery{grid-template-columns:1fr}}
+
   /* How */
   .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;counter-reset:step}
   .step{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:20px;position:relative}
@@ -253,6 +265,41 @@
       <div class="stat"><div class="stat-num">R$ 7k</div><div class="stat-lbl">Lucro banca real</div></div>
       <div class="stat"><div class="stat-num">1.200+</div><div class="stat-lbl">Usuários ativos</div></div>
     </div>
+
+    <div class="eyebrow" style="margin-top:48px">Provas reais</div>
+    <h2 style="font-size:clamp(22px,3vw,32px)">Prints de sinais e resultados auditados.</h2>
+    <p class="lead">Capturas diretas da plataforma e da banca real operada na Betfair.</p>
+
+    <div class="proof-gallery">
+      <div class="proof-card wide">
+        <img src="/lp/proof-sinal-aprovado-live.png" alt="Sinais APROVADO ao vivo no Mycroft — Torino x Juventus, Hellas Verona x Roma, Atlético-GO x São Bernardo" loading="lazy" />
+        <div class="cap"><span class="proof-tag live">Ao vivo</span><b>3 sinais APROVADO</b> identificados em tempo real com pressão, odd justa e plano de entrada (Mycroft Arena Trader Sports).</div>
+      </div>
+
+      <div class="proof-card">
+        <img src="/lp/proof-analise-punter.png" alt="Análise pré-live do Mycroft Punter — Goiás x Vila Nova Over 2.5 com edge +15.5%" loading="lazy" />
+        <div class="cap"><span class="proof-tag">Pré-live</span><b>Goiás x Vila Nova · Over 2.5</b> · Score 65 · Edge <b>+15.5%</b> · stake sugerido pelo Hórus.</div>
+      </div>
+      <div class="proof-card">
+        <img src="/lp/proof-analise-punter-2.png" alt="Análise pré-live do Mycroft Punter — Santos x Bragantino Over 2.5 com edge +10%" loading="lazy" />
+        <div class="cap"><span class="proof-tag amber">Pré-live</span><b>Santos x Bragantino · Over 2.5</b> · Score 60 · Edge <b>+10%</b> · tese de investimento auditada.</div>
+      </div>
+
+      <div class="proof-card wide">
+        <img src="/lp/proof-greens-arena-live.png" alt="5 GREENs consecutivos da Copa Libertadores no Mycroft Arena Live" loading="lazy" />
+        <div class="cap"><span class="proof-tag">Greens</span><b>5 GREENs consecutivos</b> na Copa Libertadores — Over/Under 2.5 liquidados em sequência (20–21/05).</div>
+      </div>
+
+      <div class="proof-card">
+        <img src="/lp/proof-betfair-lucro.jpeg" alt="Extrato Betfair real mostrando R$ 347,94 de lucro líquido em um único dia" loading="lazy" />
+        <div class="cap"><span class="proof-tag">Betfair real</span><b>+R$ 347,94</b> de lucro líquido em 1 dia · 5 mercados resolvidos (extrato oficial Betfair).</div>
+      </div>
+      <div class="proof-card">
+        <img src="/lp/proof-betfair-banca.jpeg" alt="Banca principal Betfair com R$ 6.304,23 operando ao vivo" loading="lazy" />
+        <div class="cap"><span class="proof-tag">Banca real</span><b>R$ 6.304,23</b> de banca principal operando ao vivo na Betfair seguindo os sinais do Mycroft.</div>
+      </div>
+    </div>
+
 
     <div class="testimonials">
       <div class="testimonial">
