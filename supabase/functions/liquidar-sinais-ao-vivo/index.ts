@@ -76,18 +76,31 @@ function findFutodds(ended: any[], home: string, away: string): FinalScore | nul
     const a = m.away_name || m.away_team || m.away || "";
     if (!teamMatches(home, h) || !teamMatches(away, a)) continue;
     let gh: number | null = null, ga: number | null = null;
-    if (typeof m.scores === "string" && m.scores.includes("-")) {
+    let hth: number | null = null, hta: number | null = null;
+
+    // Formato atual (2026): score: { ft_home, ft_away, ht_home, ht_away }
+    if (m.score && typeof m.score === "object") {
+      const fh = Number(m.score.ft_home); const fa = Number(m.score.ft_away);
+      if (!isNaN(fh) && !isNaN(fa)) { gh = fh; ga = fa; }
+      const hh = Number(m.score.ht_home); const ha = Number(m.score.ht_away);
+      if (!isNaN(hh)) hth = hh;
+      if (!isNaN(ha)) hta = ha;
+    }
+    // Formato legado: "1-2"
+    if ((gh == null || isNaN(gh)) && typeof m.scores === "string" && m.scores.includes("-")) {
       const [x, y] = m.scores.split("-"); gh = Number(x); ga = Number(y);
     }
     if (gh == null || isNaN(gh)) gh = Number(m.home_goals);
     if (ga == null || isNaN(ga)) ga = Number(m.away_goals);
     if (gh == null || isNaN(gh) || ga == null || isNaN(ga)) continue;
 
-    let hth: number | null = null, hta: number | null = null;
-    const hts = m.ht_score || m.ht_scores || m.score_ht;
-    if (typeof hts === "string" && hts.includes("-")) {
-      const [x, y] = hts.split("-"); hth = Number(x); hta = Number(y);
-      if (isNaN(hth)) hth = null; if (isNaN(hta)) hta = null;
+    if (hth == null) {
+      const hts = m.ht_score || m.ht_scores || m.score_ht;
+      if (typeof hts === "string" && hts.includes("-")) {
+        const [x, y] = hts.split("-"); const hh = Number(x); const ha = Number(y);
+        if (!isNaN(hh)) hth = hh;
+        if (!isNaN(ha)) hta = ha;
+      }
     }
     return { home: gh, away: ga, ht_home: hth, ht_away: hta, status: m.status || "FT", source: "futodds" };
   }
