@@ -113,6 +113,16 @@ export default function ComparativoDetVsIaTab() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const [mode, setMode] = useState<ViewMode>(() => {
+    try {
+      const v = localStorage.getItem('cmp_det_ia_mode');
+      return v === 'sideBySide' ? 'sideBySide' : 'table';
+    } catch { return 'table'; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem('cmp_det_ia_mode', mode); } catch {}
+  }, [mode]);
 
   // Sincroniza period com URL + localStorage (mesma convenção da página de Sinais Liquidados).
   useEffect(() => {
