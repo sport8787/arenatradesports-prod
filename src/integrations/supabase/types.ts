@@ -7775,6 +7775,21 @@ export type Database = {
       cleanup_mycroft_analysis_queue: { Args: never; Returns: undefined }
       cleanup_old_edge_function_errors: { Args: never; Returns: undefined }
       cleanup_old_edge_function_runs: { Args: never; Returns: undefined }
+      compare_det_vs_ia: {
+        Args: { _period?: string }
+        Returns: {
+          aprovados: number
+          fonte: string
+          green: number
+          hit_rate_pct: number
+          odd_media: number
+          pendentes: number
+          pl_total: number
+          red: number
+          roi_pct: number
+          stake_total: number
+        }[]
+      }
       compare_providers_divergences: {
         Args: { p_since: string }
         Returns: {
