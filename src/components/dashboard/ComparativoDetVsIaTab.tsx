@@ -219,63 +219,116 @@ export default function ComparativoDetVsIaTab() {
           <code className="text-[10px]">mycroft_analyses_shadow_ai</code>.
         </p>
 
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Fonte</TableHead>
-                <TableHead className="text-right">Aprov.</TableHead>
-                <TableHead className="text-right text-emerald-500">🟢</TableHead>
-                <TableHead className="text-right text-rose-500">🔴</TableHead>
-                <TableHead className="text-right">Pend.</TableHead>
-                <TableHead className="text-right">Hit %</TableHead>
-                <TableHead className="text-right">Odd média</TableHead>
-                <TableHead className="text-right">P/L (u)</TableHead>
-                <TableHead className="text-right">ROI %</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {[det, ia].filter(Boolean).map((r) => (
-                <TableRow key={r!.fonte}>
-                  <TableCell className="font-medium">
-                    {r!.fonte?.toLowerCase().includes('deter')
-                      ? '🧮 Determinístico'
-                      : '🤖 IA (Gemini)'}
-                  </TableCell>
-                  <TableCell className="text-right">{r!.aprovados}</TableCell>
-                  <TableCell className="text-right text-emerald-500 font-semibold">{r!.green}</TableCell>
-                  <TableCell className="text-right text-rose-500 font-semibold">{r!.red}</TableCell>
-                  <TableCell className="text-right text-muted-foreground">{r!.pendentes}</TableCell>
-                  <TableCell className="text-right">{fmt(r!.hit_rate_pct, 1)}%</TableCell>
-                  <TableCell className="text-right">{fmt(r!.odd_media, 2)}</TableCell>
-                  <TableCell
-                    className={`text-right font-semibold ${
-                      (r!.pl_total ?? 0) >= 0 ? 'text-emerald-500' : 'text-rose-500'
-                    }`}
-                  >
-                    {(r!.pl_total ?? 0) >= 0 ? '+' : ''}
-                    {fmt(r!.pl_total, 2)}
-                  </TableCell>
-                  <TableCell
-                    className={`text-right font-bold ${
-                      (r!.roi_pct ?? 0) >= 0 ? 'text-emerald-500' : 'text-rose-500'
-                    }`}
-                  >
-                    {(r!.roi_pct ?? 0) >= 0 ? '+' : ''}
-                    {fmt(r!.roi_pct, 1)}%
-                  </TableCell>
-                </TableRow>
-              ))}
-              {!loading && rows.length === 0 && (
+        {mode === 'table' ? (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center text-muted-foreground py-6">
-                    Sem dados.
-                  </TableCell>
+                  <TableHead>Fonte</TableHead>
+                  <TableHead className="text-right">Aprov.</TableHead>
+                  <TableHead className="text-right text-emerald-500">🟢</TableHead>
+                  <TableHead className="text-right text-rose-500">🔴</TableHead>
+                  <TableHead className="text-right">Pend.</TableHead>
+                  <TableHead className="text-right">Hit %</TableHead>
+                  <TableHead className="text-right">Odd média</TableHead>
+                  <TableHead className="text-right">P/L (u)</TableHead>
+                  <TableHead className="text-right">ROI %</TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {[det, ia].filter(Boolean).map((r) => (
+                  <TableRow key={r!.fonte}>
+                    <TableCell className="font-medium">
+                      {r!.fonte?.toLowerCase().includes('deter') ? '🧮 Determinístico' : '🤖 IA (Gemini)'}
+                    </TableCell>
+                    <TableCell className="text-right">{r!.aprovados}</TableCell>
+                    <TableCell className="text-right text-emerald-500 font-semibold">{r!.green}</TableCell>
+                    <TableCell className="text-right text-rose-500 font-semibold">{r!.red}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">{r!.pendentes}</TableCell>
+                    <TableCell className="text-right">{fmt(r!.hit_rate_pct, 1)}%</TableCell>
+                    <TableCell className="text-right">{fmt(r!.odd_media, 2)}</TableCell>
+                    <TableCell className={`text-right font-semibold ${(r!.pl_total ?? 0) >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                      {(r!.pl_total ?? 0) >= 0 ? '+' : ''}{fmt(r!.pl_total, 2)}
+                    </TableCell>
+                    <TableCell className={`text-right font-bold ${(r!.roi_pct ?? 0) >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                      {(r!.roi_pct ?? 0) >= 0 ? '+' : ''}{fmt(r!.roi_pct, 1)}%
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {/* Linha de diferença IA − Det com destaque percentual */}
+                {det && ia && (
+                  <TableRow className="bg-violet-500/5 border-t-2 border-violet-500/30">
+                    <TableCell className="font-bold text-violet-500">Δ IA − Det</TableCell>
+                    <TableCell className="text-right text-muted-foreground">{ia.aprovados - det.aprovados}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">{ia.green - det.green}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">{ia.red - det.red}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">—</TableCell>
+                    <TableCell className="text-right"><DeltaPill value={deltaHit} suffix="pp" /></TableCell>
+                    <TableCell className="text-right"><DeltaPill value={deltaOdd} /></TableCell>
+                    <TableCell className="text-right"><DeltaPill value={deltaPl} suffix="u" /></TableCell>
+                    <TableCell className="text-right"><DeltaPill value={deltaRoi} suffix="%" /></TableCell>
+                  </TableRow>
+                )}
+                {!loading && rows.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center text-muted-foreground py-6">Sem dados.</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        ) : (
+          // Modo Lado a Lado — mesma janela (Hoje/30d), destaque no Δ%
+          <div className="grid gap-3 md:grid-cols-[1fr_auto_1fr] items-stretch">
+            {det ? (
+              <div className="rounded-lg border border-border bg-secondary/30 p-4">
+                <div className="text-xs text-muted-foreground mb-1">🧮 Determinístico</div>
+                <div className={`text-3xl font-bold tabular-nums ${(det.roi_pct ?? 0) >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                  {(det.roi_pct ?? 0) >= 0 ? '+' : ''}{fmt(det.roi_pct, 1)}%
+                </div>
+                <div className="text-[11px] text-muted-foreground">ROI · {PERIOD_LABELS[period]}</div>
+                <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
+                  <div><span className="text-muted-foreground">Hit:</span> <span className="font-semibold">{fmt(det.hit_rate_pct, 1)}%</span></div>
+                  <div><span className="text-muted-foreground">Odd:</span> <span className="font-semibold">{fmt(det.odd_media, 2)}</span></div>
+                  <div><span className="text-muted-foreground">🟢:</span> <span className="text-emerald-500 font-semibold">{det.green}</span></div>
+                  <div><span className="text-muted-foreground">🔴:</span> <span className="text-rose-500 font-semibold">{det.red}</span></div>
+                  <div className="col-span-2"><span className="text-muted-foreground">Aprov.:</span> <span className="font-semibold">{det.aprovados}</span> · <span className="text-muted-foreground">P/L:</span> <span className={`font-semibold ${(det.pl_total ?? 0) >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>{(det.pl_total ?? 0) >= 0 ? '+' : ''}{fmt(det.pl_total, 2)}u</span></div>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground text-center">Sem dados Determinístico.</div>
+            )}
+
+            <div className="flex md:flex-col items-center justify-center gap-2 md:px-2 py-2">
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Δ IA − Det</div>
+              <DeltaPill value={deltaRoi} suffix="%" />
+              <div className="text-[10px] text-muted-foreground">ROI</div>
+              <DeltaPill value={deltaHit} suffix="pp" />
+              <div className="text-[10px] text-muted-foreground">Hit</div>
+              <DeltaPill value={deltaPl} suffix="u" />
+              <div className="text-[10px] text-muted-foreground">P/L</div>
+            </div>
+
+            {ia ? (
+              <div className="rounded-lg border border-violet-500/40 bg-violet-500/5 p-4">
+                <div className="text-xs text-muted-foreground mb-1">🤖 IA (Gemini)</div>
+                <div className={`text-3xl font-bold tabular-nums ${(ia.roi_pct ?? 0) >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                  {(ia.roi_pct ?? 0) >= 0 ? '+' : ''}{fmt(ia.roi_pct, 1)}%
+                </div>
+                <div className="text-[11px] text-muted-foreground">ROI · {PERIOD_LABELS[period]}</div>
+                <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
+                  <div><span className="text-muted-foreground">Hit:</span> <span className="font-semibold">{fmt(ia.hit_rate_pct, 1)}%</span></div>
+                  <div><span className="text-muted-foreground">Odd:</span> <span className="font-semibold">{fmt(ia.odd_media, 2)}</span></div>
+                  <div><span className="text-muted-foreground">🟢:</span> <span className="text-emerald-500 font-semibold">{ia.green}</span></div>
+                  <div><span className="text-muted-foreground">🔴:</span> <span className="text-rose-500 font-semibold">{ia.red}</span></div>
+                  <div className="col-span-2"><span className="text-muted-foreground">Aprov.:</span> <span className="font-semibold">{ia.aprovados}</span> · <span className="text-muted-foreground">P/L:</span> <span className={`font-semibold ${(ia.pl_total ?? 0) >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>{(ia.pl_total ?? 0) >= 0 ? '+' : ''}{fmt(ia.pl_total, 2)}u</span></div>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground text-center">Sem dados IA.</div>
+            )}
+          </div>
+        )}
 
         <p className="text-[11px] text-muted-foreground mt-3 leading-relaxed">
           ⚠️ Amostras pequenas (&lt;30 liquidados/lado) ainda não são estatisticamente conclusivas. Use como
