@@ -113,5 +113,12 @@ verify_jwt = false
 
 [functions.kiwify-webhook]
 verify_jwt = false
+
+[functions.asaas-webhook]
+verify_jwt = false
+
+[functions.asaas-create-charge]
+verify_jwt = true
+
 [functions.seo-rodada-brasileirao]
 verify_jwt = false
