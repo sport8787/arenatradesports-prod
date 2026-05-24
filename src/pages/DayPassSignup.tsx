@@ -66,11 +66,11 @@ export default function DayPassSignup() {
       <Card className="w-full max-w-md border-primary/30">
         <CardHeader className="text-center space-y-2">
           <div className="flex items-center justify-center gap-2 text-primary text-sm font-semibold">
-            <Zap className="w-4 h-4" /> DAY PASS · 24h
+            <Zap className="w-4 h-4" /> ACESSO 24h · R$ 9,90
           </div>
-          <CardTitle className="text-2xl">Crie sua conta e libere por R$ 9,90</CardTitle>
+          <CardTitle className="text-2xl">Conheça o Oráculo Mycroft agora</CardTitle>
           <CardDescription>
-            Cadastro em 30 segundos. Pagamento via Pix logo na próxima tela.
+            Cadastro em 30 segundos. Você entra na plataforma e libera as arenas quando quiser.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -89,10 +89,10 @@ export default function DayPassSignup() {
             </div>
             <Button type="submit" className="w-full h-12 text-base font-bold" disabled={loading}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              {loading ? "Criando conta..." : "CONTINUAR PARA O PAGAMENTO →"}
+              {loading ? "Criando conta..." : "ACESSAR O ORÁCULO MYCROFT →"}
             </Button>
             <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground pt-2">
-              <ShieldCheck className="w-3 h-3" /> Pix seguro processado pela Asaas
+              <ShieldCheck className="w-3 h-3" /> Sem cartão. Sem cobrança automática.
             </div>
             <p className="text-center text-xs text-muted-foreground pt-2">
               Já tem conta? <Link to="/auth" className="text-primary hover:underline">Entrar</Link>
