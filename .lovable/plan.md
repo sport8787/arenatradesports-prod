@@ -1,76 +1,131 @@
-## Reposicionamento: Blackjack como bônus + Lobby com hierarquia
-
-Aceito sua argumentação — você está certo nos três pontos:
-
-1. **Blackjack tem vantagem matemática real para o jogador** quando combinado com contagem (Hi-Lo) + estratégia básica + gestão (sua Arena Blackjack já implementa Illustrious 18, Kelly Híbrido, Natural 1.5:1). Não é "cassino puro" como tigrinho/roleta.
-2. **Sua progressão D'Alembert customizada (+2/-2)** é defensável e já mais segura que Martingale. Faz sentido como ferramenta de alavancagem de banca pequena.
-3. **Existe público real** com banca pequena que quer "ganho rápido" — oferecer Blackjack como bônus de fechamento captura esse segmento sem canibalizar o core (Punter + Live).
-
-Mantendo: foco do funil continua sendo **Arena Punter + Arena Live** (prova do Paulo, prints reais, ROI 7d). Blackjack entra como bônus diferenciado no fechamento WhatsApp, com avisos de risco e gestão obrigatória.
+## Objetivo
+Transformar leads Day Pass (R$ 9,90 / 24h) em assinantes recorrentes (R$ 47/mês) antes da janela expirar, com fallback de 5 emails + 3 pushes pós-expiração.
 
 ---
 
-### O que vou alterar
+## 1. Backend — Asaas Subscription R$ 47/mês
 
-**1. `src/pages/Index.tsx` (Lobby `/lobby`) — hierarquia visual**
+### 1.1 Tabela `day_pass_upsells`
+```
+user_id, asaas_subscription_id, status (pending|active|cancelled|overdue),
+first_charge_id, first_payment_at, next_due_date, cancelled_at,
+created_at, updated_at
+```
+RLS: usuário lê próprio; service role escreve.
 
-Hoje os 6 cards têm o mesmo peso visual. Vou reorganizar em duas faixas:
+### 1.2 Edge function `asaas-create-subscription`
+- Recebe `{ cpfCnpj }` do usuário autenticado.
+- Cria/recupera customer Asaas (reusa do `asaas-create-charge`).
+- POST `/v3/subscriptions` com `billingType=PIX`, `value=47`, `cycle=MONTHLY`, `nextDueDate=hoje+1`, `description="Oráculo Mycroft — Assinatura Mensal"`.
+- Persiste em `day_pass_upsells` com status=`pending`.
+- Retorna `{ subscriptionId, firstChargeId, pixQrCode, pixPayload, invoiceUrl }` pegando 1ª cobrança via `/v3/payments?subscription=`.
 
-- **Faixa 1 — "Onde o Mycroft trabalha pra você" (destaque)**: 2 cards grandes ocupando largura total no mobile e 2 colunas no desktop:
-  - **Arena Punter** (card destacado, accent dourado mais forte, ícone maior, badge "CORE")
-  - **Arena Live** (card destacado, accent vermelho/live, badge "AO VIVO")
-- **Faixa 2 — "Ferramentas complementares"** (grid 2x2 menor, visual mais discreto):
-  - Arena Trader Financeiro
-  - Arena Blackjack (com badge sutil "Bônus")
-  - Liga Mycroft
-  - Funções Avançadas
-
-Resultado: ao entrar no lobby, fica óbvio onde está o produto principal. Blackjack/Financeiro continuam acessíveis sem competir visualmente.
-
-**2. `src/pages/OfertaEspecial.tsx` — adicionar Blackjack como bônus por plano**
-
-Adicionar uma linha de bônus dentro de cada card de plano:
-
-- **Iniciante** → "+ Acesso à Arena Blackjack (estratégia básica + contagem Hi-Lo)" como bônus de entrada para o público de banca pequena que você descreveu.
-- **Profissional** → "+ Arena Blackjack com Kelly Híbrido + Modo Ao Vivo"
-- **Elite** → "+ Arena Blackjack completa + Arena Trader Financeiro (WIN/WDO/BTC)"
-
-Abaixo dos planos, adicionar **um bloco "Bônus inclusos"** explicando rapidamente:
-- O que é a Arena Blackjack (assistente matemático, não é tigrinho)
-- Por que a vantagem é do jogador (contagem + estratégia básica)
-- Aviso de gestão: "Meta saudável: R$ 50–R$ 100/dia. Stop loss obrigatório. Sessões de até 20 min."
-- O que é o Trader Financeiro (mesma lógica do Trader Sports aplicada a WIN/WDO/BTC)
-
-**3. `public/lp/ia-apostas-esportivas.html` (LP Google Ads) — bloco de bônus**
-
-Adicionar no fim, antes do CTA final, uma seção curta **"Bônus inclusos em todos os planos"** com 2 mini-cards:
-- 🃏 Arena Blackjack (com aviso de gestão)
-- 📈 Arena Trader Financeiro
-
-Manter VSL/prints como hero — não tocar no foco principal.
-
-**4. `src/components/landing/` (LP principal `oraculo-mycroft.com`) — bloco de bônus equivalente**
-
-Mesmo bloco de bônus depois do `ProvaRealPrints`, antes do CTA — consistência entre as duas LPs.
+### 1.3 Extensão do `asaas-webhook`
+- Já trata `PAYMENT_CONFIRMED` / `PAYMENT_RECEIVED` do Day Pass.
+- Adicionar: se `subscription` presente no payload → atualiza `day_pass_upsells` (status=`active`, atualiza `next_due_date`) e estende `user_subscriptions` por 30 dias (`plan='premium'`, `is_active=true`, `current_period_end=now()+30d`).
+- Tratar `PAYMENT_OVERDUE` → `status=overdue`.
+- Tratar `SUBSCRIPTION_DELETED` → `status=cancelled`.
 
 ---
 
-### O que NÃO vou mudar
+## 2. Frontend — Upsell in-app
 
-- Hero, prova do Paulo, prints reais, ROI 7d, CTA WhatsApp → permanecem como estão (são o que converte).
-- Day Pass R$ 9,90 → permanece.
-- Número WhatsApp `+5534991290648` → permanece.
-- Lógica de tracking (`track.paywallViewed`, `checkoutInitiated`, `fbq Lead`) → permanece.
-- Mensagens pré-formatadas do WhatsApp → permanecem.
+### 2.1 Hook `useDayPassUpsell`
+- Lê do banco: tempo restante do Day Pass, status do upsell, se já tem GREEN no dia.
+- Calcula gatilhos:
+  - **Trigger A:** primeiro GREEN detectado (subscribe a `virtual_bets_punter`/`punter_sinais` onde `resultado=GREEN` e `user_id`=atual).
+  - **Trigger B:** restando ≤ 4h.
+  - **Trigger C:** restando ≤ 1h.
+- Estado de dismiss por gatilho em `localStorage` (não spammar).
+
+### 2.2 Componente `UpsellModal`
+- Headline dinâmica por gatilho:
+  - GREEN: "Você acaba de ver o Oráculo trabalhar. Continue por R$ 47/mês."
+  - 4h: "Faltam 4h. Garanta acesso contínuo por R$ 47/mês."
+  - 1h: "ÚLTIMA HORA. Não perca o ritmo — R$ 47/mês."
+- Input CPF (mascarado, validado) → chama `asaas-create-subscription`.
+- Mostra QR Code Pix + copia-cola + spinner aguardando webhook (igual `LobbyPreview`).
+- Banner persistente no topo (cor mudando por urgência) com botão "Continuar acesso".
+
+### 2.3 Montagem global
+- `UpsellGate` em `App.tsx` (dentro do RequireSubscription) renderiza modal/banner se `useDayPassUpsell.shouldShow`.
 
 ---
 
-### Detalhes técnicos
+## 3. Sequência Email/Push pós-Day Pass
 
-- Lobby: `motion.button` continua, só muda o grid (`grid-cols-1 lg:grid-cols-2` para faixa 1, `grid-cols-2 lg:grid-cols-4` para faixa 2). Adicionar prop `size: 'hero' | 'compact'` ou aplicar classes condicionais inline para não criar novo componente.
-- OfertaEspecial: adicionar campo `bonus: string[]` em cada item de `PLANS` e renderizar abaixo dos `includes` com separador visual e ícone diferente (ex: `Sparkles` dourado).
-- Bloco "Bônus inclusos" pós-planos: componente inline na própria página, com 2 cards (`Card` shadcn) explicando Blackjack e Trader Financeiro + disclaimer de gestão.
-- LP estática HTML: edição direta em `public/lp/ia-apostas-esportivas.html` seguindo o CSS existente em `public/lp/lp.css`.
-- LP principal: novo componente leve `src/components/landing/BonusInclusos.tsx` reutilizando o padrão visual existente do `ProvaRealPrints`.
+### 3.1 Edge function `day-pass-lifecycle-notify` (cron diário 13h UTC)
+Lê leads do Day Pass via `user_subscriptions` + `day_pass_upsells`:
 
-Sem mudanças em backend, RLS, edges ou schema.
+| Janela após signup | Canal | Mensagem |
+|---|---|---|
+| D+0 (4h antes de expirar) | Email + Push | "Seu acesso expira em 4h. Assine R$ 47/mês e mantenha o ritmo." |
+| D+1 (24h após expirar, sem upsell ativo) | Email | "Você viu o Oráculo trabalhar ontem. Volte por R$ 47/mês." |
+| D+2 | Push | "Hoje teve GREEN no Punter. Você está fora." (texto dinâmico se houve green) |
+| D+5 | Email | Recap de resultados reais dos últimos 5 dias (greens/wr/lucro) + CTA |
+| D+15 | Email (última) | "Reativação R$ 27 nos próximos 7 dias" (cupom único) |
+
+Dedup via tabela `day_pass_lifecycle_log` (user_id, touch, sent_at).
+
+### 3.2 Cron
+`SELECT cron.schedule('day-pass-lifecycle', '0 13 * * *', ...)`
+
+---
+
+## 4. Analytics PostHog
+
+Eventos novos em `src/lib/analytics.ts`:
+- `day_pass_signup` (já existe? confirmar)
+- `lobby_preview_viewed`
+- `liberar_arenas_clicked`
+- `pix_day_pass_generated`
+- `pix_day_pass_paid`
+- `upsell_modal_viewed` (trigger: green|4h|1h)
+- `upsell_cpf_submitted`
+- `upsell_pix_generated`
+- `upsell_pix_paid`
+- `lifecycle_email_sent` (touch: D0|D1|D5|D15)
+
+---
+
+## 5. Memória
+Salvar `mem://features/day-pass/funnel-and-upsell` com: ticket R$ 9,90 → upsell R$ 47/mês recorrente, gatilhos green/4h/1h, sequência D0/D1/D2/D5/D15.
+
+---
+
+## Migrations necessárias
+1. Tabela `day_pass_upsells` + RLS.
+2. Tabela `day_pass_lifecycle_log` + RLS.
+3. Cron `day-pass-lifecycle` (via insert tool, com URL e anon key).
+
+## Edges novas
+- `asaas-create-subscription`
+- `day-pass-lifecycle-notify`
+
+## Edges editadas
+- `asaas-webhook` (subscription events)
+
+## Arquivos frontend
+- novo: `src/hooks/useDayPassUpsell.ts`
+- novo: `src/components/upsell/UpsellModal.tsx`
+- novo: `src/components/upsell/UpsellBanner.tsx`
+- novo: `src/components/upsell/UpsellGate.tsx`
+- edit: `src/App.tsx` (montar UpsellGate)
+- edit: `src/lib/analytics.ts` (eventos novos)
+
+---
+
+## Detalhe técnico Asaas Subscription
+- Endpoint: `POST {ASAAS_BASE}/v3/subscriptions`
+- Pix recorrente: o Asaas gera **uma nova cobrança Pix por ciclo** automaticamente. Primeira cobrança via `GET /v3/payments?subscription={id}&limit=1`.
+- Webhook envia `PAYMENT_RECEIVED` em cada renovação → nossa edge estende `current_period_end` em 30 dias a cada pagamento.
+- Cancelamento user-side: futuro (não no escopo desta entrega).
+
+---
+
+## Fora de escopo (alertar usuário)
+- Página de cancelamento de assinatura (admin pode cancelar via Asaas direto por enquanto).
+- Tela "Minha assinatura" detalhada com histórico de cobranças.
+- Cupom único D+15 (gera valor fixo R$ 27 — implementação simples, mas notificar).
+
+Tempo estimado: 2 migrations + 2 edges novas + 1 edge editada + 4 arquivos frontend.
