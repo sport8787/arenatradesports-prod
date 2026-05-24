@@ -187,14 +187,6 @@ export default function ComparativoDetVsIaTab() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={load} disabled={loading}>
-              <RefreshCw className={`w-3 h-3 mr-1 ${loading ? 'animate-spin' : ''}`} />
-              Atualizar
-            </Button>
-          </div>
-        </div>
-
           <div className="flex items-center gap-2 flex-wrap">
             <Button size="sm" variant={mode === 'table' ? 'default' : 'outline'} onClick={() => setMode('table')}>
               Tabela
