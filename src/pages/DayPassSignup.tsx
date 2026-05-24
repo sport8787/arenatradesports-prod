@@ -44,16 +44,13 @@ export default function DayPassSignup() {
       }
       const newUser = data?.user;
       if (newUser) {
-        // Sobrescreve a subscription criada pelo trigger (trial 7 dias) para 'preview' bloqueado.
-        await supabase.from("user_subscriptions").update({
-          plan: "preview",
-          is_active: false,
-          trial_started_at: null,
-          trial_ends_at: null,
-          allowed_arenas: [],
-          notes: "Lead Day Pass - aguardando pagamento R$ 9,90",
-          updated_at: new Date().toISOString(),
-        }).eq("user_id", newUser.id);
+        // Downgrade atômico via edge function (service role) — sobrescreve o trial do trigger.
+        // Tem que terminar ANTES de navegar para evitar race com useSubscription.hasAccess=true.
+        try {
+          await supabase.functions.invoke("day-pass-mark-preview", { body: {} });
+        } catch (e) {
+          console.warn("[DayPassSignup] mark-preview falhou:", e);
+        }
       }
       toast.success("Conta criada! Agora libere seu Day Pass.");
       navigate("/lobby-preview", { replace: true });
