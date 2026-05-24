@@ -114,6 +114,82 @@ async function smFallback(home: string, away: string, isoDate: string): Promise<
   }
 }
 
+// Fallback 2: SofaScore — cobertura ampla + HT score nativo (period1).
+// API pública (não documentada): https://api.sofascore.com/api/v1
+const SOFA_BASE = "https://api.sofascore.com/api/v1";
+const SOFA_HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Accept": "application/json, text/plain, */*",
+  "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
+  "Referer": "https://www.sofascore.com/",
+  "Origin": "https://www.sofascore.com",
+};
+const NOISE_TOKENS = new Set([
+  "fc","cf","sc","ac","club","clube","cd","sd","ud","rcd","fk","aa","ec","ca","se","cr","rb","afc","cfc",
+  "city","united","de","do","da","of","the","w","fem","feminino","feminina",
+]);
+function sofaSimplify(s: string): string {
+  return (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter(Boolean)
+    .filter((t) => !NOISE_TOKENS.has(t)).join("");
+}
+function sofaTeamsMatch(eventName: string, target: string): boolean {
+  const e = sofaSimplify(eventName); const t = sofaSimplify(target);
+  if (!e || !t) return false;
+  if (e === t) return true;
+  if (e.length >= 4 && t.includes(e)) return true;
+  if (t.length >= 4 && e.includes(t)) return true;
+  return false;
+}
+async function sofaFetch(path: string): Promise<any | null> {
+  try {
+    const r = await fetch(`${SOFA_BASE}${path}`, { headers: SOFA_HEADERS });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
+}
+const sofaScheduledCache = new Map<string, any[]>();
+async function sofaScheduledByDate(ymd: string): Promise<any[]> {
+  if (sofaScheduledCache.has(ymd)) return sofaScheduledCache.get(ymd)!;
+  const data = await sofaFetch(`/sport/football/scheduled-events/${ymd}`);
+  const events = (data?.events ?? []) as any[];
+  sofaScheduledCache.set(ymd, events);
+  return events;
+}
+async function sofaFallback(home: string, away: string, isoDate: string): Promise<FinalScore | null> {
+  try {
+    const base = new Date(isoDate);
+    if (isNaN(base.getTime())) return null;
+    for (const offset of [0, -1, 1]) {
+      const d = new Date(base); d.setUTCDate(d.getUTCDate() + offset);
+      const ymd = d.toISOString().slice(0, 10);
+      const events = await sofaScheduledByDate(ymd);
+      for (const ev of events) {
+        const eHome = ev.homeTeam?.name || "";
+        const eAway = ev.awayTeam?.name || "";
+        if (!sofaTeamsMatch(eHome, home) || !sofaTeamsMatch(eAway, away)) continue;
+        const statusType = ev.status?.type || "";
+        if (statusType !== "finished") continue;
+        const gh = ev.homeScore?.current;
+        const ga = ev.awayScore?.current;
+        if (gh == null || ga == null) continue;
+        const hth = ev.homeScore?.period1 ?? null;
+        const hta = ev.awayScore?.period1 ?? null;
+        return {
+          home: Number(gh), away: Number(ga),
+          ht_home: hth == null ? null : Number(hth),
+          ht_away: hta == null ? null : Number(hta),
+          status: "FT", source: "sofascore",
+        };
+      }
+    }
+    return null;
+  } catch (e) {
+    console.error("[sofa-fallback]", e);
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
