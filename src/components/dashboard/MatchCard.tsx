@@ -12,6 +12,7 @@ import AdminStatsEditorModal from './AdminStatsEditorModal';
 import { useAdmin } from '@/hooks/useAdmin';
 import { MatchPressureChart, PressureFallback, useMatchPressure } from './MatchPressureChart';
 import { translateMarket } from '@/utils/marketTranslator';
+import { getPlanNameByMarket } from '@/utils/planNameMapper';
 
 export interface MatchStats {
   possession_home?: number;
