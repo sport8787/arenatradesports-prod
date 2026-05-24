@@ -112,6 +112,7 @@ export default function ComparativoDetVsIaTab() {
   );
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [mode, setMode] = useState<ViewMode>(() => {
     try {
