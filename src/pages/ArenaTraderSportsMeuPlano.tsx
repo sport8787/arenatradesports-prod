@@ -371,8 +371,9 @@ export default function ArenaTraderSportsMeuPlano() {
         </div>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
-          <TabsList className="grid grid-cols-2 w-full">
+          <TabsList className="grid grid-cols-3 w-full">
             <TabsTrigger value="list">Meus planos ({plans.length})</TabsTrigger>
+            <TabsTrigger value="results">Resultados</TabsTrigger>
             <TabsTrigger value="editor" disabled={!editing}>
               {editing ? (editing.name || 'Editor') : 'Editor'}
             </TabsTrigger>
