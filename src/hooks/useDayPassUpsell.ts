@@ -46,14 +46,14 @@ export function useDayPassUpsell() {
     let cancelled = false;
 
     // Check inicial: tem algum GREEN nas últimas 24h?
-    supabase
+    (supabase as any)
       .from("punter_sinais")
       .select("id")
       .eq("user_id", user.id)
       .eq("resultado", "GREEN")
       .gte("settled_at", new Date(Date.now() - 24 * 3600_000).toISOString())
       .limit(1)
-      .then(({ data }) => {
+      .then(({ data }: any) => {
         if (!cancelled && data && data.length > 0) setGreenDetected(true);
       });
 
