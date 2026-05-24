@@ -142,10 +142,27 @@ function sofaTeamsMatch(eventName: string, target: string): boolean {
   return false;
 }
 async function sofaFetch(path: string): Promise<any | null> {
+  const url = `${SOFA_BASE}${path}`;
   try {
-    const r = await fetch(`${SOFA_BASE}${path}`, { headers: SOFA_HEADERS });
-    if (!r.ok) return null;
-    return await r.json();
+    const r = await fetch(url, { headers: SOFA_HEADERS });
+    if (r.ok) return await r.json();
+    if (r.status !== 403 && r.status !== 429) return null;
+  } catch {}
+  // Fallback: Firecrawl (alguns IPs do edge runtime caem em 403 direto)
+  const fcKey = Deno.env.get("FIRECRAWL_API_KEY");
+  if (!fcKey) return null;
+  try {
+    const fr = await fetch("https://api.firecrawl.dev/v2/scrape", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${fcKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ url, formats: ["rawHtml"], onlyMainContent: false, waitFor: 800 }),
+    });
+    if (!fr.ok) return null;
+    const fd = await fr.json();
+    const raw: string = fd?.data?.rawHtml || fd?.rawHtml || "";
+    const jsonStr = raw.replace(/<[^>]+>/g, "").trim();
+    if (!jsonStr.startsWith("{")) return null;
+    return JSON.parse(jsonStr);
   } catch { return null; }
 }
 const sofaScheduledCache = new Map<string, any[]>();
