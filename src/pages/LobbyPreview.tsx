@@ -25,29 +25,28 @@ interface ChargeResponse {
 export default function LobbyPreview() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const { hasAccess, loading: subLoading } = useSubscription();
+  const { subscription, loading: subLoading } = useSubscription();
   const [generating, setGenerating] = useState(false);
   const [charge, setCharge] = useState<ChargeResponse | null>(null);
   const [copied, setCopied] = useState(false);
 
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
-import { useSubscription } from "@/hooks/useSubscription";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Copy, CheckCircle2, Lock, Zap } from "lucide-react";
-import { toast } from "sonner";
+  useEffect(() => {
+    if (!authLoading && !user) navigate("/day-pass", { replace: true });
+  }, [user, authLoading, navigate]);
 
-interface ChargeResponse {
-  charge_id: string;
-  invoice_url: string;
-  pix_qr_code: string | null;
-  pix_payload: string | null;
-  value: number;
-  reused?: boolean;
-}
+  // Só redireciona quando o webhook confirmar PREMIUM ATIVO (não confunde com trial cortesia).
+  useEffect(() => {
+    if (subLoading || !subscription) return;
+    const isPaidPremium =
+      subscription.plan === "premium" &&
+      subscription.is_active &&
+      (!subscription.subscription_ends_at || new Date(subscription.subscription_ends_at) > new Date());
+    if (isPaidPremium) {
+      toast.success("Pagamento confirmado! Liberando acesso...");
+      setTimeout(() => navigate("/punter", { replace: true }), 800);
+    }
+  }, [subscription, subLoading, navigate]);
+
 
   const generatePix = async () => {
     if (generating) return;
