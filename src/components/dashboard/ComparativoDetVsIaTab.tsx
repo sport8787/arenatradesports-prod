@@ -30,6 +30,37 @@ const PERIOD_LABELS: Record<Period, string> = {
   '30d': '30 dias',
 };
 
+function getBrasiliaNow(): Date {
+  const now = new Date();
+  const brasiliaOffset = now.getTimezoneOffset() + 180; // UTC → UTC-3
+  return new Date(now.getTime() - brasiliaOffset * 60 * 1000);
+}
+
+function getDateRangeText(period: Period): string {
+  const now = getBrasiliaNow();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const fmt = (d: Date) => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
+  let start = new Date(now);
+  switch (period) {
+    case 'today':
+      return `${fmt(now)} (hoje)`;
+    case 'yesterday':
+      start.setDate(start.getDate() - 1);
+      return `${fmt(start)} (ontem)`;
+    case '7d':
+      start.setDate(start.getDate() - 6);
+      return `${fmt(start)} – ${fmt(now)}`;
+    case '14d':
+      start.setDate(start.getDate() - 13);
+      return `${fmt(start)} – ${fmt(now)}`;
+    case '30d':
+      start.setDate(start.getDate() - 29);
+      return `${fmt(start)} – ${fmt(now)}`;
+    default:
+      return '';
+  }
+}
+
 // Mesma chave usada em /arena-trader-sports/sinais-liquidados — mantém o recorte sincronizado.
 const STORAGE_KEY = 'live_sinais_filters_v1';
 
