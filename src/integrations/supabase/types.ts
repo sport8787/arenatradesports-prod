@@ -7790,6 +7790,21 @@ export type Database = {
           stake_total: number
         }[]
       }
+      compare_det_vs_ia_export: {
+        Args: { _period?: string }
+        Returns: {
+          away_team: string
+          data_evento: string
+          fonte: string
+          home_team: string
+          league: string
+          market: string
+          odd: number
+          profit_loss: number
+          result: string
+          verdict: string
+        }[]
+      }
       compare_providers_divergences: {
         Args: { p_since: string }
         Returns: {
