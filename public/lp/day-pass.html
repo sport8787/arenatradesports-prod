@@ -171,6 +171,13 @@
   .compliance a{color:#94a3b8;text-decoration:underline}
   .footer-links{margin-bottom:10px;display:flex;justify-content:center;gap:18px;flex-wrap:wrap;font-size:12px}
 
+  /* Trust bar */
+  .trust-bar{background:#0e1426;border-bottom:1px solid rgba(255,255,255,.06);padding:10px 12px;text-align:center}
+  .trust-bar .tb-inner{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px 18px;font-size:11px;color:#94a3b8;letter-spacing:.04em}
+  .trust-bar .tb-inner b{color:#e5e7eb;font-weight:700}
+  .trust-bar .tb-pill{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);padding:4px 10px;border-radius:999px;font-size:11px;color:#cbd5e1}
+  .trust-bar .tb-pill .dot{width:6px;height:6px;border-radius:50%;background:#22c55e;box-shadow:0 0 8px #22c55e}
+
   /* Sticky mobile CTA */
   .sticky-cta{position:fixed;left:0;right:0;bottom:0;padding:10px 14px;background:rgba(10,15,30,.96);backdrop-filter:blur(8px);border-top:1px solid rgba(250,204,21,.3);z-index:50;display:none}
   .sticky-cta .cta{padding:14px;font-size:16px}
@@ -178,6 +185,7 @@
     .sticky-cta{display:block}
     body{padding-bottom:90px}
   }
+
 </style>
 </head>
 <body>
@@ -185,6 +193,17 @@
 <div class="age-bar">
   <strong>+18 anos.</strong> Apostas envolvem risco. Jogue com responsabilidade.
 </div>
+
+<!-- Trust bar — pagamento seguro -->
+<div class="trust-bar">
+  <div class="tb-inner">
+    <span class="tb-pill"><span class="dot"></span><b>Pagamento 100% seguro</b></span>
+    <span>🔒 <b>SSL</b> criptografado</span>
+    <span>💳 <b>Kiwify</b> · <b>PagSeguro</b> · <b>Mercado Pago</b> · <b>Pix</b></span>
+    <span>🛡️ <b>7 dias</b> de garantia incondicional</span>
+  </div>
+</div>
+
 
 <!-- HERO -->
 <section class="hero">
@@ -212,10 +231,11 @@
 
       <a href="https://wa.me/5534991290648?text=Ol%C3%A1!%20Quero%20o%20Day%20Pass%20de%2024h%20por%20R%24%209%2C90."
          target="_blank" rel="noopener" class="cta cta-whatsapp daypass-cta">
-        QUERO TESTAR O MYCROFT <span class="arrow">→</span>
+        QUERO TESTAR POR R$ 9,90 <span class="arrow">→</span>
       </a>
-      <div class="cta-note">💬 Atendimento humano no WhatsApp · Sem robô</div>
-      <div style="text-align:center"><span class="guarantee-pill">🛡️ 7 dias de garantia incondicional</span></div>
+      <div class="cta-note">🛡️ <b style="color:#22c55e">7 dias de garantia incondicional</b> · 💬 Atendimento humano · Sem robô</div>
+      <div style="text-align:center"><span class="guarantee-pill">🛡️ Devolvemos 100% se não gostar — sem perguntas</span></div>
+
     </div>
   </div>
 </section>
@@ -230,24 +250,25 @@
     <div class="benefits">
       <div class="benefit">
         <div class="ico">🎯</div>
-        <h3>Arena Punter</h3>
-        <p>Sinais pré-jogo prontos com Asset Score (0-100) e stake otimizada pelo Critério de Kelly.</p>
+        <h3>Sinais Prontos com Edge Matemático Real</h3>
+        <p>Cada aposta já vem com odd justa, Asset Score (0-100) e stake otimizada pelo Critério de Kelly. Você só executa.</p>
       </div>
       <div class="benefit">
         <div class="ico">⚡</div>
-        <h3>Arena Trader Sports</h3>
-        <p>Análise ao vivo com LABAREDA, cash-out inteligente e 5 critérios de aprovação simultâneos.</p>
+        <h3>Decisões ao Vivo em Tempo Real</h3>
+        <p>LABAREDA, cash-out inteligente e 5 critérios de aprovação simultâneos — você sabe exatamente quando entrar e quando sair.</p>
       </div>
       <div class="benefit">
         <div class="ico">🔱</div>
-        <h3>Hórus IA</h3>
-        <p>Método de alavancagem em 5 ciclos para gerenciar risco e ampliar resultados com disciplina.</p>
+        <h3>Alavancagem com Gestão de Risco Blindada</h3>
+        <p>Método Hórus em 5 ciclos para multiplicar sua banca sem quebrar — disciplina matemática, não emoção.</p>
       </div>
       <div class="benefit">
         <div class="ico">📲</div>
-        <h3>Telegram VIP</h3>
-        <p>Sinais aprovados chegam no seu celular em tempo real, prontos para executar.</p>
+        <h3>Sinais no Seu Celular, Prontos para Executar</h3>
+        <p>Canal VIP no Telegram entrega cada APROVADO em tempo real, com tudo o que você precisa para apertar o botão.</p>
       </div>
+
     </div>
   </div>
 </section>
@@ -319,9 +340,10 @@
 <!-- HOW IT WORKS -->
 <section class="block">
   <div class="container">
-    <div class="eyebrow">Como funciona</div>
-    <h2>Inteligência Artificial a favor do seu bolso.</h2>
-    <p class="lead">Da coleta ao resultado auditado, em 4 etapas matemáticas.</p>
+    <div class="eyebrow">Método Mycroft</div>
+    <h2>Método Mycroft — Da Coleta à Execução.</h2>
+    <p class="lead">Inteligência Artificial transformando dados em decisão auditável, em 4 etapas matemáticas.</p>
+
 
     <div class="steps">
       <div class="step">
@@ -347,8 +369,9 @@
 <!-- FOR WHO -->
 <section class="block" style="background:rgba(255,255,255,.02)">
   <div class="container">
-    <div class="eyebrow">Para quem é o Mycroft</div>
-    <h2>Para quem quer deixar de ser amador.</h2>
+    <div class="eyebrow">Este método é para você se...</div>
+    <h2>Este Método é Para Você Se...</h2>
+
 
     <ul class="forwho">
       <li><span class="ck">✓</span> Você já aposta, mas busca <b style="color:#fff">consistência de longo prazo</b>.</li>
@@ -408,9 +431,11 @@
 <div class="sticky-cta">
   <a href="https://wa.me/5534991290648?text=Ol%C3%A1!%20Quero%20o%20Day%20Pass%20de%2024h%20por%20R%24%209%2C90."
      target="_blank" rel="noopener" class="cta cta-whatsapp daypass-cta">
-    DAY PASS R$ 9,90 → WhatsApp
+    QUERO TESTAR POR R$ 9,90 →
   </a>
 </div>
+
+
 
 <footer class="compliance">
   <div class="container">
@@ -420,6 +445,12 @@
       <a href="/termos">Termos de Uso</a>
       <a href="/privacidade">Política de Privacidade</a>
     </div>
+    <div style="display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px 14px;margin:6px 0 14px;font-size:11px;color:#94a3b8">
+      <span style="display:inline-flex;align-items:center;gap:6px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);padding:4px 10px;border-radius:999px;color:#22c55e">🔒 Site seguro · SSL</span>
+      <span style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);padding:4px 10px;border-radius:999px">💳 Kiwify · PagSeguro · Mercado Pago · Pix</span>
+      <span style="display:inline-flex;align-items:center;gap:6px;background:rgba(250,204,21,.08);border:1px solid rgba(250,204,21,.25);padding:4px 10px;border-radius:999px;color:#facc15">🛡️ 7 dias de garantia</span>
+    </div>
+
     <p><strong>+18 anos.</strong> Proibido para menores de 18 anos. Apostas esportivas envolvem risco de dependência financeira e emocional. Jogue com responsabilidade.</p>
     <p style="margin-top:8px">Nenhuma ferramenta pode garantir vitórias ou lucros constantes. Resultados passados não garantem resultados futuros. Aposte apenas o que pode perder.</p>
     <p style="margin-top:8px">© 2026 Oráculo Mycroft · Todos os direitos reservados</p>
