@@ -29,6 +29,7 @@ import {
   type UserPlan,
   type Outcome,
 } from '@/lib/userTraderPlan';
+import PlanResultsTab from '@/components/arena-trader/PlanResultsTab';
 
 const MARKET_LABELS: Record<UserMarket, string> = {
   '1x2': '1X2',
