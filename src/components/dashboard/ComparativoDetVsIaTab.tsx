@@ -5,7 +5,29 @@ import { Card } from '@/components/ui/card';
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Scale } from 'lucide-react';
+import { RefreshCw, Scale, ArrowUp, ArrowDown, Minus } from 'lucide-react';
+
+type ViewMode = 'table' | 'sideBySide';
+
+function DeltaPill({ value, suffix = '', invert = false }: { value: number | null; suffix?: string; invert?: boolean }) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return <span className="text-muted-foreground">—</span>;
+  }
+  const positive = invert ? value < 0 : value > 0;
+  const neutral = value === 0;
+  const cls = neutral
+    ? 'bg-muted text-muted-foreground'
+    : positive
+      ? 'bg-emerald-500/15 text-emerald-500'
+      : 'bg-rose-500/15 text-rose-500';
+  const Icon = neutral ? Minus : value > 0 ? ArrowUp : ArrowDown;
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${cls}`}>
+      <Icon className="w-3 h-3" />
+      {value > 0 ? '+' : ''}{value.toFixed(1)}{suffix}
+    </span>
+  );
+}
 
 interface Row {
   fonte: string;
