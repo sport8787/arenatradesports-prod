@@ -66,7 +66,7 @@ export default function ComparativoDetVsIaTab() {
 
         <p className="text-xs text-muted-foreground mb-3">
           Fonte de dados: view <code className="text-[10px] bg-secondary px-1 rounded">v_comparativo_ao_vivo</code>.
-          Determinístico = <code className="text-[10px]">live_sinais</code> · IA ={' '}
+          Determinístico = <code className="text-[10px]">live_sinais</code> <strong>filtrado pelos mesmos mercados normalizados da IA</strong> (apples-to-apples — universo da IA é a referência) · IA ={' '}
           <code className="text-[10px]">mycroft_analyses_shadow_ai</code>. Liquidação automática via triggers em{' '}
           <code className="text-[10px]">live_matches</code>.
         </p>
