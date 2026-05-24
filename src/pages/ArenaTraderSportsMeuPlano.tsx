@@ -29,6 +29,7 @@ import {
   type UserPlan,
   type Outcome,
 } from '@/lib/userTraderPlan';
+import PlanResultsTab from '@/components/arena-trader/PlanResultsTab';
 
 const MARKET_LABELS: Record<UserMarket, string> = {
   '1x2': '1X2',
@@ -267,7 +268,7 @@ export default function ArenaTraderSportsMeuPlano() {
   const [plans, setPlans] = useState<UserPlan[]>(() => loadUserPlansSync());
   const [loading, setLoading] = useState(true);
   const [visibility, setVisibility] = useState<PlanVisibility>(() => loadPlanVisibility());
-  const [tab, setTab] = useState<'list' | 'editor'>('list');
+  const [tab, setTab] = useState<'list' | 'editor' | 'results'>('list');
   const [editing, setEditing] = useState<UserPlan | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
@@ -371,8 +372,9 @@ export default function ArenaTraderSportsMeuPlano() {
         </div>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
-          <TabsList className="grid grid-cols-2 w-full">
+          <TabsList className="grid grid-cols-3 w-full">
             <TabsTrigger value="list">Meus planos ({plans.length})</TabsTrigger>
+            <TabsTrigger value="results">Resultados</TabsTrigger>
             <TabsTrigger value="editor" disabled={!editing}>
               {editing ? (editing.name || 'Editor') : 'Editor'}
             </TabsTrigger>
@@ -447,6 +449,11 @@ export default function ArenaTraderSportsMeuPlano() {
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          {/* RESULTADOS */}
+          <TabsContent value="results" className="mt-5">
+            <PlanResultsTab />
           </TabsContent>
 
           {/* EDITOR */}
