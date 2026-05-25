@@ -1,10 +1,12 @@
-import { ArrowLeft, Settings, Bell, Sparkles } from 'lucide-react';
+import { ArrowLeft, Settings, Bell, Sparkles, Volume2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import HorusConfig from '@/components/punter/HorusConfig';
+import HorusModeSelector from '@/components/punter/HorusModeSelector';
 import NotificationSettings from '@/components/punter/NotificationSettings';
 import PunterBreadcrumb from '@/components/punter/PunterBreadcrumb';
 import EventosRarosConfig from '@/components/eventos-raros/EventosRarosConfig';
+import { useHorusTrigger } from '@/hooks/useHorusTrigger';
 
 export default function PunterConfig() {
   const navigate = useNavigate();
