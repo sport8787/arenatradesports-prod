@@ -99,6 +99,7 @@ const rewardsData: RewardRow[] = [
 ];
 
 export default function HowToEarnBC() {
+  useHorusTrigger('liga_mycroft_first_visit');
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
