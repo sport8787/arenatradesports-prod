@@ -121,7 +121,7 @@ export default function BonusInclusos() {
         </div>
 
         <p className="text-center text-xs text-gray-500 mt-8 max-w-2xl mx-auto">
-          Ciclos e Blackjack: já no Profissional. Chat ao Vivo + Trader Financeiro completo: exclusivo do Elite.
+          Ciclos e Blackjack: já no Profissional. Chat ao Vivo: exclusivo do Elite. Trader Financeiro está em <span className="text-amber-400 font-semibold">Beta</span> — incluso no Elite enquanto refinamos.
         </p>
       </div>
     </section>
