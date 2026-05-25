@@ -9,13 +9,21 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { TrialBanner } from "@/components/TrialBanner";
+import HorusMuteFloatingButton from "@/components/punter/HorusMuteFloatingButton";
 
-// Esconde TrialBanner em rotas do funil Day Pass (lead ainda não pagou).
+// Esconde TrialBanner / Hórus em rotas do funil Day Pass (lead ainda não pagou).
 const HIDE_TRIAL_BANNER = ["/lobby-preview", "/day-pass"];
+const HIDE_HORUS_ROUTES = ["/", "/lp", "/landing", "/paywall", "/oferta-especial", "/day-pass", "/lobby-preview", "/auth"];
 function ConditionalTrialBanner() {
   const { pathname } = useLocation();
   if (HIDE_TRIAL_BANNER.some((p) => pathname.startsWith(p))) return null;
   return <TrialBanner />;
+}
+function ConditionalHorusMute() {
+  const { pathname } = useLocation();
+  const hide = pathname === "/" || HIDE_HORUS_ROUTES.some((p) => p !== "/" && pathname.startsWith(p));
+  if (hide) return null;
+  return <HorusMuteFloatingButton />;
 }
 import BCRewardToastsMount from "@/components/BCRewardToastsMount";
 import UpsellGate from "@/components/upsell/UpsellGate";
@@ -159,6 +167,7 @@ const App = () => {
             <ConditionalTrialBanner />
             <UpsellGate />
             <BCRewardToastsMount />
+            <ConditionalHorusMute />
             <React.Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center" />}>
               <Routes>
                 <Route path="/" element={<LandingPage />} />

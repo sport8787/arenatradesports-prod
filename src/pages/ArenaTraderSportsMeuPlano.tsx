@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { useHorusTrigger } from '@/hooks/useHorusTrigger';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -265,6 +266,7 @@ function outcomeLabel(p: UserPlan): string {
 
 export default function ArenaTraderSportsMeuPlano() {
   const navigate = useNavigate();
+  useHorusTrigger('trader_meu_plano_first_visit');
   const [plans, setPlans] = useState<UserPlan[]>(() => loadUserPlansSync());
   const [loading, setLoading] = useState(true);
   const [visibility, setVisibility] = useState<PlanVisibility>(() => loadPlanVisibility());

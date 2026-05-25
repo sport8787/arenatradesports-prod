@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { nextTargetPct, cycleConfig, progressPct, fmtBRL } from '@/lib/ciclosMath';
+import { useHorusTrigger } from '@/hooks/useHorusTrigger';
 
 interface CycleBankroll {
   id: string;
@@ -49,6 +50,7 @@ interface CycleEntry {
 export default function Ciclos() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  useHorusTrigger('ciclos_first_visit');
   const [loading, setLoading] = useState(true);
   const [bk, setBk] = useState<CycleBankroll | null>(null);
   const [entries, setEntries] = useState<CycleEntry[]>([]);

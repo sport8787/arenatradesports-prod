@@ -1,9 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Sparkles } from 'lucide-react';
 import EventosRarosPanel from '@/components/eventos-raros/EventosRarosPanel';
+import { useHorusTrigger } from '@/hooks/useHorusTrigger';
 
 export default function ArenaTraderSportsEventosRarosPage() {
   const navigate = useNavigate();
+  useHorusTrigger('eventos_raros_first_visit');
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur-xl">

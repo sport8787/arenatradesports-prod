@@ -13,11 +13,13 @@ import { HeroParticles } from '@/components/landing/HeroParticles';
 import { useHorusPunterAudio } from '@/hooks/useHorusPunterAudio';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
+import { useHorusTrigger } from '@/hooks/useHorusTrigger';
 
 export default function PunterMenuPage() {
   const navigate = useNavigate();
   const { playOnce, pendingAudio, playPending, dismissPending } = useHorusPunterAudio();
   const { signOut } = useAuth();
+  useHorusTrigger('punter_first_visit');
 
   const handleLogout = async () => {
     const { error } = await signOut();

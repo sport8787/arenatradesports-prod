@@ -1,14 +1,18 @@
-import { ArrowLeft, Settings, Bell, Sparkles } from 'lucide-react';
+import { ArrowLeft, Settings, Bell, Sparkles, Volume2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import HorusConfig from '@/components/punter/HorusConfig';
+import HorusModeSelector from '@/components/punter/HorusModeSelector';
 import NotificationSettings from '@/components/punter/NotificationSettings';
 import PunterBreadcrumb from '@/components/punter/PunterBreadcrumb';
 import EventosRarosConfig from '@/components/eventos-raros/EventosRarosConfig';
+import { useHorusTrigger } from '@/hooks/useHorusTrigger';
 
 export default function PunterConfig() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  useHorusTrigger('punter_config_first_visit');
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -35,6 +39,13 @@ export default function PunterConfig() {
                  <Bell className="w-3.5 h-3.5" /> Notificações
                </h2>
                <NotificationSettings userId={user.id} />
+             </section>
+
+             <section className="space-y-2">
+               <h2 className="font-mono text-xs font-semibold text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
+                 <Volume2 className="w-3.5 h-3.5" /> Voz do Hórus
+               </h2>
+               <HorusModeSelector />
              </section>
 
              <section className="space-y-2">
