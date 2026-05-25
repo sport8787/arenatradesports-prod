@@ -734,9 +734,6 @@ export default function ArenaTraderSports() {
             </div>
           )}
 
-          {statusFilter === 'aprovados_af' && isAdmin && (
-            <ShadowAfApprovedTab />
-          )}
 
           {statusFilter === 'aprovados_ai' && isAdmin && (
             <ShadowAiApprovedTab />
