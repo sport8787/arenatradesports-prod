@@ -122,7 +122,9 @@ export default function ActivePositions() {
 
           if (isCritical) {
             playCriticalAlert();
+            horusMentor.speak('cashout_critical').catch(() => {});
             lastPlayedAt.set(pos.id, now);
+
             toast.error('🚨 FECHE A POSIÇÃO AGORA', {
               description: `${pos.match_name} — ${reason}`,
               duration: 20000,
