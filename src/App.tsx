@@ -47,6 +47,7 @@ const DayPassSignup = React.lazy(() => import("./pages/DayPassSignup"));
 const LobbyPreview = React.lazy(() => import("./pages/LobbyPreview"));
 const MinhasApostas = React.lazy(() => import("./pages/MinhasApostas"));
 const PrivacyPolicy = React.lazy(() => import("./pages/PrivacyPolicy"));
+const TermsOfUse = React.lazy(() => import("./pages/TermsOfUse"));
 const ArenaTraderSports = React.lazy(() => import("./pages/ArenaTraderSports"));
 const ArenaTraderSportsRankingMonthly = React.lazy(() => import("./pages/ArenaTraderSportsRankingMonthly"));
 const ArenaTraderSportsEventosRaros = React.lazy(() => import("./pages/ArenaTraderSportsEventosRaros"));
@@ -172,6 +173,7 @@ const App = () => {
                 <Route path="/lobby-preview" element={<LobbyPreview />} />
                 <Route path="/trocar-senha" element={<ChangePassword />} />
                 <Route path="/privacidade" element={<PrivacyPolicy />} />
+                <Route path="/termos" element={<TermsOfUse />} />
                 <Route path="/paywall" element={<Paywall />} />
                 <Route path="/oferta-especial" element={<OfertaEspecial />} />
                 <Route path="/arena-trader-sports" element={<RequireSubscription><ArenaTraderSports /></RequireSubscription>} />
