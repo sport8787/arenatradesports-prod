@@ -11,6 +11,8 @@ import { useHorusTrigger } from '@/hooks/useHorusTrigger';
 export default function PunterConfig() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  useHorusTrigger('punter_config_first_visit');
+
 
   return (
     <div className="min-h-screen bg-background">
