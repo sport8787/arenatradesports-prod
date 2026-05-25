@@ -23,7 +23,7 @@ import ScheduledGamesSection from '@/components/dashboard/ScheduledGamesSection'
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import SimulationPanel from '@/components/arena-trader/SimulationPanel';
 import LiveCronToggle from '@/components/arena-trader/LiveCronToggle';
-import ShadowAfCronToggle from '@/components/arena-trader/ShadowAfCronToggle';
+
 import { useAdmin } from '@/hooks/useAdmin';
 import ActivePositions from '@/components/dashboard/ActivePositions';
 import CalibrationCard from '@/components/dashboard/CalibrationCard';
@@ -31,7 +31,7 @@ import { useApprovedSignalSound } from '@/hooks/useApprovedSignalSound';
 import { useApprovedAiSignalSound } from '@/hooks/useApprovedAiSignalSound';
 
 import CompactMatchTable from '@/components/dashboard/CompactMatchTable';
-import ShadowAfApprovedTab from '@/components/dashboard/ShadowAfApprovedTab';
+
 import ShadowAiApprovedTab from '@/components/dashboard/ShadowAiApprovedTab';
 import ComparativoDetVsIaTab from '@/components/dashboard/ComparativoDetVsIaTab';
 import NextMatchEmptyState from '@/components/arena-trader/NextMatchEmptyState';
@@ -111,7 +111,7 @@ const mapLiveMatchToMatch = (lm: LiveMatch): Match => {
   };
 };
 
-type StatusFilter = 'all' | 'proximos' | 'live' | 'aprovados' | 'meus_sinais' | 'aprovados_af' | 'aprovados_ai' | 'det_vs_ia' | 'scheduled' | 'finished' | 'simulado';
+type StatusFilter = 'all' | 'proximos' | 'live' | 'aprovados' | 'meus_sinais' | 'aprovados_ai' | 'det_vs_ia' | 'scheduled' | 'finished' | 'simulado';
 
 /**
  * Normaliza um mercado para uma chave curta usada no filtro
@@ -154,7 +154,7 @@ export default function ArenaTraderSports() {
   const { bankroll, loading: bankrollLoading, placeBet, cashOut, settleBets, updateInitialBalance } = useSportsBankroll();
   const { games: scheduledGames, loading: scheduledLoading } = useScheduledGames();
   const { requestPush, isSupported: pushSupported } = usePushNotifications();
-  const validStatusFilters: StatusFilter[] = ['all','proximos','live','aprovados','meus_sinais','aprovados_af','aprovados_ai','det_vs_ia','scheduled','finished','simulado'];
+  const validStatusFilters: StatusFilter[] = ['all','proximos','live','aprovados','meus_sinais','aprovados_ai','det_vs_ia','scheduled','finished','simulado'];
   const [statusFilter, setStatusFilter] = usePersistedState<StatusFilter>('arenaTraderSports.statusFilter', 'all');
   const [selectedChampionships, setSelectedChampionships] = useState<string[]>(() => {
     if (typeof window === 'undefined') return [];
@@ -486,7 +486,7 @@ export default function ArenaTraderSports() {
             <WhatsAppSupportButton />
             <TraderViewModeToggle />
             {isAdvanced && isAdmin && <LiveCronToggle />}
-            {/* ShadowAfCronToggle removido — API-Football descontinuada (Fase 1) */}
+            
             {/* View toggle */}
             {isAdvanced && (
               <div className="flex items-center border border-border rounded-lg overflow-hidden">
@@ -649,13 +649,6 @@ export default function ArenaTraderSports() {
                   Simulado
                 </TabsTrigger>
               )}
-              {/* Aba "Aprovados (AF)" removida — API-Football descontinuada (Fase 1) */}
-              {false && isAdvanced && isAdmin && (
-                <TabsTrigger value="aprovados_af" className="gap-1.5 border border-amber-500/40 text-amber-600">
-                  <FlaskConical className="w-3 h-3" />
-                  Aprovados (AF)
-                </TabsTrigger>
-              )}
               {isAdmin && (
                 <TabsTrigger value="aprovados_ai" className="gap-1.5 border border-violet-500/40 text-violet-600">
                   <FlaskConical className="w-3 h-3" />
@@ -734,9 +727,6 @@ export default function ArenaTraderSports() {
             </div>
           )}
 
-          {statusFilter === 'aprovados_af' && isAdmin && (
-            <ShadowAfApprovedTab />
-          )}
 
           {statusFilter === 'aprovados_ai' && isAdmin && (
             <ShadowAiApprovedTab />

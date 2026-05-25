@@ -19,7 +19,7 @@ const ADMIN_EMAIL = "pabloescobar@gmail.com";
 
 interface AuditRow {
   id: string;
-  source: "primary" | "shadow_af";
+  source: "primary";
   match_id: string;
   market: string;
   verdict: string;
@@ -108,7 +108,7 @@ export default function AdminAuditoriaSinais() {
   const [rows, setRows] = useState<AuditRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "inconsistent" | "green" | "red" | "pending">("inconsistent");
-  const [sourceFilter, setSourceFilter] = useState<"all" | "primary" | "shadow_af">("all");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "primary">("all");
   const [search, setSearch] = useState("");
   const [days, setDays] = useState<7 | 14 | 30>(7);
 
@@ -117,30 +117,18 @@ export default function AdminAuditoriaSinais() {
     try {
       const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
-      const [primaryRes, shadowRes] = await Promise.all([
-        (supabase as any)
-          .from("mycroft_analyses")
-          .select("id,match_id,market,verdict,odd,confidence,approved_at_timestamp,approved_at_minute,approved_at_score_home,approved_at_score_away,result,final_score_home,final_score_away,settled_at,settle_reason,created_at")
-          .in("verdict", ["APROVADO", "APROVADO_SITUACIONAL", "LABAREDA"])
-          .gte("created_at", since)
-          .order("created_at", { ascending: false })
-          .limit(500),
-        (supabase as any)
-          .from("mycroft_analyses_shadow_af")
-          .select("id,match_id,market,verdict,odd,confidence,approved_at_timestamp,approved_at_minute,approved_at_score_home,approved_at_score_away,result,final_score_home,final_score_away,settled_at,settle_reason,created_at")
-          .in("verdict", ["APROVADO", "APROVADO_SITUACIONAL", "LABAREDA"])
-          .gte("created_at", since)
-          .order("created_at", { ascending: false })
-          .limit(500),
-      ]);
+      const primaryRes = await (supabase as any)
+        .from("mycroft_analyses")
+        .select("id,match_id,market,verdict,odd,confidence,approved_at_timestamp,approved_at_minute,approved_at_score_home,approved_at_score_away,result,final_score_home,final_score_away,settled_at,settle_reason,created_at")
+        .in("verdict", ["APROVADO", "APROVADO_SITUACIONAL", "LABAREDA"])
+        .gte("created_at", since)
+        .order("created_at", { ascending: false })
+        .limit(500);
 
       if (primaryRes.error) throw primaryRes.error;
 
       const matchIds = Array.from(
-        new Set([
-          ...(primaryRes.data || []).map((r: any) => r.match_id),
-          ...(shadowRes.data || []).map((r: any) => r.match_id),
-        ])
+        new Set((primaryRes.data || []).map((r: any) => r.match_id))
       ).filter(Boolean);
 
       let teamsMap: Record<string, { home_team: string; away_team: string }> = {};
@@ -178,14 +166,13 @@ export default function AdminAuditoriaSinais() {
         return { ...base, inconsistencies: detectInconsistencies(base) };
       };
 
-      const combined: AuditRow[] = [
-        ...(primaryRes.data || []).map((r: any) => build(r, "primary")),
-        ...(shadowRes.data || []).map((r: any) => build(r, "shadow_af")),
-      ].sort(
-        (a, b) =>
-          new Date(b.approved_at_timestamp || 0).getTime() -
-          new Date(a.approved_at_timestamp || 0).getTime()
-      );
+      const combined: AuditRow[] = (primaryRes.data || [])
+        .map((r: any) => build(r, "primary"))
+        .sort(
+          (a, b) =>
+            new Date(b.approved_at_timestamp || 0).getTime() -
+            new Date(a.approved_at_timestamp || 0).getTime()
+        );
 
       setRows(combined);
     } catch (e: any) {
@@ -290,14 +277,6 @@ export default function AdminAuditoriaSinais() {
                 <SelectItem value="green">🟢 GREEN</SelectItem>
                 <SelectItem value="red">🔴 RED</SelectItem>
                 <SelectItem value="pending">⏳ Pendentes</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={sourceFilter} onValueChange={(v: any) => setSourceFilter(v)}>
-              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as fontes</SelectItem>
-                <SelectItem value="primary">API-Football (primary)</SelectItem>
-                <SelectItem value="shadow_af">Shadow AF</SelectItem>
               </SelectContent>
             </Select>
             <Select value={String(days)} onValueChange={(v) => setDays(Number(v) as any)}>
@@ -406,9 +385,7 @@ export default function AdminAuditoriaSinais() {
                           )}
                         </TableCell>
                         <TableCell className="text-xs">
-                          <Badge variant="outline">
-                            {r.source === "primary" ? "primary" : "shadow_af"}
-                          </Badge>
+                          <Badge variant="outline">primary</Badge>
                         </TableCell>
                         <TableCell>
                           {bad && (

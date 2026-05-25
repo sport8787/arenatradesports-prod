@@ -13,7 +13,7 @@ const ADMIN_EMAIL = "pabloescobar@gmail.com";
 
 interface DetailRow {
   id: string;
-  source: "primary" | "shadow_af";
+  source: "primary";
   match_id: string;
   market: string;
   verdict: string;
@@ -85,7 +85,7 @@ function detectInconsistencies(r: DetailRow): string[] {
 
 export default function AdminAuditoriaSinalDetalhe() {
   const { user, loading: authLoading } = useAuth();
-  const { source, id } = useParams<{ source: "primary" | "shadow_af"; id: string }>();
+  const { source, id } = useParams<{ source: "primary"; id: string }>();
   const [row, setRow] = useState<DetailRow | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -95,8 +95,7 @@ export default function AdminAuditoriaSinalDetalhe() {
     (async () => {
       setLoading(true);
       try {
-        const table = source === "primary" ? "mycroft_analyses" : "mycroft_analyses_shadow_af";
-        const { data, error } = await (supabase as any).from(table).select("*").eq("id", id).maybeSingle();
+        const { data, error } = await (supabase as any).from("mycroft_analyses").select("*").eq("id", id).maybeSingle();
         if (error) throw error;
         if (!data) {
           toast.error("Sinal não encontrado");
@@ -155,7 +154,7 @@ export default function AdminAuditoriaSinalDetalhe() {
             </div>
           </div>
           {row && (
-            <Badge variant="outline" className="text-xs">{row.source === "primary" ? "API-Football (primary)" : "Shadow AF"}</Badge>
+            <Badge variant="outline" className="text-xs">API-Football (primary)</Badge>
           )}
         </div>
 

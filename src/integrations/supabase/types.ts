@@ -3224,81 +3224,6 @@ export type Database = {
         }
         Relationships: []
       }
-      mycroft_analyses_shadow_af: {
-        Row: {
-          alerts: Json | null
-          approved_at_minute: number | null
-          approved_at_score_away: number | null
-          approved_at_score_home: number | null
-          confidence: number | null
-          created_at: string
-          final_score_away: number | null
-          final_score_home: number | null
-          fundamentation: Json | null
-          id: string
-          market: string | null
-          match_id: string
-          odd: number | null
-          plan_name: string | null
-          provider: string
-          result: string | null
-          risk_management: Json | null
-          settle_reason: string | null
-          settled_at: string | null
-          stats_snapshot: Json | null
-          thesis: string | null
-          verdict: string
-        }
-        Insert: {
-          alerts?: Json | null
-          approved_at_minute?: number | null
-          approved_at_score_away?: number | null
-          approved_at_score_home?: number | null
-          confidence?: number | null
-          created_at?: string
-          final_score_away?: number | null
-          final_score_home?: number | null
-          fundamentation?: Json | null
-          id?: string
-          market?: string | null
-          match_id: string
-          odd?: number | null
-          plan_name?: string | null
-          provider?: string
-          result?: string | null
-          risk_management?: Json | null
-          settle_reason?: string | null
-          settled_at?: string | null
-          stats_snapshot?: Json | null
-          thesis?: string | null
-          verdict: string
-        }
-        Update: {
-          alerts?: Json | null
-          approved_at_minute?: number | null
-          approved_at_score_away?: number | null
-          approved_at_score_home?: number | null
-          confidence?: number | null
-          created_at?: string
-          final_score_away?: number | null
-          final_score_home?: number | null
-          fundamentation?: Json | null
-          id?: string
-          market?: string | null
-          match_id?: string
-          odd?: number | null
-          plan_name?: string | null
-          provider?: string
-          result?: string | null
-          risk_management?: Json | null
-          settle_reason?: string | null
-          settled_at?: string | null
-          stats_snapshot?: Json | null
-          thesis?: string | null
-          verdict?: string
-        }
-        Relationships: []
-      }
       mycroft_analyses_shadow_ai: {
         Row: {
           alerts: Json | null
@@ -7997,25 +7922,6 @@ export type Database = {
           verdict: string
         }[]
       }
-      compare_providers_divergences: {
-        Args: { p_since: string }
-        Returns: {
-          divergencia: string
-          total: number
-        }[]
-      }
-      compare_providers_metrics: {
-        Args: { p_since: string }
-        Returns: {
-          greens: number
-          liquidados: number
-          pendentes: number
-          provider: string
-          reds: number
-          total_approvados: number
-          win_rate: number
-        }[]
-      }
       compute_arena_calibration: {
         Args: { p_arena: string; p_limit?: number }
         Returns: {
@@ -8286,15 +8192,6 @@ export type Database = {
       settle_mycroft_analysis: {
         Args: {
           p_analysis_id: string
-          p_reason?: string
-          p_score_away: number
-          p_score_home: number
-        }
-        Returns: string
-      }
-      settle_mycroft_shadow_af: {
-        Args: {
-          p_id: string
           p_reason?: string
           p_score_away: number
           p_score_home: number
