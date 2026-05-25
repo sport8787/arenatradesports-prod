@@ -117,30 +117,18 @@ export default function AdminAuditoriaSinais() {
     try {
       const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
-      const [primaryRes, shadowRes] = await Promise.all([
-        (supabase as any)
-          .from("mycroft_analyses")
-          .select("id,match_id,market,verdict,odd,confidence,approved_at_timestamp,approved_at_minute,approved_at_score_home,approved_at_score_away,result,final_score_home,final_score_away,settled_at,settle_reason,created_at")
-          .in("verdict", ["APROVADO", "APROVADO_SITUACIONAL", "LABAREDA"])
-          .gte("created_at", since)
-          .order("created_at", { ascending: false })
-          .limit(500),
-        (supabase as any)
-          .from("mycroft_analyses_shadow_af")
-          .select("id,match_id,market,verdict,odd,confidence,approved_at_timestamp,approved_at_minute,approved_at_score_home,approved_at_score_away,result,final_score_home,final_score_away,settled_at,settle_reason,created_at")
-          .in("verdict", ["APROVADO", "APROVADO_SITUACIONAL", "LABAREDA"])
-          .gte("created_at", since)
-          .order("created_at", { ascending: false })
-          .limit(500),
-      ]);
+      const primaryRes = await (supabase as any)
+        .from("mycroft_analyses")
+        .select("id,match_id,market,verdict,odd,confidence,approved_at_timestamp,approved_at_minute,approved_at_score_home,approved_at_score_away,result,final_score_home,final_score_away,settled_at,settle_reason,created_at")
+        .in("verdict", ["APROVADO", "APROVADO_SITUACIONAL", "LABAREDA"])
+        .gte("created_at", since)
+        .order("created_at", { ascending: false })
+        .limit(500);
 
       if (primaryRes.error) throw primaryRes.error;
 
       const matchIds = Array.from(
-        new Set([
-          ...(primaryRes.data || []).map((r: any) => r.match_id),
-          ...(shadowRes.data || []).map((r: any) => r.match_id),
-        ])
+        new Set((primaryRes.data || []).map((r: any) => r.match_id))
       ).filter(Boolean);
 
       let teamsMap: Record<string, { home_team: string; away_team: string }> = {};
