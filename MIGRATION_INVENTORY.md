@@ -1,8 +1,20 @@
 # Migration Inventory — Supabase / Lovable Cloud
 
-> **Status:** 🟢 Espelho **100% pronto como warm-standby** (20/05/2026 15:30 BRT). DB+Storage+Auth+Triggers+Crons aplicados. Falta apenas registrar secrets + deploy de 137 edge functions no espelho — instruções em `/mnt/documents/CUTOVER_FINAL.md`.
+> **Status:** 🟡 Espelho desatualizado em relação à origem (25/05/2026). Desde 20/05 surgiram **+35 objetos em `public`** (tabelas+views) e **+6 edge functions** novas. Delta detalhado e ordem de execução em `/mnt/documents/CUTOVER_DELTA_2026-05-25.md`.
 > **Bloqueio estrutural:** App em Lovable Cloud não permite trocar backend (arquivos `.env`/`client.ts` auto-regenerados). Espelho fica como backup quente, não substitui a produção.
-> **Última atualização:** 20/05/2026 — Fase G concluída (extensões, triggers de notificação com URL reescrita, 65 cron jobs INATIVOS, fix `calibrate_punter_1x2_verdict` em AMBOS).
+> **Última atualização:** 25/05/2026 — revisão delta pós-features Asaas, Day Pass, Sherlock audit, user_trader_plans, SEO news.
+
+## 0.0 Delta 25/05/2026 (resumo)
+
+- **Edge functions novas (6):** `asaas-create-charge`, `asaas-create-subscription`, `asaas-webhook`, `backfill-shadow-ai-teams`, `day-pass-lifecycle-notify`, `day-pass-mark-preview`. Lista completa atualizada em `/mnt/documents/edge_functions_list_v2.txt` (137 funções).
+- **Tabelas novas (principais):** `asaas_charges`, `asaas_webhook_events`, `day_pass_lifecycle_log`, `day_pass_upsells`, `seo_news_posts`, `seo_rodadas_publicadas`, `sherlock_audit_log`, `sinais_alavanca`, `sinais_favorito_prelive`, `sinais_handicap_prelive`, `sportmonks_predictions_cache`, `trial_notification_log`, `user_trader_plans`, `user_trader_plans_v2`, `user_trader_plan_signals`, `user_vocal_profiles`, `votes` + 7 views `v_*`.
+- **Secrets prováveis novos:** `ASAAS_API_KEY`, `ASAAS_WEBHOOK_TOKEN`, `GROQ_API_KEY`, `SPORTMONKS_API_KEY`.
+- **Próximo passo recomendado:** regerar dump de schema da origem, aplicar delta no espelho, rodar `migrate-table-to-mirror` para as tabelas novas, re-sync `auth.users` (idempotente), deploy das 6 edges novas.
+
+---
+
+## 0.0.1 Checkpoint anterior (20/05/2026 — Fase G)
+Extensões, triggers de notificação com URL reescrita, 65 cron jobs INATIVOS, fix `calibrate_punter_1x2_verdict` em AMBOS.
 
 
 ## 0.1 Execução das Fases A-E (20/05/2026)
