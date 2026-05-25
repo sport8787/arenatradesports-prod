@@ -123,10 +123,10 @@ export default function LobbyPreview() {
   }
 
   const arenas = [
-    { icon: Target, title: "Arena Punter", desc: "Sinais matemáticos pré-jogo aprovados pelo Mycroft." },
-    { icon: Activity, title: "Arena Live", desc: "Trade ao vivo, leitura situacional e cash-out por IA." },
-    { icon: LineChart, title: "Arena Trader Financeiro", desc: "WIN, WDO e BTC com a mesma lógica do esporte." },
-    { icon: Sparkles, title: "Liga Mycroft + Bônus", desc: "Ranking de ROI, recompensas BC e ferramentas avançadas." },
+    { icon: Target, title: "Arena Punter", desc: "Sinais matemáticos pré-jogo aprovados pelo Mycroft.", badge: null },
+    { icon: Activity, title: "Arena Live", desc: "Trade ao vivo, leitura situacional e cash-out por IA.", badge: null },
+    { icon: LineChart, title: "Arena Trader Financeiro", desc: "Versão experimental. WIN, WDO e BTC em fase de teste — use por sua conta e risco enquanto refinamos o motor.", badge: "BETA" },
+    { icon: Sparkles, title: "Liga Mycroft + Bônus", desc: "Ranking de ROI, recompensas BC e ferramentas avançadas.", badge: null },
   ];
 
   return (
