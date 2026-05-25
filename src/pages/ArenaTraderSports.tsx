@@ -486,7 +486,7 @@ export default function ArenaTraderSports() {
             <WhatsAppSupportButton />
             <TraderViewModeToggle />
             {isAdvanced && isAdmin && <LiveCronToggle />}
-            {/* ShadowAfCronToggle removido — API-Football descontinuada (Fase 1) */}
+            
             {/* View toggle */}
             {isAdvanced && (
               <div className="flex items-center border border-border rounded-lg overflow-hidden">
