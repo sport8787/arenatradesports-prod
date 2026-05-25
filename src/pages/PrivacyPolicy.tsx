@@ -1,12 +1,12 @@
 /**
- * Página de Política de Privacidade - LGPD
- * Detalhes completos sobre tratamento de dados de voz e informações pessoais
+ * Política de Privacidade — Oráculo Mycroft
+ * Conformidade com LGPD (Lei nº 13.709/2018)
  */
 
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { 
-  ArrowLeft, Shield, Mic, Database, Lock, Eye, Trash2, 
+import {
+  ArrowLeft, Shield, Database, Lock, Eye, Trash2,
   Mail, FileText, Clock, Server, UserCheck, AlertTriangle,
   CheckCircle, XCircle, Settings, Globe
 } from 'lucide-react';
@@ -15,11 +15,10 @@ import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function PrivacyPolicy() {
-  const lastUpdated = "24 de Janeiro de 2026";
+  const lastUpdated = '25 de Maio de 2026';
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Header */}
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="container mx-auto px-4 py-4 flex items-center gap-4">
           <Link to="/">
@@ -36,8 +35,7 @@ export default function PrivacyPolicy() {
       </header>
 
       <main className="container mx-auto px-4 py-8 max-w-4xl">
-        {/* Hero Section */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-12"
@@ -45,12 +43,12 @@ export default function PrivacyPolicy() {
           <div className="inline-flex items-center justify-center p-4 rounded-full bg-primary/10 border border-primary/30 mb-4">
             <Shield className="w-10 h-10 text-primary" />
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold mb-4">
-            Política de Privacidade
-          </h1>
+          <h1 className="text-3xl md:text-4xl font-bold mb-4">Política de Privacidade</h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            O BLEFADOR está comprometido com a proteção dos seus dados pessoais 
-            em conformidade com a Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018).
+            O <strong>Oráculo Mycroft</strong> é uma ferramenta de análise estatística,
+            probabilística e gestão de risco aplicada a apostas esportivas. Esta política descreve
+            como tratamos seus dados pessoais em conformidade com a Lei Geral de Proteção de Dados
+            (LGPD — Lei nº 13.709/2018).
           </p>
           <p className="text-sm text-muted-foreground mt-4">
             <Clock className="w-4 h-4 inline mr-1" />
@@ -58,7 +56,6 @@ export default function PrivacyPolicy() {
           </p>
         </motion.div>
 
-        {/* Quick Navigation */}
         <Card className="mb-8 bg-muted/30">
           <CardHeader>
             <CardTitle className="text-sm flex items-center gap-2">
@@ -68,266 +65,97 @@ export default function PrivacyPolicy() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
-              <a href="#dados-coletados" className="text-primary hover:underline">1. Dados Coletados</a>
-              <a href="#dados-voz" className="text-primary hover:underline">2. Dados de Voz</a>
+              <a href="#controlador" className="text-primary hover:underline">1. Controlador</a>
+              <a href="#dados-coletados" className="text-primary hover:underline">2. Dados Coletados</a>
               <a href="#finalidade" className="text-primary hover:underline">3. Finalidade</a>
-              <a href="#armazenamento" className="text-primary hover:underline">4. Armazenamento</a>
+              <a href="#bases-legais" className="text-primary hover:underline">4. Bases Legais</a>
               <a href="#compartilhamento" className="text-primary hover:underline">5. Compartilhamento</a>
-              <a href="#seus-direitos" className="text-primary hover:underline">6. Seus Direitos</a>
-              <a href="#seguranca" className="text-primary hover:underline">7. Segurança</a>
-              <a href="#cookies" className="text-primary hover:underline">8. Cookies</a>
-              <a href="#contato" className="text-primary hover:underline">9. Contato</a>
+              <a href="#armazenamento" className="text-primary hover:underline">6. Armazenamento</a>
+              <a href="#seus-direitos" className="text-primary hover:underline">7. Seus Direitos</a>
+              <a href="#seguranca" className="text-primary hover:underline">8. Segurança</a>
+              <a href="#cookies" className="text-primary hover:underline">9. Cookies</a>
+              <a href="#menores" className="text-primary hover:underline">10. Menores</a>
+              <a href="#alteracoes" className="text-primary hover:underline">11. Alterações</a>
+              <a href="#contato" className="text-primary hover:underline">12. Contato</a>
             </div>
           </CardContent>
         </Card>
 
-        {/* Content Sections */}
         <div className="space-y-8">
-          {/* Section 1: Dados Coletados */}
+          {/* 1. Controlador */}
+          <section id="controlador">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <UserCheck className="w-5 h-5 text-primary" />
+                  1. Controlador dos Dados
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm text-muted-foreground">
+                <p>
+                  O serviço <strong>Oráculo Mycroft</strong> é operado por sua equipe responsável,
+                  acessível pelos domínios <code>oraculo-mycroft.com</code> e demais subdomínios
+                  oficiais. O usuário pode falar com o encarregado de dados (DPO) pelos canais
+                  indicados na seção 12.
+                </p>
+              </CardContent>
+            </Card>
+          </section>
+
+          {/* 2. Dados Coletados */}
           <section id="dados-coletados">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Database className="w-5 h-5 text-primary" />
-                  1. Dados Pessoais Coletados
+                  2. Dados Pessoais Coletados
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-muted-foreground">
-                  Coletamos diferentes tipos de dados dependendo da sua interação com o jogo:
+                  Coletamos apenas o necessário para operar a plataforma de análise:
                 </p>
-                
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="bg-muted/30 rounded-lg p-4">
-                    <h4 className="font-semibold mb-2 flex items-center gap-2">
-                      <UserCheck className="w-4 h-4 text-success" />
-                      Dados de Cadastro
-                    </h4>
+                    <h4 className="font-semibold mb-2">Dados de Cadastro</h4>
                     <ul className="text-sm text-muted-foreground space-y-1">
-                      <li>• E-mail (para autenticação)</li>
-                      <li>• Nome de usuário/apelido</li>
+                      <li>• E-mail (autenticação)</li>
+                      <li>• Nome ou apelido</li>
+                      <li>• Telefone (opcional, suporte)</li>
                       <li>• Foto de perfil (opcional)</li>
                     </ul>
                   </div>
-                  
                   <div className="bg-muted/30 rounded-lg p-4">
-                    <h4 className="font-semibold mb-2 flex items-center gap-2">
-                      <Settings className="w-4 h-4 text-primary" />
-                      Dados de Jogo
-                    </h4>
+                    <h4 className="font-semibold mb-2">Dados de Uso</h4>
                     <ul className="text-sm text-muted-foreground space-y-1">
-                      <li>• Pontuação e estatísticas</li>
-                      <li>• Histórico de partidas</li>
-                      <li>• Conquistas e ranking</li>
+                      <li>• Histórico de análises e sinais visualizados</li>
+                      <li>• Banca virtual, apostas simuladas, ROI</li>
+                      <li>• Preferências (ligas, mercados, filtros)</li>
+                      <li>• Logs de acesso, IP, user-agent</li>
                     </ul>
                   </div>
-                </div>
-
-                <div className="bg-primary/10 border border-primary/30 rounded-lg p-4">
-                  <h4 className="font-semibold mb-2 flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-primary" />
-                    Modo Convidado
-                  </h4>
-                  <p className="text-sm text-muted-foreground">
-                    Se você jogar como convidado, apenas um identificador de sessão temporário 
-                    é armazenado localmente no seu dispositivo. Nenhum dado pessoal é enviado 
-                    aos nossos servidores.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </section>
-
-          {/* Section 2: Dados de Voz (CRITICAL SECTION) */}
-          <section id="dados-voz">
-            <Card className="border-primary/50">
-              <CardHeader className="bg-primary/5">
-                <CardTitle className="flex items-center gap-2">
-                  <Mic className="w-5 h-5 text-primary" />
-                  2. Tratamento de Dados de Voz (Mycroft)
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6 pt-6">
-                <div className="bg-muted/30 rounded-lg p-4 border-l-4 border-primary">
-                  <p className="font-medium">
-                    Esta seção detalha especificamente o tratamento de dados de voz 
-                    pelo sistema Mycroft, nosso analista comportamental baseado em IA.
-                  </p>
-                </div>
-
-                {/* O que é coletado */}
-                <div>
-                  <h4 className="font-semibold mb-3 flex items-center gap-2">
-                    <Eye className="w-4 h-4 text-primary" />
-                    2.1 O Que é Analisado
-                  </h4>
-                  <div className="grid md:grid-cols-2 gap-3">
-                    <div className="bg-muted/20 rounded-lg p-3">
-                      <p className="text-sm font-medium mb-1">Métricas Acústicas</p>
-                      <ul className="text-xs text-muted-foreground space-y-0.5">
-                        <li>• Frequência fundamental (pitch)</li>
-                        <li>• Variação de pitch (jitter)</li>
-                        <li>• Variação de amplitude (shimmer)</li>
-                        <li>• Relação harmônicos-ruído (HNR)</li>
-                      </ul>
-                    </div>
-                    <div className="bg-muted/20 rounded-lg p-3">
-                      <p className="text-sm font-medium mb-1">Padrões de Fala</p>
-                      <ul className="text-xs text-muted-foreground space-y-0.5">
-                        <li>• Taxa de fala (palavras por minuto)</li>
-                        <li>• Pausas e hesitações</li>
-                        <li>• Latência de resposta</li>
-                        <li>• Fluência e ritmo</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-
-                <Separator />
-
-                {/* Como funciona */}
-                <div>
-                  <h4 className="font-semibold mb-3 flex items-center gap-2">
-                    <Server className="w-4 h-4 text-primary" />
-                    2.2 Ciclo de Vida dos Dados de Voz
-                  </h4>
-                  
-                  <div className="space-y-4">
-                    {/* Durante o jogo */}
-                    <div className="flex gap-4">
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-success/20 flex items-center justify-center">
-                        <span className="text-success font-bold text-sm">1</span>
-                      </div>
-                      <div>
-                        <p className="font-medium">Durante a Partida</p>
-                        <p className="text-sm text-muted-foreground">
-                          O áudio é capturado e processado <strong>localmente no seu dispositivo</strong> 
-                          usando a Web Audio API. A análise inicial ocorre no navegador sem enviar 
-                          o áudio bruto para servidores externos.
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Análise IA */}
-                    <div className="flex gap-4">
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                        <span className="text-primary font-bold text-sm">2</span>
-                      </div>
-                      <div>
-                        <p className="font-medium">Análise por IA</p>
-                        <p className="text-sm text-muted-foreground">
-                          <strong>Apenas as métricas numéricas</strong> (pitch, jitter, shimmer, etc.) 
-                          são enviadas ao nosso backend para análise pelo Mycroft. O conteúdo verbal 
-                          (o que você disse) <strong>não é transcrito nem armazenado</strong>.
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Após o jogo */}
-                    <div className="flex gap-4">
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-destructive/20 flex items-center justify-center">
-                        <span className="text-destructive font-bold text-sm">3</span>
-                      </div>
-                      <div>
-                        <p className="font-medium">Após a Partida</p>
-                        <p className="text-sm text-muted-foreground">
-                          O arquivo de áudio bruto é <strong>automaticamente deletado</strong> do seu 
-                          dispositivo e nunca é armazenado em nossos servidores. Apenas métricas 
-                          <strong> anonimizadas</strong> são retidas para fins estatísticos.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <Separator />
-
-                {/* O que NÃO fazemos */}
-                <div>
-                  <h4 className="font-semibold mb-3 flex items-center gap-2">
-                    <XCircle className="w-4 h-4 text-destructive" />
-                    2.3 O Que NÃO Fazemos
-                  </h4>
-                  <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4">
-                    <ul className="space-y-2 text-sm">
-                      <li className="flex items-start gap-2">
-                        <XCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
-                        <span><strong>NÃO</strong> usamos sua voz para identificação biométrica civil</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <XCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
-                        <span><strong>NÃO</strong> realizamos diagnósticos médicos ou psicológicos</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <XCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
-                        <span><strong>NÃO</strong> vendemos ou compartilhamos dados de voz com terceiros</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <XCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
-                        <span><strong>NÃO</strong> usamos dados de voz para publicidade direcionada</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <XCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
-                        <span><strong>NÃO</strong> armazenamos gravações de voz sem consentimento explícito</span>
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-
-                <Separator />
-
-                {/* Consentimento */}
-                <div>
-                  <h4 className="font-semibold mb-3 flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-success" />
-                    2.4 Consentimento e Controle
-                  </h4>
-                  <div className="space-y-3">
-                    <div className="bg-success/10 border border-success/30 rounded-lg p-4">
-                      <p className="text-sm">
-                        <strong>O Mycroft é opcional.</strong> Você pode jogar O BLEFADOR 
-                        normalmente sem ativar a análise de voz. Quando a análise é desativada, 
-                        nenhum dado de áudio é capturado ou processado.
-                      </p>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Seu consentimento é armazenado localmente no seu dispositivo e pode ser 
-                      alterado a qualquer momento através do botão "Mycroft" no cabeçalho do jogo 
-                      ou nas configurações de privacidade.
-                    </p>
-                  </div>
-                </div>
-
-                <Separator />
-
-                {/* Armazenamento opcional */}
-                <div>
-                  <h4 className="font-semibold mb-3 flex items-center gap-2">
-                    <Database className="w-4 h-4 text-primary" />
-                    2.5 Armazenamento Opcional para Treinamento
-                  </h4>
                   <div className="bg-muted/30 rounded-lg p-4">
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Se você desejar contribuir para a evolução do Mycroft, pode optar por 
-                      autorizar o armazenamento criptografado de suas gravações. Isso é 
-                      <strong> completamente opcional</strong> e requer consentimento adicional.
-                    </p>
-                    <div className="text-xs text-muted-foreground">
-                      <p className="font-medium mb-1">Se você autorizar:</p>
-                      <ul className="space-y-0.5">
-                        <li>• Gravações são criptografadas com AES-256</li>
-                        <li>• Dados são pseudonimizados (ID aleatório, sem link com sua conta)</li>
-                        <li>• Usados apenas para treinar modelos de detecção de convicção</li>
-                        <li>• Você pode solicitar exclusão a qualquer momento</li>
-                      </ul>
-                    </div>
+                    <h4 className="font-semibold mb-2">Dados de Pagamento</h4>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>• Processados pelo Asaas (gateway PCI-DSS)</li>
+                      <li>• Não armazenamos número de cartão</li>
+                      <li>• Guardamos apenas status, valor e identificador da transação</li>
+                    </ul>
+                  </div>
+                  <div className="bg-muted/30 rounded-lg p-4">
+                    <h4 className="font-semibold mb-2">Marketing e Analytics</h4>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>• UTMs e origem de campanha</li>
+                      <li>• Eventos anônimos (PostHog, Meta Pixel, TikTok Pixel)</li>
+                      <li>• Tokens push opt-in (notificações)</li>
+                    </ul>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </section>
 
-          {/* Section 3: Finalidade */}
+          {/* 3. Finalidade */}
           <section id="finalidade">
             <Card>
               <CardHeader>
@@ -336,341 +164,233 @@ export default function PrivacyPolicy() {
                   3. Finalidade do Tratamento
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-muted-foreground">
-                  Seus dados são tratados para as seguintes finalidades específicas:
-                </p>
-                
-                <div className="grid gap-3">
-                  <div className="flex gap-3 items-start">
-                    <CheckCircle className="w-5 h-5 text-success mt-0.5 shrink-0" />
-                    <div>
-                      <p className="font-medium">Execução do Contrato de Serviço</p>
-                      <p className="text-sm text-muted-foreground">
-                        Permitir que você jogue O BLEFADOR, salvar seu progresso, 
-                        e fornecer funcionalidades do jogo.
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-3 items-start">
-                    <CheckCircle className="w-5 h-5 text-success mt-0.5 shrink-0" />
-                    <div>
-                      <p className="font-medium">Melhoria da Experiência</p>
-                      <p className="text-sm text-muted-foreground">
-                        Análise de dados agregados e anonimizados para melhorar 
-                        o balanceamento e diversão do jogo.
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-3 items-start">
-                    <CheckCircle className="w-5 h-5 text-success mt-0.5 shrink-0" />
-                    <div>
-                      <p className="font-medium">Segurança e Prevenção de Fraudes</p>
-                      <p className="text-sm text-muted-foreground">
-                        Detecção de comportamentos fraudulentos e proteção 
-                        da integridade do jogo.
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-3 items-start">
-                    <CheckCircle className="w-5 h-5 text-success mt-0.5 shrink-0" />
-                    <div>
-                      <p className="font-medium">Comunicação (com consentimento)</p>
-                      <p className="text-sm text-muted-foreground">
-                        Envio de atualizações sobre o jogo, novos recursos, 
-                        e informações relevantes.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+              <CardContent className="space-y-2 text-sm text-muted-foreground">
+                <p>Os dados são utilizados exclusivamente para:</p>
+                <ul className="space-y-1 list-disc list-inside">
+                  <li>Prover acesso e operar o Oráculo Mycroft (Punter, Trader Sports, Eventos Raros, Ciclos, etc.);</li>
+                  <li>Personalizar sinais, filtros e relatórios para o seu perfil;</li>
+                  <li>Processar pagamentos, assinaturas, trials e renovações;</li>
+                  <li>Enviar notificações operacionais (sinais, GREEN/RED, cash-out) e transacionais (cobrança, confirmação);</li>
+                  <li>Melhorar continuamente os algoritmos de análise (sempre com dados agregados/anonimizados);</li>
+                  <li>Cumprir obrigações legais, regulatórias e contábeis;</li>
+                  <li>Prevenir fraude, abuso e proteger a segurança da plataforma.</li>
+                </ul>
               </CardContent>
             </Card>
           </section>
 
-          {/* Section 4: Armazenamento */}
-          <section id="armazenamento">
+          {/* 4. Bases Legais */}
+          <section id="bases-legais">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Server className="w-5 h-5 text-primary" />
-                  4. Armazenamento e Retenção
+                  <CheckCircle className="w-5 h-5 text-primary" />
+                  4. Bases Legais (LGPD art. 7º e 11)
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="bg-muted/30 rounded-lg p-4">
-                    <h4 className="font-semibold mb-2">Dados de Conta</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Mantidos enquanto sua conta estiver ativa. Após exclusão da conta, 
-                      dados são removidos em até 30 dias.
-                    </p>
-                  </div>
-                  
-                  <div className="bg-muted/30 rounded-lg p-4">
-                    <h4 className="font-semibold mb-2">Dados de Jogo</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Estatísticas e rankings são mantidos indefinidamente em formato 
-                      agregado. Histórico detalhado por 12 meses.
-                    </p>
-                  </div>
-                  
-                  <div className="bg-muted/30 rounded-lg p-4">
-                    <h4 className="font-semibold mb-2">Métricas de Voz</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Métricas anonimizadas são retidas por 24 meses para 
-                      fins estatísticos e de melhoria do algoritmo.
-                    </p>
-                  </div>
-                  
-                  <div className="bg-muted/30 rounded-lg p-4">
-                    <h4 className="font-semibold mb-2">Gravações de Voz</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Se autorizadas, mantidas por até 36 meses para treinamento. 
-                      Podem ser excluídas a qualquer momento mediante solicitação.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="bg-primary/10 border border-primary/30 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Globe className="w-4 h-4 text-primary" />
-                    <p className="font-medium">Localização dos Servidores</p>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Nossos dados são armazenados em servidores seguros localizados 
-                    nos Estados Unidos, em conformidade com padrões internacionais 
-                    de segurança (SOC 2, ISO 27001).
-                  </p>
-                </div>
+              <CardContent className="space-y-2 text-sm text-muted-foreground">
+                <ul className="space-y-1 list-disc list-inside">
+                  <li><strong>Execução de contrato:</strong> entrega do serviço contratado.</li>
+                  <li><strong>Consentimento:</strong> marketing, notificações push, cookies não essenciais.</li>
+                  <li><strong>Legítimo interesse:</strong> segurança, prevenção a fraude e melhoria do produto.</li>
+                  <li><strong>Cumprimento de obrigação legal:</strong> fiscal, tributária e de combate à lavagem de dinheiro.</li>
+                </ul>
               </CardContent>
             </Card>
           </section>
 
-          {/* Section 5: Compartilhamento */}
+          {/* 5. Compartilhamento */}
           <section id="compartilhamento">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Globe className="w-5 h-5 text-primary" />
-                  5. Compartilhamento de Dados
+                  5. Compartilhamento com Terceiros
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-muted-foreground">
-                  Não vendemos seus dados pessoais. Compartilhamos dados apenas nas 
-                  seguintes circunstâncias:
+              <CardContent className="space-y-3 text-sm text-muted-foreground">
+                <p>
+                  Não vendemos seus dados. Compartilhamos somente o necessário com operadores que
+                  viabilizam o serviço, sob contrato de proteção de dados:
                 </p>
-                
-                <div className="space-y-3">
-                  <div className="bg-muted/30 rounded-lg p-4">
-                    <h4 className="font-semibold mb-1">Provedores de Serviço</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Parceiros que nos ajudam a operar o jogo (hospedagem, autenticação, 
-                      processamento de pagamentos). Todos assinam acordos de proteção de dados.
-                    </p>
-                  </div>
-                  
-                  <div className="bg-muted/30 rounded-lg p-4">
-                    <h4 className="font-semibold mb-1">Obrigações Legais</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Quando exigido por lei, ordem judicial, ou para proteger 
-                      direitos, propriedade ou segurança.
-                    </p>
-                  </div>
-                  
-                  <div className="bg-muted/30 rounded-lg p-4">
-                    <h4 className="font-semibold mb-1">Com Seu Consentimento</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Para qualquer outra finalidade, solicitaremos seu 
-                      consentimento expresso previamente.
-                    </p>
-                  </div>
-                </div>
+                <ul className="space-y-1 list-disc list-inside">
+                  <li><strong>Supabase / Lovable Cloud</strong> — hospedagem, banco de dados, autenticação;</li>
+                  <li><strong>Asaas</strong> — processamento de pagamentos e assinaturas;</li>
+                  <li><strong>Resend</strong> — envio de e-mails transacionais;</li>
+                  <li><strong>Telegram</strong> — entrega de sinais a usuários que optam pelo canal;</li>
+                  <li><strong>ElevenLabs</strong> — síntese de voz do Hórus (texto enviado sem dados pessoais);</li>
+                  <li><strong>API-Football, The Odds API, Sportmonks, Futodds, Betfair</strong> — provedores de dados esportivos e odds (não recebem dados pessoais);</li>
+                  <li><strong>PostHog, Meta Pixel, TikTok Pixel, Google Analytics</strong> — analytics e atribuição de campanha;</li>
+                  <li><strong>Autoridades públicas</strong> — quando exigido por lei ou ordem judicial.</li>
+                </ul>
               </CardContent>
             </Card>
           </section>
 
-          {/* Section 6: Seus Direitos */}
-          <section id="seus-direitos">
-            <Card className="border-success/50">
-              <CardHeader className="bg-success/5">
+          {/* 6. Armazenamento */}
+          <section id="armazenamento">
+            <Card>
+              <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <UserCheck className="w-5 h-5 text-success" />
-                  6. Seus Direitos (LGPD)
+                  <Server className="w-5 h-5 text-primary" />
+                  6. Armazenamento e Retenção
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4 pt-6">
-                <p className="text-muted-foreground">
-                  A LGPD garante os seguintes direitos sobre seus dados pessoais:
+              <CardContent className="space-y-2 text-sm text-muted-foreground">
+                <p>
+                  Os dados ficam armazenados em servidores em nuvem com criptografia em trânsito
+                  (TLS 1.2+) e em repouso. A retenção segue o seguinte critério:
                 </p>
-                
-                <div className="grid md:grid-cols-2 gap-3">
-                  {[
-                    { title: "Acesso", desc: "Saber quais dados temos sobre você" },
-                    { title: "Correção", desc: "Corrigir dados incompletos ou incorretos" },
-                    { title: "Anonimização", desc: "Solicitar anonimização de dados desnecessários" },
-                    { title: "Portabilidade", desc: "Receber seus dados em formato estruturado" },
-                    { title: "Eliminação", desc: "Solicitar exclusão de dados pessoais" },
-                    { title: "Revogação", desc: "Revogar consentimentos a qualquer momento" },
-                    { title: "Informação", desc: "Saber com quem compartilhamos seus dados" },
-                    { title: "Oposição", desc: "Opor-se a tratamento em certas situações" },
-                  ].map((right, i) => (
-                    <div key={i} className="flex gap-2 items-start bg-muted/20 rounded-lg p-3">
-                      <CheckCircle className="w-4 h-4 text-success mt-0.5 shrink-0" />
-                      <div>
-                        <p className="font-medium text-sm">{right.title}</p>
-                        <p className="text-xs text-muted-foreground">{right.desc}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="bg-primary/10 border border-primary/30 rounded-lg p-4 mt-4">
-                  <h4 className="font-semibold mb-2 flex items-center gap-2">
-                    <Mail className="w-4 h-4 text-primary" />
-                    Como Exercer Seus Direitos
-                  </h4>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Para exercer qualquer um desses direitos, entre em contato conosco:
-                  </p>
-                  <ul className="text-sm space-y-1">
-                    <li>📧 E-mail: <span className="text-primary">privacidade@blefador.com.br</span></li>
-                    <li>⏱️ Prazo de resposta: até 15 dias úteis</li>
-                  </ul>
-                </div>
+                <ul className="space-y-1 list-disc list-inside">
+                  <li>Dados de cadastro: enquanto a conta estiver ativa.</li>
+                  <li>Dados de pagamento: 5 anos (obrigação fiscal).</li>
+                  <li>Logs de acesso: 6 meses (Marco Civil da Internet, art. 15).</li>
+                  <li>Dados de análise/uso: até 24 meses, podendo ser anonimizados após.</li>
+                </ul>
               </CardContent>
             </Card>
           </section>
 
-          {/* Section 7: Segurança */}
+          {/* 7. Direitos */}
+          <section id="seus-direitos">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Eye className="w-5 h-5 text-primary" />
+                  7. Seus Direitos como Titular
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm text-muted-foreground">
+                <p>De acordo com o art. 18 da LGPD, você pode a qualquer momento solicitar:</p>
+                <ul className="space-y-1 list-disc list-inside">
+                  <li>Confirmação da existência de tratamento;</li>
+                  <li>Acesso aos dados tratados;</li>
+                  <li>Correção de dados incompletos, inexatos ou desatualizados;</li>
+                  <li>Anonimização, bloqueio ou eliminação de dados desnecessários;</li>
+                  <li>Portabilidade dos dados;</li>
+                  <li>Eliminação dos dados tratados com base em consentimento;</li>
+                  <li>Informação sobre entidades com as quais houve compartilhamento;</li>
+                  <li>Revogação do consentimento.</li>
+                </ul>
+                <p className="pt-2">
+                  Para exercer qualquer direito, entre em contato pelo e-mail indicado na seção 12.
+                  Responderemos em até 15 dias.
+                </p>
+              </CardContent>
+            </Card>
+          </section>
+
+          {/* 8. Segurança */}
           <section id="seguranca">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Lock className="w-5 h-5 text-primary" />
-                  7. Medidas de Segurança
+                  8. Segurança da Informação
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-muted-foreground">
-                  Implementamos medidas técnicas e organizacionais para proteger seus dados:
+              <CardContent className="space-y-2 text-sm text-muted-foreground">
+                <ul className="space-y-1 list-disc list-inside">
+                  <li>Criptografia em trânsito (HTTPS/TLS) e em repouso;</li>
+                  <li>Autenticação JWT com tokens rotativos;</li>
+                  <li>Row Level Security (RLS) no banco de dados;</li>
+                  <li>Acesso administrativo restrito por papéis (RBAC);</li>
+                  <li>Logs de auditoria e monitoramento contínuo;</li>
+                  <li>Backups periódicos e plano de recuperação.</li>
+                </ul>
+                <p className="pt-2">
+                  Em caso de incidente de segurança, notificaremos os titulares afetados e a ANPD
+                  conforme exigido pela LGPD.
                 </p>
-                
-                <div className="grid md:grid-cols-2 gap-3">
-                  <div className="bg-muted/30 rounded-lg p-3">
-                    <p className="font-medium text-sm mb-1">🔐 Criptografia</p>
-                    <p className="text-xs text-muted-foreground">
-                      Dados em trânsito (TLS 1.3) e em repouso (AES-256)
-                    </p>
-                  </div>
-                  <div className="bg-muted/30 rounded-lg p-3">
-                    <p className="font-medium text-sm mb-1">🛡️ Autenticação</p>
-                    <p className="text-xs text-muted-foreground">
-                      Autenticação segura com tokens JWT
-                    </p>
-                  </div>
-                  <div className="bg-muted/30 rounded-lg p-3">
-                    <p className="font-medium text-sm mb-1">📊 Monitoramento</p>
-                    <p className="text-xs text-muted-foreground">
-                      Logs de acesso e detecção de anomalias
-                    </p>
-                  </div>
-                  <div className="bg-muted/30 rounded-lg p-3">
-                    <p className="font-medium text-sm mb-1">👥 Acesso Restrito</p>
-                    <p className="text-xs text-muted-foreground">
-                      Apenas equipe autorizada acessa dados pessoais
-                    </p>
-                  </div>
-                </div>
               </CardContent>
             </Card>
           </section>
 
-          {/* Section 8: Cookies */}
+          {/* 9. Cookies */}
           <section id="cookies">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Settings className="w-5 h-5 text-primary" />
-                  8. Cookies e Armazenamento Local
+                  9. Cookies e Tecnologias Similares
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-muted-foreground">
-                  Utilizamos tecnologias de armazenamento local para melhorar sua experiência:
-                </p>
-                
-                <div className="space-y-3">
-                  <div className="bg-muted/30 rounded-lg p-4">
-                    <h4 className="font-semibold mb-1">Cookies Essenciais</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Necessários para autenticação e funcionamento básico do jogo. 
-                      Não podem ser desativados.
-                    </p>
-                  </div>
-                  
-                  <div className="bg-muted/30 rounded-lg p-4">
-                    <h4 className="font-semibold mb-1">LocalStorage</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Armazenamos preferências locais (tema, volume, consentimento Mycroft) 
-                      diretamente no seu navegador. Esses dados não são enviados a servidores.
-                    </p>
-                  </div>
-                </div>
+              <CardContent className="space-y-2 text-sm text-muted-foreground">
+                <p>Utilizamos cookies para:</p>
+                <ul className="space-y-1 list-disc list-inside">
+                  <li><strong>Essenciais:</strong> manter sessão e preferências (não exigem consentimento);</li>
+                  <li><strong>Analytics:</strong> entender uso agregado (PostHog, GA);</li>
+                  <li><strong>Marketing:</strong> medir conversão de campanhas (Meta Pixel, TikTok Pixel).</li>
+                </ul>
+                <p>Você pode bloquear cookies não essenciais nas configurações do seu navegador.</p>
               </CardContent>
             </Card>
           </section>
 
-          {/* Section 9: Contato */}
-          <section id="contato">
+          {/* 10. Menores */}
+          <section id="menores">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Mail className="w-5 h-5 text-primary" />
-                  9. Contato e DPO
+                  <AlertTriangle className="w-5 h-5 text-destructive" />
+                  10. Restrição a Menores de Idade
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-muted-foreground">
-                  Para questões relacionadas à privacidade ou para exercer seus direitos:
+              <CardContent className="space-y-2 text-sm text-muted-foreground">
+                <p>
+                  O Oráculo Mycroft é destinado <strong>exclusivamente a maiores de 18 anos</strong>.
+                  Não coletamos intencionalmente dados de menores. Caso identifiquemos uma conta
+                  de menor de idade, ela será removida imediatamente.
                 </p>
-                
-                <div className="bg-muted/30 rounded-lg p-4 space-y-2">
-                  <p className="font-medium">O BLEFADOR - Privacidade</p>
-                  <ul className="text-sm text-muted-foreground space-y-1">
-                    <li>📧 E-mail: <span className="text-primary">privacidade@blefador.com.br</span></li>
-                    <li>🏢 Encarregado (DPO): <span className="text-primary">dpo@blefador.com.br</span></li>
-                  </ul>
-                </div>
-
-                <div className="text-sm text-muted-foreground">
-                  <p>
-                    Se você não estiver satisfeito com nossa resposta, pode registrar 
-                    uma reclamação junto à Autoridade Nacional de Proteção de Dados (ANPD).
-                  </p>
-                </div>
               </CardContent>
             </Card>
           </section>
 
-          {/* Footer */}
-          <div className="text-center pt-8 pb-16">
-            <Separator className="mb-8" />
-            <p className="text-sm text-muted-foreground mb-4">
-              Esta política pode ser atualizada periodicamente. Recomendamos que você 
-              a revise regularmente para se manter informado sobre como protegemos seus dados.
-            </p>
-            <Link to="/">
-              <Button className="gap-2">
-                <ArrowLeft className="w-4 h-4" />
-                Voltar ao Jogo
-              </Button>
-            </Link>
-          </div>
+          {/* 11. Alterações */}
+          <section id="alteracoes">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-primary" />
+                  11. Alterações nesta Política
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground">
+                Podemos atualizar esta política periodicamente. A data de "última atualização" no
+                topo desta página será sempre revisada. Alterações materiais serão comunicadas por
+                e-mail ou aviso dentro da plataforma.
+              </CardContent>
+            </Card>
+          </section>
+
+          {/* 12. Contato */}
+          <section id="contato">
+            <Card className="border-primary/40 bg-primary/5">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Mail className="w-5 h-5 text-primary" />
+                  12. Contato e Encarregado (DPO)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <p>Para qualquer dúvida ou solicitação relacionada a dados pessoais:</p>
+                <ul className="space-y-1">
+                  <li>📧 <strong>E-mail:</strong> <a className="text-primary hover:underline" href="mailto:contato@oraculo-mycroft.com">contato@oraculo-mycroft.com</a></li>
+                  <li>💬 <strong>WhatsApp suporte:</strong> +55 81 99795-0345</li>
+                  <li>🌐 <strong>Site:</strong> <a className="text-primary hover:underline" href="https://oraculo-mycroft.com">oraculo-mycroft.com</a></li>
+                </ul>
+                <p className="pt-2 text-muted-foreground">
+                  Veja também nossos <Link to="/termos" className="text-primary hover:underline">Termos de Uso</Link>.
+                </p>
+              </CardContent>
+            </Card>
+          </section>
         </div>
+
+        <p className="text-center text-xs text-muted-foreground mt-10">
+          O Oráculo Mycroft é uma ferramenta de análise estatística — não promete nem garante
+          lucros. Aposte com responsabilidade. Proibido para menores de 18 anos.
+        </p>
       </main>
     </div>
   );
