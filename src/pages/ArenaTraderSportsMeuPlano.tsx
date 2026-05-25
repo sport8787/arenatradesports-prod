@@ -286,7 +286,7 @@ export default function ArenaTraderSportsMeuPlano() {
 
   const openNew = (templateKey?: keyof typeof PLAN_TEMPLATES) => {
     const p = templateKey ? createPlanFromTemplate(templateKey) : createEmptyPlan('1x2');
-    setEditing({ ...p, name: templateKey ? p.name : 'Novo plano' });
+    setEditing({ ...p, name: templateKey ? p.name : 'Novo método' });
     setTab('editor');
   };
 
