@@ -440,41 +440,19 @@
       <span style="display:inline-flex;align-items:center;gap:6px;background:rgba(250,204,21,.08);border:1px solid rgba(250,204,21,.25);padding:4px 10px;border-radius:999px;color:#facc15">🛡️ Reembolso em 24h</span>
     </div>
 
+    <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:10px;padding:14px 16px;margin:14px auto 18px;max-width:720px;text-align:left">
+      <p style="color:#fca5a5;font-weight:700;font-size:12px;margin-bottom:8px;text-align:center">⚠️ COMUNICADO IMPORTANTE ⚠️</p>
+      <p style="color:#cbd5e1;font-size:12px;line-height:1.7;margin-bottom:6px">Este site tem <strong style="color:#fff">caráter educativo</strong>. Nenhuma ferramenta pode garantir vitórias ou lucros constantes. Use estas informações para melhorar seu desempenho e aumentar suas chances.</p>
+      <p style="color:#cbd5e1;font-size:12px;line-height:1.7;margin-bottom:6px">O Oráculo Mycroft é um conjunto de <strong style="color:#fff">sistemas de análise estatística, probabilística e de gestão de risco</strong> aplicado a apostas esportivas — não é uma promessa nem uma garantia de ganhos. A união do seu bom-senso com a experiência de saber interpretar os dados fornecidos pelos nossos sistemas é o que definirá o seu sucesso.</p>
+      <p style="color:#94a3b8;font-size:11px;line-height:1.6;text-align:center;margin-top:8px">Aposte com responsabilidade. Proibido para menores de 18 anos.</p>
+    </div>
+
     <p><strong>+18 anos.</strong> Proibido para menores de 18 anos. Apostas esportivas envolvem risco de dependência financeira e emocional. Jogue com responsabilidade.</p>
     <p style="margin-top:8px">Nenhuma ferramenta pode garantir vitórias ou lucros constantes. Resultados passados não garantem resultados futuros. Aposte apenas o que pode perder.</p>
     <p style="margin-top:8px">© 2026 Oráculo Mycroft · Todos os direitos reservados</p>
   </div>
 </footer>
 
-<!-- Countdown 24h persistente -->
-<script>
-  (function(){
-    var KEY = 'mycroft_daypass_deadline_v1';
-    var deadline = parseInt(localStorage.getItem(KEY) || '0', 10);
-    var now = Date.now();
-    if (!deadline || deadline < now) {
-      deadline = now + 24*60*60*1000;
-      try { localStorage.setItem(KEY, String(deadline)); } catch(e){}
-    }
-    var h = document.getElementById('cd-h');
-    var m = document.getElementById('cd-m');
-    var s = document.getElementById('cd-s');
-    var hM = document.querySelectorAll('.cd-h-mirror');
-    var mM = document.querySelectorAll('.cd-m-mirror');
-    var sM = document.querySelectorAll('.cd-s-mirror');
-    function pad(n){ return n < 10 ? '0'+n : ''+n; }
-    function setAll(list, v){ list.forEach(function(el){ el.textContent = v; }); }
-    function tick(){
-      var diff = Math.max(0, deadline - Date.now());
-      var hh = pad(Math.floor(diff/3600000));
-      var mm = pad(Math.floor((diff%3600000)/60000));
-      var ss = pad(Math.floor((diff%60000)/1000));
-      if(h) h.textContent = hh; if(m) m.textContent = mm; if(s) s.textContent = ss;
-      setAll(hM, hh); setAll(mM, mm); setAll(sM, ss);
-    }
-    tick(); setInterval(tick, 1000);
-  })();
-</script>
 
 <!-- Conversion delegate -->
 <script>
