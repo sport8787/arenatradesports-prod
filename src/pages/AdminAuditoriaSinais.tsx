@@ -385,9 +385,7 @@ export default function AdminAuditoriaSinais() {
                           )}
                         </TableCell>
                         <TableCell className="text-xs">
-                          <Badge variant="outline">
-                            {r.source === "primary" ? "primary" : "shadow_af"}
-                          </Badge>
+                          <Badge variant="outline">primary</Badge>
                         </TableCell>
                         <TableCell>
                           {bad && (
