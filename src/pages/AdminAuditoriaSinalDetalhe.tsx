@@ -95,8 +95,7 @@ export default function AdminAuditoriaSinalDetalhe() {
     (async () => {
       setLoading(true);
       try {
-        const table = source === "primary" ? "mycroft_analyses" : "mycroft_analyses_shadow_af";
-        const { data, error } = await (supabase as any).from(table).select("*").eq("id", id).maybeSingle();
+        const { data, error } = await (supabase as any).from("mycroft_analyses").select("*").eq("id", id).maybeSingle();
         if (error) throw error;
         if (!data) {
           toast.error("Sinal não encontrado");
