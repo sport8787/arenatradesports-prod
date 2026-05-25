@@ -73,7 +73,7 @@ const PLANS = [
     ],
     bonus: [
       'Arena Blackjack completa (todas as features)',
-      'Arena Trader Financeiro (WIN / WDO / BTC)',
+      'Arena Trader Financeiro — Beta (WIN / WDO / BTC, em calibração)',
     ],
     waText: 'Olá! Tenho interesse no Plano Trading de Elite (R$ 249,90). Pode me explicar?',
     popular: false,
