@@ -4,7 +4,7 @@ import { ArrowLeft, TrendingUp, Calculator, Loader2, RefreshCw, AlertTriangle, Z
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-type Sinal = {
+type Entrada = {
   id: string;
   match_id: string;
   match_name: string;
@@ -22,7 +22,7 @@ type Sinal = {
 
 export default function SinaisAlavancaPage() {
   const navigate = useNavigate();
-  const [sinais, setSinais] = useState<Sinal[]>([]);
+  const [entradas, setSinais] = useState<Entrada[]>([]);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState<'live' | 'prelive' | null>(null);
   const [stats, setStats] = useState<{ total: number; green: number; red: number; avgOdd: number } | null>(null);
@@ -76,7 +76,7 @@ export default function SinaisAlavancaPage() {
       });
       if (error) throw error;
       toast.success(`Varredura ${mode === 'live' ? 'Ao Vivo' : 'Pré-Live'} concluída`, {
-        description: `${data?.inserted ?? 0} sinais aprovados de ${data?.scanned ?? 0} jogos`,
+        description: `${data?.inserted ?? 0} entradas aprovados de ${data?.scanned ?? 0} jogos`,
       });
       await carregar();
     } catch (e: any) {
@@ -86,9 +86,9 @@ export default function SinaisAlavancaPage() {
     }
   };
 
-  const ao_vivo = useMemo(() => sinais.filter((s) => s.mode === 'live' && s.status === 'pending'), [sinais]);
-  const pre_live = useMemo(() => sinais.filter((s) => s.mode === 'prelive' && s.status === 'pending'), [sinais]);
-  const liquidados = useMemo(() => sinais.filter((s) => s.status === 'green' || s.status === 'red').slice(0, 15), [sinais]);
+  const ao_vivo = useMemo(() => entradas.filter((s) => s.mode === 'live' && s.status === 'pending'), [entradas]);
+  const pre_live = useMemo(() => entradas.filter((s) => s.mode === 'prelive' && s.status === 'pending'), [entradas]);
+  const liquidados = useMemo(() => entradas.filter((s) => s.status === 'green' || s.status === 'red').slice(0, 15), [entradas]);
 
   // Calculadora
   const projecao = useMemo(() => {
@@ -213,10 +213,10 @@ export default function SinaisAlavancaPage() {
           </div>
         ) : (
           <>
-            <Section title="Ao Vivo" badge="LIVE" tone="destructive" sinais={ao_vivo} />
-            <Section title="Pré-Live (hoje/amanhã)" badge="PRE" tone="muted" sinais={pre_live} />
+            <Section title="Ao Vivo" badge="LIVE" tone="destructive" entradas={ao_vivo} />
+            <Section title="Pré-Live (hoje/amanhã)" badge="PRE" tone="muted" entradas={pre_live} />
             {liquidados.length > 0 && (
-              <Section title="Últimos liquidados" badge="HIST" tone="muted" sinais={liquidados} compact />
+              <Section title="Últimos liquidados" badge="HIST" tone="muted" entradas={liquidados} compact />
             )}
           </>
         )}
@@ -261,9 +261,9 @@ function Input({
 }
 
 function Section({
-  title, badge, tone, sinais, compact,
+  title, badge, tone, entradas, compact,
 }: {
-  title: string; badge: string; tone: 'destructive' | 'muted'; sinais: Sinal[]; compact?: boolean;
+  title: string; badge: string; tone: 'destructive' | 'muted'; entradas: Entrada[]; compact?: boolean;
 }) {
   const badgeCls = tone === 'destructive'
     ? 'bg-destructive/15 text-destructive border-destructive/30'
@@ -273,15 +273,15 @@ function Section({
       <div className="flex items-center gap-2 mb-2">
         <h3 className="font-mono text-xs uppercase tracking-wider text-foreground">{title}</h3>
         <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${badgeCls}`}>{badge}</span>
-        <span className="text-[11px] text-muted-foreground">({sinais.length})</span>
+        <span className="text-[11px] text-muted-foreground">({entradas.length})</span>
       </div>
-      {sinais.length === 0 ? (
+      {entradas.length === 0 ? (
         <div className="rounded-md border border-dashed border-border bg-card/30 p-4 text-center text-xs text-muted-foreground">
-          Nenhum sinal no momento. Clique em "Varredura" para buscar oportunidades.
+          Nenhum entrada no momento. Clique em "Varredura" para buscar oportunidades.
         </div>
       ) : (
         <div className="space-y-2">
-          {sinais.map((s) => (
+          {entradas.map((s) => (
             <article
               key={s.id}
               className={`rounded-md border bg-card p-3 ${

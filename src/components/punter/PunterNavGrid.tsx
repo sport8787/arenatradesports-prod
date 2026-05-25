@@ -62,7 +62,7 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
             iconBg="bg-primary/15"
             iconColor="text-primary"
             title="Arena Punter"
-            description="Sinais pré-jogo do Mycroft com edge real"
+            description="Entradas pré-jogo do Mycroft com edge real"
             locked={!hasArena('arena_punter')}
             lockedLabel={upgradeLabel('arena_punter')}
           />
@@ -112,7 +112,7 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
             iconBg="bg-primary/15"
             iconColor="text-primary"
             title="Banca Real"
-            description="Apostas reais Betfair sincronizadas"
+            description="Entradas reais Betfair sincronizadas"
             badge={{ label: 'Novo', tone: 'exclusive' }}
             locked={!hasArena('banca_real')}
             lockedLabel={upgradeLabel('banca_real')}
@@ -169,7 +169,7 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
             iconBg="bg-[#229ED9]/15"
             iconColor="text-[#229ED9]"
             title="Grupo VIP Telegram Pré Live"
-            description="Sinais pré-jogo e alertas em tempo real"
+            description="Entradas pré-jogo e alertas em tempo real"
           />
           <NavCard
             onClick={() =>
@@ -179,7 +179,7 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
             iconBg="bg-destructive/15"
             iconColor="text-destructive"
             title="Grupo VIP Telegram AO VIVO"
-            description="Sinais ao vivo do Oráculo Mycroft Trader"
+            description="Entradas ao vivo do Oráculo Mycroft Trader"
             badge={{ label: 'Ao vivo', tone: 'live' }}
           />
           <NavCard

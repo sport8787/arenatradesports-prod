@@ -94,7 +94,7 @@ export default function AdminBorderlineAI() {
       <div>
         <h1 className="text-2xl font-bold">Camada 2 — Validador IA Borderline</h1>
         <p className="text-sm text-muted-foreground">
-          Gemini revisa sinais ao vivo com confiança matemática 55-65% e decide CONFIRMA ou VETA. Fail-open em erro.
+          Gemini revisa entradas ao vivo com confiança matemática 55-65% e decide CONFIRMA ou VETA. Fail-open em erro.
         </p>
       </div>
 
@@ -112,7 +112,7 @@ export default function AdminBorderlineAI() {
           {loading ? (
             <div className="text-sm text-muted-foreground">Carregando…</div>
           ) : rows.length === 0 ? (
-            <div className="text-sm text-muted-foreground">Nenhuma validação ainda. Aguarde sinais borderline ao vivo.</div>
+            <div className="text-sm text-muted-foreground">Nenhuma validação ainda. Aguarde entradas borderline ao vivo.</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

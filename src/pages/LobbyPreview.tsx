@@ -123,7 +123,7 @@ export default function LobbyPreview() {
   }
 
   const arenas = [
-    { icon: Target, title: "Arena Punter", desc: "Sinais matemáticos pré-jogo aprovados pelo Mycroft.", badge: null },
+    { icon: Target, title: "Arena Punter", desc: "Entradas matemáticos pré-jogo aprovados pelo Mycroft.", badge: null },
     { icon: Activity, title: "Arena Live", desc: "Trade ao vivo, leitura situacional e cash-out por IA.", badge: null },
     { icon: LineChart, title: "Arena Trader Financeiro", desc: "Versão experimental. WIN, WDO e BTC em fase de teste — use por sua conta e risco enquanto refinamos o motor.", badge: "BETA" },
     { icon: Sparkles, title: "Liga Mycroft + Bônus", desc: "Ranking de ROI, recompensas BC e ferramentas avançadas.", badge: null },
@@ -181,7 +181,7 @@ export default function LobbyPreview() {
               <Zap className="w-5 h-5 text-primary" /> Day Pass · 24h por R$ 9,90
             </CardTitle>
             <CardDescription>
-              Libere as 4 arenas, sinais, notificações e múltiplas otimizadas por 24h. Pagamento via Pix.
+              Libere as 4 arenas, entradas, notificações e múltiplas otimizadas por 24h. Pagamento via Pix.
             </CardDescription>
           </CardHeader>
           <CardContent>

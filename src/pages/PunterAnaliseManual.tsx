@@ -668,7 +668,7 @@ export default function PunterAnaliseManual() {
               <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70 mb-2">Análise Mycroft</p>
               <div className="flex flex-wrap gap-1.5 mb-3">
                 {([
-                  ['all', 'Todos os sinais'],
+                  ['all', 'Todos os entradas'],
                   ['ht', 'Mercados HT'],
                   ['er', 'Eventos Raros'],
                   ['exp', 'Exportar'],
@@ -760,7 +760,7 @@ export default function PunterAnaliseManual() {
                   {summary && (
                     <div className="grid grid-cols-3 gap-2 rounded-lg bg-muted/40 p-3">
                       <div>
-                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Melhor sinal</div>
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Melhor entrada</div>
                         <div className="text-xs font-medium mt-0.5 truncate">{summary.bestNm}</div>
                         <div className="text-xl font-semibold mt-0.5">{summary.best.score}/100</div>
                       </div>

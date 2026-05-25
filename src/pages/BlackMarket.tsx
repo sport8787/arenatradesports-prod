@@ -253,7 +253,7 @@ export default function BlackMarket() {
             <p className="text-lg md:text-xl text-gold max-w-xl mx-auto">
               Ranking por <span className="font-bold">ROI%</span> · Prêmios reais · Troféu da temporada
               <br />
-              <span className="text-muted-foreground text-sm">Acumule BluffCoins com apostas virtuais vencedoras e troque por vale-presentes, dias grátis ou upgrade Premium.</span>
+              <span className="text-muted-foreground text-sm">Acumule BluffCoins com entradas virtuais vencedoras e troque por vale-presentes, dias grátis ou upgrade Premium.</span>
             </p>
           </div>
         </motion.section>
@@ -433,7 +433,7 @@ export default function BlackMarket() {
                     </ul>
                   ) : (
                     <p className="text-[11px] text-muted-foreground italic">
-                      Faça suas primeiras apostas virtuais para calcularmos sua estimativa.
+                      Faça suas primeiras entradas virtuais para calcularmos sua estimativa.
                     </p>
                   )}
                   <p className="text-[10px] text-muted-foreground/70 mt-2 leading-snug">
@@ -528,7 +528,7 @@ export default function BlackMarket() {
               <p className="text-[11px] text-muted-foreground mt-3 leading-snug">
                 Cada GREEN virtual rende{' '}
                 <span className="font-semibold text-foreground">3 a 15 BC (por faixa de odd) + bônus por lucro</span>, multiplicado pelo seu plano.
-                Apostas seguindo sinais aprovados rendem <span className="text-emerald-300">100%</span>; manuais soltas rendem <span className="text-amber-300">50%</span>.
+                Entradas seguindo entradas aprovados rendem <span className="text-emerald-300">100%</span>; manuais soltas rendem <span className="text-amber-300">50%</span>.
                 Cada RED virtual desconta <span className="text-destructive">3 BC</span>. BC expira em <span className="text-foreground">120 dias</span>.
                 {isTrial && (
                   <>

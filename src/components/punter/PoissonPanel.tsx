@@ -90,7 +90,7 @@ export default function PoissonPanel() {
           <div className="flex items-start gap-1.5 bg-green-500/10 border border-green-500/30 rounded px-2 py-1.5">
             <TrendingUp className="w-3 h-3 text-green-400 mt-0.5 shrink-0" />
             <p className="text-[9px] font-mono text-foreground leading-snug">
-              Casa paga <span className="font-bold text-green-400">2.20</span> → <span className="font-bold">+10% de valor</span>. Aposta com edge.
+              Casa paga <span className="font-bold text-green-400">2.20</span> → <span className="font-bold">+10% de valor</span>. Entrada com edge.
             </p>
           </div>
           <div className="flex items-start gap-1.5 bg-red-500/10 border border-red-500/30 rounded px-2 py-1.5">
@@ -136,7 +136,7 @@ export default function PoissonPanel() {
               <p className="text-[10px] font-mono text-muted-foreground">
                 RESULTADO FINAL (1X2) — <span className="text-foreground/80">probabilidade de cada desfecho ao fim dos 90 min</span>
               </p>
-              <InfoTip text="Chance estimada de cada desfecho final (90 min). Soma ≈ 100%. A 'odd justa' é o preço mínimo que a casa deveria pagar para a aposta valer a pena (= 100 ÷ probabilidade)." />
+              <InfoTip text="Chance estimada de cada desfecho final (90 min). Soma ≈ 100%. A 'odd justa' é o preço mínimo que a casa deveria pagar para a entrada valer a pena (= 100 ÷ probabilidade)." />
             </div>
             <div className="grid grid-cols-3 gap-2">
               <Stat label="VITÓRIA CASA" value={`${result.home_win}%`} sub={`Odd justa ${(100 / result.home_win).toFixed(2)}`} color="text-green-400" tip={`Probabilidade de o time da casa vencer ao fim dos 90 min. Se a casa pagar acima de ${(100 / result.home_win).toFixed(2)}, há valor.`} />
@@ -209,7 +209,7 @@ export default function PoissonPanel() {
               COMO LER POISSON / DIXON-COLES
             </DialogTitle>
             <DialogDescription className="text-[11px] font-mono">
-              Probabilidade, odd justa e onde está o valor da aposta.
+              Probabilidade, odd justa e onde está o valor da entrada.
             </DialogDescription>
           </DialogHeader>
 
@@ -224,7 +224,7 @@ export default function PoissonPanel() {
             <div className="bg-muted/30 border border-border rounded-lg p-3">
               <p className="text-foreground font-bold mb-1">2. O que é a odd justa?</p>
               <p className="text-muted-foreground">
-                É o preço mínimo que a aposta deveria pagar para ser neutra (sem lucro nem prejuízo no longo prazo):
+                É o preço mínimo que a entrada deveria pagar para ser neutra (sem lucro nem prejuízo no longo prazo):
               </p>
               <p className="text-center text-primary font-bold my-2">Odd justa = 100 ÷ probabilidade (%)</p>
             </div>
@@ -245,7 +245,7 @@ export default function PoissonPanel() {
                 <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/30 rounded p-2">
                   <TrendingDown className="w-3.5 h-3.5 text-red-400 mt-0.5 shrink-0" />
                   <p className="text-foreground">
-                    Casa paga <span className="font-bold text-red-400">1.80</span>: <span className="font-bold">não há valor (-10%)</span>. Mesmo se o time vencer, no longo prazo essa aposta perde dinheiro.
+                    Casa paga <span className="font-bold text-red-400">1.80</span>: <span className="font-bold">não há valor (-10%)</span>. Mesmo se o time vencer, no longo prazo essa entrada perde dinheiro.
                   </p>
                 </div>
               </div>

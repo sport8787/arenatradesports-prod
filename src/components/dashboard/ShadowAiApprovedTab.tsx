@@ -185,7 +185,7 @@ export default function ShadowAiApprovedTab() {
   const reds = liquidated.filter((s) => s.result === 'red').length;
   const winRate = liquidated.length > 0 ? Math.round((greens / liquidated.length) * 100) : null;
 
-  // Mostrar apenas sinais com jogo AO VIVO e ainda não liquidados — mesma lógica da aba "Sinais Aprovados" (determinística).
+  // Mostrar apenas entradas com jogo AO VIVO e ainda não liquidados — mesma lógica da aba "Entradas Aprovadas" (determinística).
   // Jogos finalizados saem automaticamente da aba.
   const visibleSignals = signals.filter((s) => {
     if (s.result === 'green' || s.result === 'red') return false;
@@ -201,7 +201,7 @@ export default function ShadowAiApprovedTab() {
         <CardTitle className="flex items-center justify-between gap-2 text-base flex-wrap">
           <span className="flex items-center gap-2">
             <Brain className="h-4 w-4 text-violet-500" />
-            Sinais Aprovados — Gemini IA <Badge variant="outline" className="ml-2">SHADOW AI · ADMIN</Badge>
+            Entradas Aprovadas — Gemini IA <Badge variant="outline" className="ml-2">SHADOW AI · ADMIN</Badge>
           </span>
           <div className="flex gap-2 items-center flex-wrap">
             <ShadowAiCronToggle />
@@ -228,7 +228,7 @@ export default function ShadowAiApprovedTab() {
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-xs text-muted-foreground">
-          Análise paralela pura de IA (Gemini via Lovable AI). Dedup por jogo+mercado — <strong>não empilha sinais</strong>.
+          Análise paralela pura de IA (Gemini via Lovable AI). Dedup por jogo+mercado — <strong>não empilha entradas</strong>.
           Liquidação automática ao fim do jogo (Over/Under/BTTS/Próximo Gol).
         </p>
 
@@ -263,7 +263,7 @@ export default function ShadowAiApprovedTab() {
           </div>
         ) : visibleSignals.length === 0 ? (
           <div className="text-center py-8 text-sm text-muted-foreground">
-            Nenhum sinal IA ao vivo no momento. Jogos finalizados saem desta aba automaticamente — veja o histórico em <strong>Sinais Liquidados</strong>.
+            Nenhum entrada IA ao vivo no momento. Jogos finalizados saem desta aba automaticamente — veja o histórico em <strong>Entradas Liquidados</strong>.
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

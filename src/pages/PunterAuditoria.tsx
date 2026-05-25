@@ -178,7 +178,7 @@ export default function PunterAuditoria() {
     a.download = `auditoria-punter-${new Date().toISOString().slice(0,10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast({ title: 'CSV exportado', description: `${filtered.length} apostas` });
+    toast({ title: 'CSV exportado', description: `${filtered.length} entradas` });
   };
 
   const exportPDF = async () => {
@@ -188,7 +188,7 @@ export default function PunterAuditoria() {
       const autoTable = (await import('jspdf-autotable')).default;
       const doc = new jsPDF({ orientation: 'landscape' });
       doc.setFontSize(14);
-      doc.text('Auditoria Punter — Relatório de Apostas', 14, 14);
+      doc.text('Auditoria Punter — Relatório de Entradas', 14, 14);
       doc.setFontSize(9);
       const periodLabel = ({today:'Hoje', yesterday:'Ontem', '7d':'Últimos 7d', '30d':'Últimos 30d', all:'Todos'} as any)[dateRange];
       const filterLabel = ({all:'Todas', pending:'Pendentes', green:'Greens', red:'Reds'} as any)[filter];
@@ -214,7 +214,7 @@ export default function PunterAuditoria() {
       });
 
       doc.save(`auditoria-punter-${new Date().toISOString().slice(0,10)}.pdf`);
-      toast({ title: 'PDF exportado', description: `${filtered.length} apostas` });
+      toast({ title: 'PDF exportado', description: `${filtered.length} entradas` });
     } catch (e: any) {
       toast({ title: 'Erro ao exportar PDF', description: String(e?.message || e), variant: 'destructive' });
     } finally {
@@ -344,7 +344,7 @@ export default function PunterAuditoria() {
           {loading ? (
             <p className="p-6 text-center text-muted-foreground">Carregando…</p>
           ) : filtered.length === 0 ? (
-            <p className="p-6 text-center text-muted-foreground">Nenhuma aposta encontrada.</p>
+            <p className="p-6 text-center text-muted-foreground">Nenhuma entrada encontrada.</p>
           ) : (
             <div className="divide-y divide-border">
               {filtered.map(b => (
@@ -384,7 +384,7 @@ export default function PunterAuditoria() {
         )}
 
         <p className="text-[11px] text-muted-foreground text-center">
-          Total carregado: {bets.length} apostas. {!hasMore && 'Todas as apostas já foram carregadas.'} Clique em qualquer aposta para ver detalhes, eventos e ações sugeridas.
+          Total carregado: {bets.length} entradas. {!hasMore && 'Todas as entradas já foram carregadas.'} Clique em qualquer entrada para ver detalhes, eventos e ações sugeridas.
         </p>
       </main>
 

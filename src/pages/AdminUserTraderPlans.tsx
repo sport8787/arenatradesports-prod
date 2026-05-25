@@ -50,7 +50,7 @@ function stats(signals: SignalRow[]) {
   const pending = total - settled.length;
   const wr = settled.length > 0 ? (greens / settled.length) * 100 : 0;
   const pnl = settled.reduce((acc, s) => acc + (Number(s.profit_loss) || 0), 0);
-  const roi = settled.length > 0 ? pnl / settled.length : 0; // % por sinal (stake 100)
+  const roi = settled.length > 0 ? pnl / settled.length : 0; // % por entrada (stake 100)
   return { total, greens, reds, pending, wr, pnl, roi, settled: settled.length };
 }
 
@@ -162,7 +162,7 @@ export default function AdminUserTraderPlans() {
             </p>
           </div>
           <Badge variant="outline" className="font-mono">
-            {plans.length} planos · {signals.length} sinais logados
+            {plans.length} planos · {signals.length} entradas logados
           </Badge>
         </div>
 
@@ -183,12 +183,12 @@ export default function AdminUserTraderPlans() {
                       <TableRow>
                         <TableHead>Usuário</TableHead>
                         <TableHead>Mercados</TableHead>
-                        <TableHead className="text-right">Sinais</TableHead>
+                        <TableHead className="text-right">Entradas</TableHead>
                         <TableHead className="text-right">G</TableHead>
                         <TableHead className="text-right">R</TableHead>
                         <TableHead className="text-right">Pend.</TableHead>
                         <TableHead className="text-right">Win Rate</TableHead>
-                        <TableHead className="text-right">ROI/sinal</TableHead>
+                        <TableHead className="text-right">ROI/entrada</TableHead>
                         <TableHead></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -251,9 +251,9 @@ export default function AdminUserTraderPlans() {
                                       </div>
                                     </div>
 
-                                    {/* Últimos sinais */}
+                                    {/* Últimos entradas */}
                                     <div>
-                                      <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-2">Últimos sinais ({Math.min(u.signals.length, 30)})</h4>
+                                      <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-2">Últimos entradas ({Math.min(u.signals.length, 30)})</h4>
                                       <div className="rounded border border-border bg-card/30">
                                         <Table>
                                           <TableHeader>
@@ -305,7 +305,7 @@ export default function AdminUserTraderPlans() {
                 <CardHeader>
                   <CardTitle className="text-lg">Comparativo por Mercado</CardTitle>
                   <p className="text-xs text-muted-foreground">
-                    Médias dos thresholds escolhidos pelos usuários + performance dos sinais gerados pelos planos pessoais.
+                    Médias dos thresholds escolhidos pelos usuários + performance dos entradas gerados pelos planos pessoais.
                     Compare com a performance do plano global para identificar regras melhores.
                   </p>
                 </CardHeader>
@@ -315,11 +315,11 @@ export default function AdminUserTraderPlans() {
                       <TableRow>
                         <TableHead>Mercado</TableHead>
                         <TableHead className="text-right">Usuários c/ plano</TableHead>
-                        <TableHead className="text-right">Sinais</TableHead>
+                        <TableHead className="text-right">Entradas</TableHead>
                         <TableHead className="text-right">G</TableHead>
                         <TableHead className="text-right">R</TableHead>
                         <TableHead className="text-right">Win Rate</TableHead>
-                        <TableHead className="text-right">ROI/sinal</TableHead>
+                        <TableHead className="text-right">ROI/entrada</TableHead>
                         <TableHead className="text-right">Min méd.</TableHead>
                         <TableHead className="text-right">Odd méd.</TableHead>
                       </TableRow>

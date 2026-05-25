@@ -388,11 +388,11 @@ export function MycroftRulesSimulatorTab() {
                 </div>
                 <div className="border rounded-lg p-3">
                   <div className="text-lg font-semibold text-green-500">+{result.novos_aprovou_atual_nao}</div>
-                  <div className="text-xs text-muted-foreground">novos sinais que o atual não daria</div>
+                  <div className="text-xs text-muted-foreground">novos entradas que o atual não daria</div>
                 </div>
                 <div className="border rounded-lg p-3">
                   <div className="text-lg font-semibold text-destructive">−{result.atual_aprovou_novo_nao}</div>
-                  <div className="text-xs text-muted-foreground">sinais atuais que o novo veta</div>
+                  <div className="text-xs text-muted-foreground">entradas atuais que o novo veta</div>
                 </div>
               </div>
 
@@ -405,11 +405,11 @@ export function MycroftRulesSimulatorTab() {
                 <div className="border rounded-lg p-3 grid grid-cols-3 gap-3 text-center text-sm">
                   <div>
                     <div className="text-xs text-muted-foreground">Atual winrate</div>
-                    <div className="font-bold">{result.winrate.atual_winrate ?? "—"}% ({result.winrate.atual_aprovou} sinais)</div>
+                    <div className="font-bold">{result.winrate.atual_winrate ?? "—"}% ({result.winrate.atual_aprovou} entradas)</div>
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">Novo winrate</div>
-                    <div className="font-bold">{result.winrate.novo_winrate ?? "—"}% ({result.winrate.novo_aprovou} sinais)</div>
+                    <div className="font-bold">{result.winrate.novo_winrate ?? "—"}% ({result.winrate.novo_aprovou} entradas)</div>
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">Delta</div>

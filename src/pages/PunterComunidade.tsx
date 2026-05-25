@@ -24,7 +24,7 @@ const CHANNELS: Channel[] = [
   {
     title: 'Grupo VIP Telegram',
     description:
-      'Sinais e alertas em tempo real. Receba todas as oportunidades aprovadas pelo Mycroft assim que forem detectadas.',
+      'Entradas e alertas em tempo real. Receba todas as oportunidades aprovadas pelo Mycroft assim que forem detectadas.',
     cta: 'Entrar no Telegram',
     url: TELEGRAM_URL,
     icon: <MessageCircle className="w-5 h-5" />,
@@ -110,10 +110,10 @@ export default function PunterComunidadePage() {
               Em 30 segundos você está pronto. Aqui o essencial:
             </p>
             <ul className="text-xs text-foreground/90 space-y-1.5 leading-snug pl-1">
-              <li>🎯 <span className="font-semibold">Apostas Aprovadas</span> (/punter): sinais ativos do Mycroft com odd, edge e stake recomendada.</li>
+              <li>🎯 <span className="font-semibold">Entradas Aprovadas</span> (/punter): entradas ativos do Mycroft com odd, edge e stake recomendada.</li>
               <li>🧭 <span className="font-semibold">Funções</span> (botão no topo): atalho para todas as áreas — Trader, Múltiplas, Banca, Desempenho.</li>
               <li>💰 <span className="font-semibold">Banca Virtual</span>: configure seu capital antes de operar — o sistema gerencia stake automaticamente.</li>
-              <li>📲 <span className="font-semibold">Telegram VIP</span>: ative para receber sinais em tempo real.</li>
+              <li>📲 <span className="font-semibold">Telegram VIP</span>: ative para receber entradas em tempo real.</li>
               <li>📊 <span className="font-semibold">Meu Desempenho</span>: acompanhe ROI, P&L e curva de banca.</li>
             </ul>
             <div className="flex gap-2 pt-1">
@@ -212,19 +212,19 @@ export default function PunterComunidadePage() {
               icon={<Sparkles className="w-4 h-4" />}
               color="hsl(var(--primary))"
               title="1. Visão geral"
-              body="O Oráculo Mycroft é uma plataforma de inteligência esportiva que entrega sinais aprovados, análises ao vivo e ferramentas de gestão de banca. Cada módulo (Punter, Trader Sports, Múltiplas) trabalha em conjunto para maximizar seu ROI com gestão profissional de risco."
+              body="O Oráculo Mycroft é uma plataforma de inteligência esportiva que entrega entradas aprovados, análises ao vivo e ferramentas de gestão de banca. Cada módulo (Punter, Trader Sports, Múltiplas) trabalha em conjunto para maximizar seu ROI com gestão profissional de risco."
             />
             <TutorialItem
               icon={<LayoutGrid className="w-4 h-4" />}
               color="hsl(var(--primary))"
               title="2. Menu de Funções"
-              body='Toque em "Funções" no topo da tela para abrir o menu central (/punter/menu). Lá você encontra atalhos para todas as áreas: Apostas Aprovadas, Arena Trader Sports, Múltiplas, Banca, Desempenho, Importação e Comunidade.'
+              body='Toque em "Funções" no topo da tela para abrir o menu central (/punter/menu). Lá você encontra atalhos para todas as áreas: Entradas Aprovadas, Arena Trader Sports, Múltiplas, Banca, Desempenho, Importação e Comunidade.'
             />
             <TutorialItem
               icon={<CheckCircle2 className="w-4 h-4" />}
               color="hsl(var(--success))"
-              title="3. Apostas Aprovadas"
-              body="A página principal (/punter) lista todos os sinais ativos aprovados pelo Mycroft, com mercado, odd, edge, confiança e stake recomendada. Os sinais são liquidados automaticamente quando o jogo termina."
+              title="3. Entradas Aprovadas"
+              body="A página principal (/punter) lista todos os entradas ativos aprovados pelo Mycroft, com mercado, odd, edge, confiança e stake recomendada. Os entradas são liquidados automaticamente quando o jogo termina."
             />
             <TutorialItem
               icon={<Clock className="w-4 h-4" />}
@@ -253,14 +253,14 @@ export default function PunterComunidadePage() {
             <TutorialItem
               icon={<Download className="w-4 h-4" />}
               color="hsl(var(--foreground))"
-              title="8. Importar Apostas"
+              title="8. Importar Entradas"
               body="Conecte ou faça upload de extratos da Betfair (CSV/PDF) e outras casas para consolidar todo o seu histórico em um único painel."
             />
             <TutorialItem
               icon={<MessageCircle className="w-4 h-4" />}
               color="#229ED9"
               title="9. Notificações em tempo real"
-              body="Ative o Telegram VIP e/ou as notificações push do navegador para receber alertas instantâneos quando um sinal for APROVADO ou liquidado (GREEN/RED)."
+              body="Ative o Telegram VIP e/ou as notificações push do navegador para receber alertas instantâneos quando um entrada for APROVADO ou liquidado (GREEN/RED)."
             />
             <TutorialItem
               icon={<Info className="w-4 h-4" />}
@@ -273,7 +273,7 @@ export default function PunterComunidadePage() {
           <div className="mt-4 p-3 rounded-lg border border-primary/30 bg-primary/5">
             <p className="text-[11px] font-mono text-muted-foreground leading-relaxed">
               💡 <span className="text-foreground font-semibold">Dica:</span> comece configurando sua banca virtual,
-              acompanhe os sinais aprovados por 7 dias, e só depois aumente o stake real. A disciplina é o que separa
+              acompanhe os entradas aprovados por 7 dias, e só depois aumente o stake real. A disciplina é o que separa
               o apostador do investidor.
             </p>
           </div>

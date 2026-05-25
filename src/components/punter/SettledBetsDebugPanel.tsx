@@ -74,7 +74,7 @@ export default function SettledBetsDebugPanel({ userId }: { userId?: string }) {
         className="w-full flex items-center justify-between px-3 py-2 text-left"
       >
         <span className="flex items-center gap-2 text-warning font-mono text-[11px] uppercase tracking-widest">
-          <Bug className="w-3.5 h-3.5" /> Debug · Apostas liquidadas (admin)
+          <Bug className="w-3.5 h-3.5" /> Debug · Entradas liquidadas (admin)
         </span>
         {open ? <ChevronUp className="w-4 h-4 text-warning" /> : <ChevronDown className="w-4 h-4 text-warning" />}
       </button>
@@ -83,7 +83,7 @@ export default function SettledBetsDebugPanel({ userId }: { userId?: string }) {
           {loading ? (
             <p className="font-mono text-[11px] text-muted-foreground">Carregando...</p>
           ) : bets.length === 0 ? (
-            <p className="font-mono text-[11px] text-muted-foreground">Nenhuma aposta liquidada nos últimos 30 dias.</p>
+            <p className="font-mono text-[11px] text-muted-foreground">Nenhuma entrada liquidada nos últimos 30 dias.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-[11px] font-mono">
@@ -138,7 +138,7 @@ export default function SettledBetsDebugPanel({ userId }: { userId?: string }) {
                 </tbody>
               </table>
               <p className="font-mono text-[10px] text-muted-foreground/70 mt-2">
-                Mostrando {bets.length} apostas liquidadas (últimos 30 dias). Mesma fonte usada pelos cards do hero banner.
+                Mostrando {bets.length} entradas liquidadas (últimos 30 dias). Mesma fonte usada pelos cards do hero banner.
               </p>
             </div>
           )}

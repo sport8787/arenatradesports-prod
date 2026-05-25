@@ -54,7 +54,7 @@ export default function MatchCardWithEntries({
       return;
     }
     if (!inheritedMarket) {
-      toast.error('Aguardando sinal aprovado para este jogo');
+      toast.error('Aguardando entrada aprovado para este jogo');
       return;
     }
     const stakeValue = parseFloat(stakeStr.replace(',', '.'));
@@ -160,7 +160,7 @@ export default function MatchCardWithEntries({
     <div className="relative">
       <MatchCard match={match} index={index} onAnalysisClick={onAnalysisClick} />
 
-      {/* Saúde do Sinal — só renderiza se tiver mercado aprovado e jogo ao vivo */}
+      {/* Saúde do Entrada — só renderiza se tiver mercado aprovado e jogo ao vivo */}
       {match.status === 'live' && inheritedMarket && (
         <SignalHealthPanel market={inheritedMarket} stats={match.healthStats ?? null} />
       )}
@@ -240,11 +240,11 @@ export default function MatchCardWithEntries({
         </div>
       )}
 
-      {/* Sem sinal aprovado ainda */}
+      {/* Sem entrada aprovado ainda */}
       {!canBet && match.status === 'live' && userId && !inheritedMarket && (
         <div className="mx-0.5 -mt-1 rounded-b-xl border-2 border-t-0 border-border/30 bg-[hsl(0,0%,7%)] px-3 py-1.5">
           <p className="text-[10px] text-center text-muted-foreground/70 font-orbitron uppercase tracking-wider">
-            Aguardando sinal do Mycroft
+            Aguardando entrada do Mycroft
           </p>
         </div>
       )}

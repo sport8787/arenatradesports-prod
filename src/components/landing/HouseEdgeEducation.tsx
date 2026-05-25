@@ -12,7 +12,7 @@ export default function HouseEdgeEducation() {
             Se você quer investir em futebol de forma profissional, precisa entender como tudo funciona
           </h2>
           <p className="text-lg text-center text-slate-300 mb-6">
-            Você já se perguntou por que a casa de apostas quase sempre vence?
+            Você já se perguntou por que a casa de entradas quase sempre vence?
           </p>
           <p className="leading-relaxed mb-4">
             A resposta está na <b>própria estrutura do mercado</b>: cada partida tem odds precificadas
@@ -50,7 +50,7 @@ export default function HouseEdgeEducation() {
               <div className="text-3xl mb-3">❌</div>
               <h3 className="text-lg font-bold text-red-300 mb-2">O amador</h3>
               <p className="text-sm text-slate-300 leading-relaxed">
-                Aposta no time do coração, persegue prejuízo (martingale), entra em múltiplas
+                Entrada no time do coração, persegue prejuízo (martingale), entra em múltiplas
                 grandes, segue tipster do Telegram, não anota nada e não mede ROI. Resultado: 95%
                 quebra em até 6 meses.
               </p>
@@ -86,7 +86,7 @@ export default function HouseEdgeEducation() {
             <span className="text-yellow-400">em qual lado você quer estar?</span>
           </h2>
           <p className="text-slate-300 text-lg leading-relaxed">
-            Apostador comum aposta na sorte e culpa o juiz quando perde. <b>Trader esportivo</b>{' '}
+            Apostador comum entrada na sorte e culpa o juiz quando perde. <b>Trader esportivo</b>{' '}
             opera estratégia, mede o resultado e ajusta o processo. Os dois apertam o mesmo botão
             — mas só um deles fecha o mês no positivo.
           </p>
@@ -121,7 +121,7 @@ export function ComunicadoImportante() {
         </p>
         <p className="text-slate-300 leading-relaxed">
           O <b className="text-white">Oráculo Mycroft</b> é um conjunto de sistemas de análise
-          estatística, probabilística e de gestão de risco aplicado a apostas esportivas —{' '}
+          estatística, probabilística e de gestão de risco aplicado a entradas esportivas —{' '}
           <b className="text-white">não é uma promessa nem uma garantia de ganhos</b>. A união do
           seu <b>bom-senso</b> com a <b>experiência de saber interpretar os dados</b> fornecidos
           pelos nossos sistemas é o que definirá o seu sucesso. Aposte com responsabilidade.

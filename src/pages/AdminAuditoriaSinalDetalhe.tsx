@@ -98,7 +98,7 @@ export default function AdminAuditoriaSinalDetalhe() {
         const { data, error } = await (supabase as any).from("mycroft_analyses").select("*").eq("id", id).maybeSingle();
         if (error) throw error;
         if (!data) {
-          toast.error("Sinal não encontrado");
+          toast.error("Entrada não encontrado");
           setRow(null);
           return;
         }
@@ -149,7 +149,7 @@ export default function AdminAuditoriaSinalDetalhe() {
               <Button variant="outline" size="sm"><ArrowLeft className="w-4 h-4 mr-1" /> Auditoria</Button>
             </Link>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold">Detalhe do Sinal</h1>
+              <h1 className="text-2xl md:text-3xl font-bold">Detalhe do Entrada</h1>
               <p className="text-sm text-muted-foreground">Snapshot completo no momento da aprovação × resultado final</p>
             </div>
           </div>

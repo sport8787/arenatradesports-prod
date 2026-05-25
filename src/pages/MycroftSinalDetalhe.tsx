@@ -74,7 +74,7 @@ function isFinishedStatus(status?: string | null) {
 }
 
 /**
- * Avalia a aposta em relação ao placar final, retornando um texto explicativo
+ * Avalia a entrada em relação ao placar final, retornando um texto explicativo
  * de como a entrada virou GREEN/RED/PUSH. Suporta os mercados mais comuns
  * gerados pelo Mycroft (Over/Under gols, BTTS, Resultado, Over HT, etc.).
  */
@@ -116,15 +116,15 @@ function explainOutcome(market: string, home: number | null, away: number | null
   // Resultado simples
   if (m === 'casa' || m === 'home' || m === '1') {
     const ok = home > away;
-    return { ok, text: `Aposta na vitória do mandante (${homeName}). Placar ${home}-${away}. ${ok ? 'Mandante venceu → GREEN.' : 'Mandante não venceu → RED.'}` };
+    return { ok, text: `Entrada na vitória do mandante (${homeName}). Placar ${home}-${away}. ${ok ? 'Mandante venceu → GREEN.' : 'Mandante não venceu → RED.'}` };
   }
   if (m === 'fora' || m === 'away' || m === '2') {
     const ok = away > home;
-    return { ok, text: `Aposta na vitória do visitante (${awayName}). Placar ${home}-${away}. ${ok ? 'Visitante venceu → GREEN.' : 'Visitante não venceu → RED.'}` };
+    return { ok, text: `Entrada na vitória do visitante (${awayName}). Placar ${home}-${away}. ${ok ? 'Visitante venceu → GREEN.' : 'Visitante não venceu → RED.'}` };
   }
   if (m === 'empate' || m === 'draw' || m === 'x') {
     const ok = home === away;
-    return { ok, text: `Aposta no empate. Placar ${home}-${away}. ${ok ? 'Jogo terminou empatado → GREEN.' : 'Jogo não terminou empatado → RED.'}` };
+    return { ok, text: `Entrada no empate. Placar ${home}-${away}. ${ok ? 'Jogo terminou empatado → GREEN.' : 'Jogo não terminou empatado → RED.'}` };
   }
 
   // Genérico — só relata placar
@@ -153,7 +153,7 @@ export default function MycroftSinalDetalhe() {
         .maybeSingle();
 
       if (error || !data) {
-        console.error('[sinal-detalhe] erro:', error);
+        console.error('[entrada-detalhe] erro:', error);
         if (mounted) setLoading(false);
         return;
       }
@@ -263,14 +263,14 @@ export default function MycroftSinalDetalhe() {
           <button
             onClick={() => navigate('/arena-trader-sports/sinais-aprovados')}
             className="p-2 rounded-lg hover:bg-muted transition-colors"
-            aria-label="Voltar para Sinais Aprovados"
+            aria-label="Voltar para Entradas Aprovadas"
           >
             <ArrowLeft className="w-5 h-5 text-foreground" />
           </button>
           <div className="flex items-center gap-2 min-w-0">
             <Trophy className="w-5 h-5 text-primary shrink-0" />
             <h1 className="font-orbitron text-base md:text-lg font-bold text-primary truncate">
-              Detalhes do Sinal
+              Detalhes do Entrada
             </h1>
           </div>
         </div>
@@ -304,7 +304,7 @@ export default function MycroftSinalDetalhe() {
               <p className="text-lg md:text-xl font-bold text-foreground">
                 {match?.home_team ?? '—'} <span className="text-muted-foreground font-normal">vs</span> {match?.away_team ?? '—'}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">Sinal emitido em {formatDate(analysis.created_at)}</p>
+              <p className="text-xs text-muted-foreground mt-1">Entrada emitido em {formatDate(analysis.created_at)}</p>
             </div>
             {finalScore && (
               <div className="text-right">
@@ -337,7 +337,7 @@ export default function MycroftSinalDetalhe() {
         >
           <div className="flex items-center gap-2 text-primary">
             <Target className="w-4 h-4" />
-            <h2 className="font-orbitron text-sm uppercase tracking-wider">Aposta Aprovada</h2>
+            <h2 className="font-orbitron text-sm uppercase tracking-wider">Entrada Aprovada</h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -468,7 +468,7 @@ export default function MycroftSinalDetalhe() {
             <h2 className="font-orbitron text-sm uppercase tracking-wider">Linha do tempo</h2>
           </div>
           <div className="text-xs text-muted-foreground space-y-1 font-mono">
-            <p>Sinal emitido: <span className="text-foreground">{formatDate(analysis.created_at)}</span></p>
+            <p>Entrada emitido: <span className="text-foreground">{formatDate(analysis.created_at)}</span></p>
             <p>
               Liquidação:{' '}
               <span className="text-foreground">

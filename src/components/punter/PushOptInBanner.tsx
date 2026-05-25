@@ -48,7 +48,7 @@ export default function PushOptInBanner() {
     try {
       const ok = await requestPush();
       if (ok) {
-        toast.success('Alertas ativados — você receberá os sinais aprovados');
+        toast.success('Alertas ativados — você receberá os entradas aprovados');
         track.custom('push_optin_accepted', { source: 'banner' });
         await markComplete('enabled_push');
         setHidden(true);
@@ -78,7 +78,7 @@ export default function PushOptInBanner() {
           Ative os alertas do Mycroft
         </p>
         <p className="text-xs text-muted-foreground leading-tight mt-0.5">
-          Receba aviso instantâneo quando um sinal forte for aprovado.
+          Receba aviso instantâneo quando um entrada forte for aprovado.
         </p>
       </div>
       <button

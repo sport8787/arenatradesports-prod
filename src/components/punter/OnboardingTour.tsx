@@ -13,8 +13,8 @@ const STEPS = [
   },
   {
     icon: <Target className="w-8 h-8 text-yellow-400" />,
-    title: 'Sinais Inteligentes',
-    description: 'Clique em "Analisar Jogos" para o Mycroft varrer as odds do mercado. Ele classifica cada oportunidade como Sinal Forte, Bom ou Moderado.',
+    title: 'Entradas Inteligentes',
+    description: 'Clique em "Analisar Jogos" para o Mycroft varrer as odds do mercado. Ele classifica cada oportunidade como Entrada Forte, Bom ou Moderado.',
     color: 'from-yellow-600/20 to-yellow-700/10',
     border: 'border-yellow-500/30',
   },

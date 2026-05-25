@@ -252,7 +252,7 @@ export default function PunterPromptSimulator() {
                     <Badge variant="outline" className={t.tier === 1 ? 'border-emerald-500/40 text-emerald-400' : t.tier === 2 ? 'border-blue-500/40 text-blue-400' : 'border-amber-500/40 text-amber-400'}>
                       Tier {t.tier} {t.tier === 1 ? '⚡' : t.tier === 2 ? '✅' : '🎯'}
                     </Badge>
-                    <span className="text-xs text-muted-foreground">{t.total} sinais</span>
+                    <span className="text-xs text-muted-foreground">{t.total} entradas</span>
                   </div>
                   <div className="text-lg font-bold">{t.wr.toFixed(1)}% WR</div>
                   <div className="text-[11px] text-muted-foreground">{t.greens}G / {t.reds}R em {t.settled} liq.</div>
@@ -274,11 +274,11 @@ export default function PunterPromptSimulator() {
                 </div>
                 <div className="text-right">
                   <div className={`text-sm font-bold ${m.wr >= 60 ? 'text-emerald-400' : m.wr >= 50 ? 'text-amber-400' : 'text-red-400'}`}>{m.wr.toFixed(0)}%</div>
-                  <div className="text-[11px] text-muted-foreground">{m.total} sinais</div>
+                  <div className="text-[11px] text-muted-foreground">{m.total} entradas</div>
                 </div>
               </div>
             ))}
-            {sim.byMarket.length === 0 && <p className="text-xs text-muted-foreground">Nenhum sinal aprovaria com os filtros atuais.</p>}
+            {sim.byMarket.length === 0 && <p className="text-xs text-muted-foreground">Nenhum entrada aprovaria com os filtros atuais.</p>}
           </div>
         </section>
 
@@ -335,7 +335,7 @@ export default function PunterPromptSimulator() {
         </section>
 
         <p className="text-[11px] text-muted-foreground">
-          * A simulação usa probabilidade, edge, confiança e odd reais armazenados em <code>punter_analyses</code>. Apenas sinais já liquidados (GREEN/RED) entram no cálculo de WR/ROI. ROI é calculado por unidade de stake do tier.
+          * A simulação usa probabilidade, edge, confiança e odd reais armazenados em <code>punter_analyses</code>. Apenas entradas já liquidados (GREEN/RED) entram no cálculo de WR/ROI. ROI é calculado por unidade de stake do tier.
         </p>
       </CardContent>
     </Card>

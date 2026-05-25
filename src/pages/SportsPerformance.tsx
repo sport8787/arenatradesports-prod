@@ -166,7 +166,7 @@ export default function SportsPerformance() {
           <>
             {/* KPI Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <KpiCard label="Total Apostas" value={totalBets.toString()} icon={<BarChart3 className="w-5 h-5" />} />
+              <KpiCard label="Total Entradas" value={totalBets.toString()} icon={<BarChart3 className="w-5 h-5" />} />
               <KpiCard label="Win Rate" value={`${winRate.toFixed(1)}%`} icon={<Target className="w-5 h-5" />} positive={winRate >= 50} />
               <KpiCard label="P&L Total" value={`R$ ${totalPL.toFixed(2)}`} icon={totalPL >= 0 ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />} positive={totalPL >= 0} />
               <KpiCard label="ROI" value={`${roi.toFixed(1)}%`} icon={<TrendingUp className="w-5 h-5" />} positive={roi >= 0} />

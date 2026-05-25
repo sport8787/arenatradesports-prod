@@ -22,11 +22,11 @@ const PLANS = [
     icon: TrendingUp,
     description: 'Para quem quer seguir os métodos globais prontos do Mycroft',
     includes: [
-      'Arena Punter (sinais pré-jogo prontos)',
+      'Arena Punter (entradas pré-jogo prontos)',
       'Métodos globais do Mycroft já calibrados',
       'Asset Score + Edge calculado',
-      'Telegram VIP de sinais',
-      'Push de novos sinais aprovados',
+      'Telegram VIP de entradas',
+      'Push de novos entradas aprovados',
       'Suporte por WhatsApp',
     ],
     bonus: [
@@ -45,7 +45,7 @@ const PLANS = [
       'Tudo do Iniciante',
       'Arena Trader Sports (ao vivo)',
       '🚀 Método Hórus de Alavancagem — banca pilotada em 5 ciclos',
-      '🛠️ Crie seus próprios métodos personalizados (Meu Plano)',
+      '🛠️ Crie seus próprios métodos personalizados (Meu Método)',
       'LABAREDA, APROVADO e cash-out em tempo real',
       'Hórus coach IA anti-tilt',
       'Eventos Raros (LAY Goleada, 2x2…)',
@@ -336,7 +336,7 @@ export default function OfertaEspecial() {
             Fale com um especialista no WhatsApp antes de qualquer pagamento. Sem robô, sem enrolação.
           </p>
           <p className="text-xs text-muted-foreground/70 mt-2">
-            Aviso de risco: apostas envolvem perda. Resultados passados não garantem futuros.
+            Aviso de risco: entradas envolvem perda. Resultados passados não garantem futuros.
           </p>
         </div>
       </motion.div>
@@ -350,7 +350,7 @@ export default function OfertaEspecial() {
 
       {/* Footer +18 */}
       <footer className="w-full bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">
-        <p><strong className="text-red-500">+18 anos.</strong> Proibido para menores de 18 anos. Apostas esportivas envolvem risco de dependência. Jogue com responsabilidade.</p>
+        <p><strong className="text-red-500">+18 anos.</strong> Proibido para menores de 18 anos. Entradas esportivas envolvem risco de dependência. Jogue com responsabilidade.</p>
         <p className="mt-1">© 2026 Oráculo Mycroft. Nenhuma ferramenta pode garantir vitórias ou lucros constantes.</p>
       </footer>
     </>

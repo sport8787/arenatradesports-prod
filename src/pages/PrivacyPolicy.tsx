@@ -46,7 +46,7 @@ export default function PrivacyPolicy() {
           <h1 className="text-3xl md:text-4xl font-bold mb-4">Política de Privacidade</h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             O <strong>Oráculo Mycroft</strong> é uma ferramenta de análise estatística,
-            probabilística e gestão de risco aplicada a apostas esportivas. Esta política descreve
+            probabilística e gestão de risco aplicada a entradas esportivas. Esta política descreve
             como tratamos seus dados pessoais em conformidade com a Lei Geral de Proteção de Dados
             (LGPD — Lei nº 13.709/2018).
           </p>
@@ -128,8 +128,8 @@ export default function PrivacyPolicy() {
                   <div className="bg-muted/30 rounded-lg p-4">
                     <h4 className="font-semibold mb-2">Dados de Uso</h4>
                     <ul className="text-sm text-muted-foreground space-y-1">
-                      <li>• Histórico de análises e sinais visualizados</li>
-                      <li>• Banca virtual, apostas simuladas, ROI</li>
+                      <li>• Histórico de análises e entradas visualizados</li>
+                      <li>• Banca virtual, entradas simuladas, ROI</li>
                       <li>• Preferências (ligas, mercados, filtros)</li>
                       <li>• Logs de acesso, IP, user-agent</li>
                     </ul>
@@ -168,9 +168,9 @@ export default function PrivacyPolicy() {
                 <p>Os dados são utilizados exclusivamente para:</p>
                 <ul className="space-y-1 list-disc list-inside">
                   <li>Prover acesso e operar o Oráculo Mycroft (Punter, Trader Sports, Eventos Raros, Ciclos, etc.);</li>
-                  <li>Personalizar sinais, filtros e relatórios para o seu perfil;</li>
+                  <li>Personalizar entradas, filtros e relatórios para o seu perfil;</li>
                   <li>Processar pagamentos, assinaturas, trials e renovações;</li>
-                  <li>Enviar notificações operacionais (sinais, GREEN/RED, cash-out) e transacionais (cobrança, confirmação);</li>
+                  <li>Enviar notificações operacionais (entradas, GREEN/RED, cash-out) e transacionais (cobrança, confirmação);</li>
                   <li>Melhorar continuamente os algoritmos de análise (sempre com dados agregados/anonimizados);</li>
                   <li>Cumprir obrigações legais, regulatórias e contábeis;</li>
                   <li>Prevenir fraude, abuso e proteger a segurança da plataforma.</li>
@@ -217,7 +217,7 @@ export default function PrivacyPolicy() {
                   <li><strong>Supabase / Lovable Cloud</strong> — hospedagem, banco de dados, autenticação;</li>
                   <li><strong>Asaas</strong> — processamento de pagamentos e assinaturas;</li>
                   <li><strong>Resend</strong> — envio de e-mails transacionais;</li>
-                  <li><strong>Telegram</strong> — entrega de sinais a usuários que optam pelo canal;</li>
+                  <li><strong>Telegram</strong> — entrega de entradas a usuários que optam pelo canal;</li>
                   <li><strong>ElevenLabs</strong> — síntese de voz do Hórus (texto enviado sem dados pessoais);</li>
                   <li><strong>API-Football, The Odds API, Sportmonks, Futodds, Betfair</strong> — provedores de dados esportivos e odds (não recebem dados pessoais);</li>
                   <li><strong>PostHog, Meta Pixel, TikTok Pixel, Google Analytics</strong> — analytics e atribuição de campanha;</li>

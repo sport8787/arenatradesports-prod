@@ -109,7 +109,7 @@ export function HybridBettingDisplay({
 
       {/* Recomendação compacta */}
       <div className="text-center p-3 rounded-lg bg-secondary/30 border border-border">
-        <div className="text-[10px] text-muted-foreground mb-1">Aposta Recomendada</div>
+        <div className="text-[10px] text-muted-foreground mb-1">Entrada Recomendada</div>
         <div className={`text-3xl font-orbitron font-bold ${config.color}`}>
           R$ {recommendation.amount.toFixed(2)}
         </div>
@@ -148,7 +148,7 @@ export function HybridBettingDisplay({
         </div>
       </div>
 
-      {/* Comparação com aposta anterior */}
+      {/* Comparação com entrada anterior */}
       {currentBet !== undefined && currentBet !== recommendation.amount && (
         <div className="flex items-center justify-between text-xs p-2 rounded-lg bg-secondary/10 border border-border">
           <span className="text-muted-foreground">Anterior:</span>

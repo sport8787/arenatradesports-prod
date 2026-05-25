@@ -45,7 +45,7 @@ export default function PerformanceGap({ horus, manual, username = 'Manual' }: P
               <Info className="w-3.5 h-3.5 text-muted-foreground/50 cursor-help" />
             </TooltipTrigger>
             <TooltipContent className="max-w-[260px] text-xs">
-              <p>Compara performance entre Hórus IA (automático) e suas decisões manuais. Apenas apostas liquidadas.</p>
+              <p>Compara performance entre Hórus IA (automático) e suas decisões manuais. Apenas entradas liquidadas.</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

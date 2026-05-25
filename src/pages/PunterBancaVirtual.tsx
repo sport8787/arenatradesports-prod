@@ -91,7 +91,7 @@ export default function PunterBancaVirtualPage() {
       const data = await invokeSettleWithRetry(tId);
       toast.success('Liquidação concluída', {
         id: tId,
-        description: `Apostas liquidadas: ${data?.settled ?? 0} | Sinais: ${data?.signals_settled ?? 0} | Ignoradas: ${data?.skipped ?? 0}`,
+        description: `Entradas liquidadas: ${data?.settled ?? 0} | Entradas: ${data?.signals_settled ?? 0} | Ignoradas: ${data?.skipped ?? 0}`,
       });
       await reloadPending();
     } catch (e: any) {
@@ -138,9 +138,9 @@ export default function PunterBancaVirtualPage() {
           <div className="flex-1 text-xs text-muted-foreground">
             <p className="text-foreground font-medium mb-0.5">A banca virtual paga em BluffCoins (BC)</p>
             <p>
-              Cada aposta virtual vencedora rende{' '}
+              Cada entrada virtual vencedora rende{' '}
               <span className="text-yellow-400 font-medium">+50 BC base + bônus pelo lucro</span>{' '}
-              (até 500 BC/aposta). Acumule e troque por <span className="text-foreground">PIX, GiftCard, PS5 e iPhone</span> na{' '}
+              (até 500 BC/entrada). Acumule e troque por <span className="text-foreground">PIX, GiftCard, PS5 e iPhone</span> na{' '}
               <button onClick={() => navigate('/loja-bc')} className="underline text-yellow-400 hover:text-yellow-300">
                 Loja BC
               </button>
@@ -156,8 +156,8 @@ export default function PunterBancaVirtualPage() {
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 mb-3">
             <QuickBtn icon={<FileText className="w-3.5 h-3.5" />} label="Análise Manual" onClick={() => navigate('/punter/analise-manual')} />
-            <QuickBtn icon={<CheckCircle2 className="w-3.5 h-3.5" />} label="Sinais Liquidados" onClick={() => navigate('/punter')} />
-            <QuickBtn icon={<ShieldCheck className="w-3.5 h-3.5" />} label="Auditoria de Apostas" onClick={() => navigate('/punter/auditoria')} />
+            <QuickBtn icon={<CheckCircle2 className="w-3.5 h-3.5" />} label="Entradas Liquidados" onClick={() => navigate('/punter')} />
+            <QuickBtn icon={<ShieldCheck className="w-3.5 h-3.5" />} label="Auditoria de Entradas" onClick={() => navigate('/punter/auditoria')} />
             <QuickBtn icon={<TrendingUp className="w-3.5 h-3.5" />} label="Método Hórus" onClick={() => navigate('/punter/ciclos')} />
             <QuickBtn icon={<Zap className="w-3.5 h-3.5" />} label="Sinais Alavanca" onClick={() => navigate('/sinais-alavanca')} />
           </div>

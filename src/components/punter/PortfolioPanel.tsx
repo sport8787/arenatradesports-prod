@@ -99,7 +99,7 @@ export default function PortfolioPanel() {
               </div>
               <div className="flex items-start gap-1.5 text-[10px] font-mono text-muted-foreground ml-1.5 border-l border-border/50 pl-2">
                 <span className="text-muted-foreground/50 leading-none mt-0.5">└─</span>
-                <span className="leading-tight">Exposição {portfolio.exposure_pct.toFixed(0)}% é normal para apostas antecipadas</span>
+                <span className="leading-tight">Exposição {portfolio.exposure_pct.toFixed(0)}% é normal para entradas antecipadas</span>
               </div>
             </div>
 
@@ -149,7 +149,7 @@ export default function PortfolioPanel() {
               <div className="flex flex-col text-[10px] font-mono text-muted-foreground ml-1.5 border-l border-border/50 pl-2 gap-1">
                 <div className="flex items-start gap-1.5">
                   <span className="text-muted-foreground/50 leading-none mt-0.5">├─</span>
-                  <span className="leading-tight">Cada aposta usa gestão de banca</span>
+                  <span className="leading-tight">Cada entrada usa gestão de banca</span>
                 </div>
                 <div className="flex items-start gap-1.5">
                   <span className="text-muted-foreground/50 leading-none mt-0.5">└─</span>
@@ -167,7 +167,7 @@ export default function PortfolioPanel() {
                 <div className="flex flex-col text-[10px] font-mono text-orange-400/80 ml-1.5 border-l border-orange-400/30 pl-2 gap-1">
                   <div className="flex items-start gap-1.5">
                     <span className="text-orange-400/50 leading-none mt-0.5">├─</span>
-                    <span className="leading-tight">{portfolio.adjustments.length} aposta(s) com conflito/correlação no mesmo jogo</span>
+                    <span className="leading-tight">{portfolio.adjustments.length} entrada(s) com conflito/correlação no mesmo jogo</span>
                   </div>
                   <div className="flex items-start gap-1.5">
                     <span className="text-orange-400/50 leading-none mt-0.5">└─</span>

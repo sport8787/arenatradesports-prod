@@ -151,7 +151,7 @@ export default function BetfairConfig({ userId }: BetfairConfigProps) {
       const { data, error } = await supabase.functions.invoke('sync-betfair');
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      toast.success(`Sincronizadas ${data?.synced || 0} apostas!`);
+      toast.success(`Sincronizadas ${data?.synced || 0} entradas!`);
       await loadConnection();
     } catch (e: any) {
       toast.error(`Erro na sincronização: ${e.message}`);

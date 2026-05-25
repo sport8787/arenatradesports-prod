@@ -94,7 +94,7 @@ export default function NextMatchEmptyState({ nextMatch, rawLiveCount = 0, onRes
             Avisar quando começar
           </button>
           <p className="text-[11px] text-muted-foreground mt-2">
-            Você recebe push instantâneo quando um sinal forte é aprovado.
+            Você recebe push instantâneo quando um entrada forte é aprovado.
           </p>
         </div>
       )}

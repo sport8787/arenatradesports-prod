@@ -49,9 +49,9 @@ function explainOutcome(bet: SettledBet): string {
   }
   if (bet.status === 'won') {
     const pnl = bet.profit_loss ?? (bet.stake * bet.odd - bet.stake);
-    return `${score} O mercado "${bet.market}" foi ATINGIDO ao final do jogo, então a aposta foi marcada como GREN com lucro de R$ ${pnl.toFixed(2)}.`;
+    return `${score} O mercado "${bet.market}" foi ATINGIDO ao final do jogo, então a entrada foi marcada como GREN com lucro de R$ ${pnl.toFixed(2)}.`;
   }
-  return `${score} O mercado "${bet.market}" NÃO foi atingido ao final, então a aposta foi marcada como RED com perda de R$ ${bet.stake.toFixed(2)}.`;
+  return `${score} O mercado "${bet.market}" NÃO foi atingido ao final, então a entrada foi marcada como RED com perda de R$ ${bet.stake.toFixed(2)}.`;
 }
 
 export default function LiquidationsHistory() {

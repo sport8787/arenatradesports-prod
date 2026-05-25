@@ -516,17 +516,17 @@ export default function LiveMatchDetail() {
     });
     setBetLoading(false);
     if (result.success) {
-      toast.success(`Aposta virtual registrada: R$ ${stake.toFixed(2)}`);
+      toast.success(`Entrada virtual registrada: R$ ${stake.toFixed(2)}`);
       setBetDialogOpen(false);
       setCustomStake('');
     } else {
-      toast.error(result.error || 'Falha ao registrar aposta.');
+      toast.error(result.error || 'Falha ao registrar entrada.');
     }
   };
 
   const openBetfair = () => {
     const query = encodeURIComponent(`${match?.home_team || ''} ${match?.away_team || ''}`.trim());
-    const url = `https://www.betfair.bet.br/exchange/plus/pt/futebol-aposta-1/search?q=${query}`;
+    const url = `https://www.betfair.bet.br/exchange/plus/pt/futebol-entrada-1/search?q=${query}`;
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
@@ -542,7 +542,7 @@ export default function LiveMatchDetail() {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 p-6 text-center">
         <p className="text-muted-foreground max-w-md">
-          Este jogo já foi finalizado e saiu do feed ao vivo. Veja o desfecho no seu histórico de sinais.
+          Este jogo já foi finalizado e saiu do feed ao vivo. Veja o desfecho no seu histórico de entradas.
         </p>
         <div className="flex gap-2 flex-wrap justify-center">
           <GoldButton onClick={() => navigate('/historico')}>
@@ -558,7 +558,7 @@ export default function LiveMatchDetail() {
 
   const verdictClass = verdictColors[analysis?.verdict || ''] || verdictColors.AGUARDAR;
 
-  // 🛡️ Sinal de 1º tempo deixa de valer após o intervalo
+  // 🛡️ Entrada de 1º tempo deixa de valer após o intervalo
   const htSignalExpired = isExpiredHtSignal({
     market: analysis?.market,
     minute: match?.minute,
@@ -596,11 +596,11 @@ export default function LiveMatchDetail() {
           <div className="flex items-center justify-center gap-2 mb-4">
             {(analysis as any)?.result === 'green' ? (
               <span className="px-3 py-1 rounded-full bg-success/20 border border-success/40 text-success text-[10px] font-orbitron uppercase tracking-[0.2em]">
-                🟢 GREEN — Sinal vencedor
+                🟢 GREEN — Entrada vencedor
               </span>
             ) : (analysis as any)?.result === 'red' ? (
               <span className="px-3 py-1 rounded-full bg-destructive/20 border border-destructive/40 text-destructive text-[10px] font-orbitron uppercase tracking-[0.2em]">
-                🔴 RED — Sinal perdedor
+                🔴 RED — Entrada perdedor
               </span>
             ) : (
               <>
@@ -709,7 +709,7 @@ export default function LiveMatchDetail() {
                 </Badge>
               )}
               {analysis.confidence != null && (
-                <Badge variant="outline" className={cn('font-orbitron text-xs', htSignalExpired && 'line-through text-muted-foreground')} title="Força estatística do sinal. 70% ou mais = entrada recomendada.">
+                <Badge variant="outline" className={cn('font-orbitron text-xs', htSignalExpired && 'line-through text-muted-foreground')} title="Força estatística do entrada. 70% ou mais = entrada recomendada.">
                   Força {Math.round(Number(analysis.confidence) * (analysis.confidence > 1 ? 1 : 100))}%
                 </Badge>
               )}
@@ -723,7 +723,7 @@ export default function LiveMatchDetail() {
                   <div className="mt-2 flex items-center gap-1.5 pl-1 text-left text-[11px] text-muted-foreground font-medium cursor-help">
                     <Lock className="w-3 h-3 text-emerald-500/80" aria-hidden="true" />
                     <span>
-                      Sinal aprovado no minuto {analysis.approved_at_minute ?? 0}'
+                      Entrada aprovado no minuto {analysis.approved_at_minute ?? 0}'
                       {' | '}Placar: {analysis.approved_at_score_home ?? 0}:{analysis.approved_at_score_away ?? 0}
                       {analysis.approved_at_period && (
                         <>{' | '}{formatMatchPeriod(analysis.approved_at_period)}</>
@@ -759,7 +759,7 @@ export default function LiveMatchDetail() {
                 ⚠️ Atenção
               </p>
               <p className="mt-1 text-[11px] sm:text-xs text-muted-foreground">
-                O sinal pode ser cancelado caso o cenário do jogo mude.
+                O entrada pode ser cancelado caso o cenário do jogo mude.
               </p>
             </div>
           )}
@@ -770,7 +770,7 @@ export default function LiveMatchDetail() {
                 ⌛ Entrada expirada
               </p>
               <p className="mt-1 text-[11px] sm:text-xs text-muted-foreground">
-                Este sinal era válido apenas durante o 1º tempo. O jogo está no minuto {match.minute ?? 0}' — não entre mais.
+                Este entrada era válido apenas durante o 1º tempo. O jogo está no minuto {match.minute ?? 0}' — não entre mais.
               </p>
             </div>
           )}
@@ -891,7 +891,7 @@ export default function LiveMatchDetail() {
                           A fonte de dados (SofaScore/Futodds) não retornou Gols Esperados para este jogo —{' '}
                           <strong>isso não significa xG = 0</strong>. O Mycroft removeu o critério de xG do cálculo
                           e baseou a análise em ataques perigosos, chutes (totais e no gol), posse, big chances e momentum.
-                          Como resultado, a confiança do sinal foi reduzida em ~10pp e o risco classificado é mais conservador.
+                          Como resultado, a confiança do entrada foi reduzida em ~10pp e o risco classificado é mais conservador.
                         </p>
                       </div>
                     </div>
@@ -1227,7 +1227,7 @@ export default function LiveMatchDetail() {
             </div>
 
             <p className="text-[10px] text-muted-foreground bg-muted/20 rounded p-2 leading-relaxed">
-              ⚠️ Esta é uma <strong>aposta virtual</strong> que debita apenas da sua banca de simulação. Use para testar o desempenho do Mycroft sem risco real.
+              ⚠️ Esta é uma <strong>entrada virtual</strong> que debita apenas da sua banca de simulação. Use para testar o desempenho do Mycroft sem risco real.
             </p>
           </div>
 

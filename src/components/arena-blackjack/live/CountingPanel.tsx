@@ -10,10 +10,10 @@ interface Props {
 }
 
 function tierFor(tc: number) {
-  if (tc <= 0) return { label: 'Aposta mínima', color: 'bg-destructive text-destructive-foreground', dot: 'bg-destructive' };
-  if (tc <= 2) return { label: 'Aposta base', color: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40', dot: 'bg-yellow-400' };
-  if (tc <= 4) return { label: 'Aumentar aposta', color: 'bg-green-500/20 text-green-300 border-green-500/40', dot: 'bg-green-400' };
-  return { label: 'Aposta máxima', color: 'bg-amber-400/20 text-amber-300 border-amber-400/50', dot: 'bg-amber-300' };
+  if (tc <= 0) return { label: 'Entrada mínima', color: 'bg-destructive text-destructive-foreground', dot: 'bg-destructive' };
+  if (tc <= 2) return { label: 'Entrada base', color: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40', dot: 'bg-yellow-400' };
+  if (tc <= 4) return { label: 'Aumentar entrada', color: 'bg-green-500/20 text-green-300 border-green-500/40', dot: 'bg-green-400' };
+  return { label: 'Entrada máxima', color: 'bg-amber-400/20 text-amber-300 border-amber-400/50', dot: 'bg-amber-300' };
 }
 
 export default function CountingPanel({ running, trueCount, decksRemaining, suggestion }: Props) {
@@ -37,7 +37,7 @@ export default function CountingPanel({ running, trueCount, decksRemaining, sugg
           <span className="text-xs text-muted-foreground ml-auto">{decksRemaining.toFixed(1)} decks restantes</span>
         </div>
         <div className="rounded-md bg-muted/40 p-3">
-          <p className="text-xs text-muted-foreground">Próxima aposta sugerida</p>
+          <p className="text-xs text-muted-foreground">Próxima entrada sugerida</p>
           <div className="flex items-baseline justify-between mt-1">
             <span className="text-2xl font-bold text-primary">R$ {suggestion.amount.toFixed(2)}</span>
             <span className="text-xs text-muted-foreground">{suggestion.reason}</span>

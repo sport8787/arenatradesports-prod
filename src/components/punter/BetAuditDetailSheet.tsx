@@ -141,7 +141,7 @@ export function BetAuditDetailSheet({
       const hoursSinceStart = ms / 3600_000;
       if (hoursSinceStart < 2.5) reasons.push(`Jogo iniciou há ${hoursSinceStart.toFixed(1)}h — auditoria varre apenas jogos terminados há 2h+.`);
     }
-    if (!analysis) reasons.push('Análise Punter não encontrada — provavelmente aposta manual sem vínculo.');
+    if (!analysis) reasons.push('Análise Punter não encontrada — provavelmente entrada manual sem vínculo.');
     if (reasons.length === 0) reasons.push('Aguardando próximo ciclo automático.');
   }
 
@@ -205,7 +205,7 @@ export function BetAuditDetailSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
         <SheetHeader>
-          <SheetTitle className="font-mono text-sm uppercase tracking-wider">Detalhes da aposta</SheetTitle>
+          <SheetTitle className="font-mono text-sm uppercase tracking-wider">Detalhes da entrada</SheetTitle>
           <SheetDescription className="text-xs">
             {bet.match_name || bet.match_id || '—'}
           </SheetDescription>
@@ -257,7 +257,7 @@ export function BetAuditDetailSheet({
                 <p className="text-muted-foreground">Resultado análise:</p><p className="font-mono">{analysis.result || '—'}</p>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">Sem análise Punter vinculada (aposta manual).</p>
+              <p className="text-sm text-muted-foreground">Sem análise Punter vinculada (entrada manual).</p>
             )}
           </section>
 

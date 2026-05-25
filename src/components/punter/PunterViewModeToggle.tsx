@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 
 /**
  * Toggle Simples vs Avançado.
- * - Simples: mostra apenas sinais e resultados (UX limpa para usuário novo).
+ * - Simples: mostra apenas entradas e resultados (UX limpa para usuário novo).
  * - Avançado: revela painéis técnicos (Backtest, Sherlock, Debug).
  */
 export default function PunterViewModeToggle({ className }: { className?: string }) {

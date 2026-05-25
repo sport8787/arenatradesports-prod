@@ -93,12 +93,12 @@ export default function PlanoFavoritoPanel() {
 
       {loading ? (
         <div className="flex items-center justify-center py-6 text-muted-foreground text-xs font-mono">
-          <Loader2 className="w-4 h-4 animate-spin mr-2" /> Carregando sinais...
+          <Loader2 className="w-4 h-4 animate-spin mr-2" /> Carregando entradas...
         </div>
       ) : signals.length === 0 ? (
         <div className="rounded-md border border-dashed border-border/60 p-5 text-center">
           <TrendingUp className="w-6 h-6 mx-auto text-muted-foreground/60 mb-1.5" />
-          <p className="text-xs text-muted-foreground">Nenhum sinal aprovado nas próximas horas.</p>
+          <p className="text-xs text-muted-foreground">Nenhum entrada aprovado nas próximas horas.</p>
           <p className="text-[10px] text-muted-foreground/70 font-mono mt-1">
             Análise automática roda via cron.
           </p>

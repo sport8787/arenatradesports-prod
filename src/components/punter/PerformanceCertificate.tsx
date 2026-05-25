@@ -79,7 +79,7 @@ export default function PerformanceCertificate({ bankroll, onClose }: Performanc
   const sharpe = totalBets > 10 ? roiOverStakes / Math.max(10, 100 - winRate) : 0;
 
   const metrics = [
-    { label: 'ROI s/ Apostas', value: `${roiOverStakes >= 0 ? '+' : ''}${roiOverStakes.toFixed(1)}%`, color: roiOverStakes >= 0 ? 'text-success' : 'text-destructive', icon: TrendingUp },
+    { label: 'ROI s/ Entradas', value: `${roiOverStakes >= 0 ? '+' : ''}${roiOverStakes.toFixed(1)}%`, color: roiOverStakes >= 0 ? 'text-success' : 'text-destructive', icon: TrendingUp },
     { label: 'Retorno Banca', value: `${bankReturn >= 0 ? '+' : ''}${bankReturn.toFixed(1)}%`, color: bankReturn >= 0 ? 'text-success' : 'text-destructive', icon: TrendingUp },
     { label: 'Lucro Total', value: `R$ ${totalProfit.toFixed(2)}`, color: totalProfit >= 0 ? 'text-success' : 'text-destructive', icon: BarChart3 },
     { label: 'Win Rate', value: `${winRate.toFixed(0)}%`, color: winRate >= 55 ? 'text-success' : 'text-warning', icon: Target },
@@ -87,7 +87,7 @@ export default function PerformanceCertificate({ bankroll, onClose }: Performanc
     { label: 'Sharpe Ratio', value: sharpe.toFixed(2), color: sharpe >= 1 ? 'text-success' : 'text-warning', icon: BarChart3 },
   ];
 
-  const shareText = `🏆 Meu desempenho no Oráculo Mycroft:\n📈 ROI: ${roiOverStakes.toFixed(1)}%\n📊 Retorno: ${bankReturn.toFixed(1)}%\n✅ Win Rate: ${winRate.toFixed(0)}%\n💰 Lucro: R$ ${totalProfit.toFixed(2)}\n📊 ${totalBets} apostas\n\nhttps://arenatradesports.lovable.app`;
+  const shareText = `🏆 Meu desempenho no Oráculo Mycroft:\n📈 ROI: ${roiOverStakes.toFixed(1)}%\n📊 Retorno: ${bankReturn.toFixed(1)}%\n✅ Win Rate: ${winRate.toFixed(0)}%\n💰 Lucro: R$ ${totalProfit.toFixed(2)}\n📊 ${totalBets} entradas\n\nhttps://arenatradesports.lovable.app`;
 
   const handleNativeShare = async () => {
     if (navigator.share) {
@@ -179,7 +179,7 @@ export default function PerformanceCertificate({ bankroll, onClose }: Performanc
                   <YAxis hide domain={['dataMin', 'dataMax']} />
                   <Tooltip
                     contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '11px' }}
-                    labelFormatter={(v) => `Aposta #${v}`}
+                    labelFormatter={(v) => `Entrada #${v}`}
                     formatter={(v: number) => [`R$ ${v.toFixed(2)}`, 'Banca']}
                   />
                   <Area
@@ -205,7 +205,7 @@ export default function PerformanceCertificate({ bankroll, onClose }: Performanc
           </div>
 
           <div className="text-center space-y-1">
-            <p className="text-sm text-muted-foreground">Total: <span className="font-bold text-foreground">{totalBets}</span> apostas</p>
+            <p className="text-sm text-muted-foreground">Total: <span className="font-bold text-foreground">{totalBets}</span> entradas</p>
             <p className="text-sm text-muted-foreground">
               Green: <span className="text-success font-bold">{bankroll.green_bets}</span> | Red: <span className="text-destructive font-bold">{bankroll.red_bets}</span>
             </p>

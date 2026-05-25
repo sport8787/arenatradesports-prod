@@ -8,7 +8,7 @@ const ACTIONS = [
   'ativou o trial gratuito',
   'assinou o plano Professional',
   'entrou no grupo VIP',
-  'recebeu sinal aprovado',
+  'recebeu entrada aprovado',
   'fechou green com Mycroft',
 ];
 

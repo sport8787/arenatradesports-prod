@@ -69,7 +69,7 @@ export default function PunterCalibration() {
 
   const dirty = useMemo(() => JSON.stringify(data) !== JSON.stringify(original), [data, original]);
 
-  // Simulação: estima quantos sinais passariam com novos thresholds usando bets_history
+  // Simulação: estima quantos entradas passariam com novos thresholds usando bets_history
   const [impact, setImpact] = useState<{ wouldPass: number; wouldVeto: number; samples: number } | null>(null);
   useEffect(() => {
     if (!data) return;
@@ -218,7 +218,7 @@ export default function PunterCalibration() {
             <p className="text-xs text-muted-foreground">Sem amostras suficientes em bets_history.</p>
           )}
           <p className="text-[11px] text-muted-foreground mt-2">
-            * A simulação compara apostas reais dos últimos 60 dias contra os novos thresholds (filtros globais). Tiers e tolerância são aplicados em runtime pela engine.
+            * A simulação compara entradas reais dos últimos 60 dias contra os novos thresholds (filtros globais). Tiers e tolerância são aplicados em runtime pela engine.
           </p>
         </section>
 

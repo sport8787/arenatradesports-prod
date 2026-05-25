@@ -173,20 +173,20 @@ const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick }: Pro
             value={stats.settledCount > 0 ? `${stats.winRate.toFixed(1)}%` : '—'}
             color="primary"
             progress={stats.settledCount > 0 ? stats.winRate : undefined}
-            hint={stats.settledCount > 0 ? `${stats.settledCount} apostas resolvidas` : 'aguardando 1ª aposta'}
+            hint={stats.settledCount > 0 ? `${stats.settledCount} entradas resolvidas` : 'aguardando 1ª entrada'}
           />
           <StatCard
             label="ROI 7d"
             value={stats.weeklyStaked > 0 ? `${stats.weeklyRoi >= 0 ? '+' : ''}${stats.weeklyRoi.toFixed(1)}%` : '—'}
             color="warning"
-            hint={stats.weeklyStaked > 0 ? 'últimos 7 dias' : 'sem apostas esta semana'}
+            hint={stats.weeklyStaked > 0 ? 'últimos 7 dias' : 'sem entradas esta semana'}
           />
           <StatCard
             label="Greens Hoje"
             value={stats.betsToday > 0 ? `${stats.greensToday}/${stats.betsToday}` : '—'}
             color="foreground"
             highlight={stats.greensToday > 0}
-            hint={stats.betsToday > 0 ? 'apostas hoje' : 'nenhuma aposta hoje'}
+            hint={stats.betsToday > 0 ? 'entradas hoje' : 'nenhuma entrada hoje'}
           />
         </div>
       )}
@@ -197,7 +197,7 @@ const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick }: Pro
         <div className="lg:col-span-2 border border-primary/30 bg-card relative overflow-hidden">
           <div className="bg-warning text-warning-foreground px-3 py-1.5 font-black uppercase text-[11px] tracking-widest flex items-center justify-between">
             <span className="flex items-center gap-2">
-              <Flame className="w-3.5 h-3.5" /> Sinal Destaque
+              <Flame className="w-3.5 h-3.5" /> Entrada Destaque
             </span>
             <span className="font-mono text-[10px] opacity-70">REC.LIVE</span>
           </div>
@@ -242,7 +242,7 @@ const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick }: Pro
           ) : (
             <div className="p-6 sm:p-8 text-center text-muted-foreground">
               <Zap className="w-8 h-8 mx-auto mb-3 opacity-40" />
-              <p className="text-sm">Aguardando próximo sinal aprovado pelo Mycroft.</p>
+              <p className="text-sm">Aguardando próximo entrada aprovado pelo Mycroft.</p>
               <p className="text-[10px] font-mono mt-2 opacity-60">SCANNING_MARKETS...</p>
             </div>
           )}
@@ -368,7 +368,7 @@ const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick }: Pro
                 Liquidação Automática
               </p>
               <p className="font-bold text-foreground text-sm leading-tight">
-                Verificar Apostas Liquidadas
+                Verificar Entradas Liquidadas
               </p>
             </div>
             <span className="bg-primary text-primary-foreground px-2 py-1 text-[10px] font-black uppercase tracking-tight group-hover:bg-foreground transition-colors shrink-0">
@@ -389,7 +389,7 @@ const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick }: Pro
                 Feed & Eventos Raros
               </p>
               <p className="font-bold text-foreground text-sm leading-tight">
-                Ver Feed de Sinais e Eventos Raros
+                Ver Feed de Entradas e Eventos Raros
               </p>
             </div>
             <span className="bg-warning text-background px-2 py-1 text-[10px] font-black uppercase tracking-tight group-hover:bg-foreground transition-colors shrink-0">

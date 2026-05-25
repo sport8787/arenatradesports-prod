@@ -31,7 +31,7 @@ export default function BankrollWidget({ bankroll, onUpdateBalance }: BankrollWi
     {
       label: 'Win Rate',
       value: `${bankroll.win_rate.toFixed(0)}%`,
-      sub: `${bankroll.total_bets} apostas`,
+      sub: `${bankroll.total_bets} entradas`,
       subColor: 'text-muted-foreground',
       icon: Target,
       iconColor: 'text-warning',

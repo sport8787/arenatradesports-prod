@@ -49,7 +49,7 @@ export default function BCLeaderboardWeekly() {
       <div className="rounded-xl border border-yellow-500/20 bg-card/40 p-6 text-center">
         <Trophy className="h-8 w-8 text-yellow-400/40 mx-auto mb-2" />
         <p className="text-sm text-muted-foreground">
-          Ranking semanal começa amanhã. Faça apostas virtuais e vença para entrar no Top 10!
+          Ranking semanal começa amanhã. Faça entradas virtuais e vença para entrar no Top 10!
         </p>
       </div>
     );

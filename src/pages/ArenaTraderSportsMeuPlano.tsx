@@ -106,7 +106,7 @@ function PlanEditor({ plan, onChange }: { plan: UserPlan; onChange: (p: UserPlan
           </select>
         </div>
         <div className="space-y-1">
-          <Label className="text-[11px] text-muted-foreground">Aposta em</Label>
+          <Label className="text-[11px] text-muted-foreground">Entrada em</Label>
           <select
             className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
             value={plan.outcome}
@@ -160,7 +160,7 @@ function PlanEditor({ plan, onChange }: { plan: UserPlan; onChange: (p: UserPlan
         <div className="flex items-baseline justify-between gap-2 flex-wrap">
           <h3 className="text-xs font-mono uppercase text-primary tracking-wider">Estatísticas adicionais (opcionais)</h3>
           <p className="text-[10px] text-muted-foreground">
-            Se algum dado vier zerado/ausente da Sportmonks/Futodds, o sinal não é vetado — vira <span className="text-warning font-medium">APROVADO · CONF. REDUZIDA</span>.
+            Se algum dado vier zerado/ausente da Sportmonks/Futodds, o entrada não é vetado — vira <span className="text-warning font-medium">APROVADO · CONF. REDUZIDA</span>.
           </p>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -486,7 +486,7 @@ export default function ArenaTraderSportsMeuPlano() {
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir este plano?</AlertDialogTitle>
             <AlertDialogDescription>
-              Os sinais já gerados ficam no histórico, mas o plano para de filtrar jogos ao vivo. Esta ação não pode ser desfeita.
+              Os entradas já gerados ficam no histórico, mas o plano para de filtrar jogos ao vivo. Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

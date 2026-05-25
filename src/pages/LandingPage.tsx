@@ -162,15 +162,15 @@ export default function LandingPage() {
               {/* Dor explícita do usuário */}
               <div className="mb-6 p-4 bg-red-500/5 border-l-4 border-red-500/60 rounded-r-lg">
                 <p className="text-base lg:text-lg text-gray-200 leading-relaxed">
-                  Se você já ganhou apostas mas <span className="text-red-400 font-semibold">nunca conseguiu consistência</span>,
+                  Se você já ganhou entradas mas <span className="text-red-400 font-semibold">nunca conseguiu consistência</span>,
                   o problema não é sorte. É <span className="text-yellow-400 font-semibold">falta de leitura de mercado</span>.
                 </p>
               </div>
 
               <p className="text-lg text-gray-300 mb-8 leading-relaxed">
-                Descubra apostas com vantagem real enquanto a maioria ainda perde dinheiro.
+                Descubra entradas com vantagem real enquanto a maioria ainda perde dinheiro.
                 <span className="text-green-400 font-semibold"> +R$ 7.100 de lucro</span> e
-                <span className="text-blue-400 font-semibold"> +71% de ROI</span> em apostas auditadas.
+                <span className="text-blue-400 font-semibold"> +71% de ROI</span> em entradas auditadas.
               </p>
 
               {pitchUnlocked ? (
@@ -224,7 +224,7 @@ export default function LandingPage() {
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                       <p className="text-xs sm:text-sm font-bold text-yellow-300 uppercase tracking-wide">
-                        Veja como o Mycroft identifica apostas com valor em tempo real
+                        Veja como o Mycroft identifica entradas com valor em tempo real
                       </p>
                     </div>
                     <div className="flex items-center gap-3 mt-1 text-[11px] text-gray-300">
@@ -232,7 +232,7 @@ export default function LandingPage() {
                       <span className="text-gray-600">•</span>
                       <span>💰 +R$ 7.100</span>
                       <span className="text-gray-600">•</span>
-                      <span>🎯 138 apostas</span>
+                      <span>🎯 138 entradas</span>
                     </div>
                   </div>
                   <div className="bg-[#1a1f36] px-4 py-3 flex items-center gap-2 border-b border-gray-700">
@@ -246,7 +246,7 @@ export default function LandingPage() {
                   <div ref={videoRef} className="bg-black">
                     <img
                       src={new URL('@/assets/prints-reais/resultado-punter-7d.png', import.meta.url).href}
-                      alt="Performance real do Arena Punter em 7 dias: ROI +25,6%, Win Rate 67,9%, 115 sinais"
+                      alt="Performance real do Arena Punter em 7 dias: ROI +25,6%, Win Rate 67,9%, 115 entradas"
                       className="w-full h-auto block"
                       loading="eager"
                     />
@@ -273,7 +273,7 @@ export default function LandingPage() {
                     Oráculo Mycroft <span className="text-yellow-400">trabalha pra você 24h por dia</span>
                   </p>
                   <p className="text-sm text-gray-300 mb-4">
-                    Ele não aposta com emoção — ele busca jogos onde <strong className="text-white">você tem a vantagem</strong>.
+                    Ele não entrada com emoção — ele busca jogos onde <strong className="text-white">você tem a vantagem</strong>.
                   </p>
 
                   <a
@@ -349,7 +349,7 @@ export default function LandingPage() {
               O Mycroft <span className="text-yellow-400">trabalha por você 24h por dia</span>
             </h2>
             <p className="text-sm sm:text-base text-gray-300 mb-6 max-w-xl mx-auto">
-              Ele não aposta com emoção — busca jogos onde <strong className="text-white">você tem a vantagem matemática</strong>. Escolha seu plano e tenha acesso imediato.
+              Ele não entrada com emoção — busca jogos onde <strong className="text-white">você tem a vantagem matemática</strong>. Escolha seu plano e tenha acesso imediato.
             </p>
             <a
               href="#planos"
@@ -426,7 +426,7 @@ export default function LandingPage() {
               POR QUE ORÁCULO MYCROFT
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600"> NÃO É MAIS UMA SALA?</span>
             </h2>
-            <p className="text-xl text-gray-400">Comparação brutal entre Oráculo e salas de sinais tradicionais</p>
+            <p className="text-xl text-gray-400">Comparação brutal entre Oráculo e salas de entradas tradicionais</p>
           </div>
           <div className="bg-[#1a1f36] rounded-2xl overflow-hidden border border-gray-700">
             <div className="grid md:grid-cols-3">
@@ -461,7 +461,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold mb-4">RESULTADOS<span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600"> 100% AUDITÁVEIS</span></h2>
-            <p className="text-xl text-gray-400">Track record verificável. Cada aposta registrada. Zero bullshit.</p>
+            <p className="text-xl text-gray-400">Track record verificável. Cada entrada registrada. Zero bullshit.</p>
           </div>
           <div className="grid lg:grid-cols-3 gap-8 mb-12">
             <div className="bg-gradient-to-br from-green-500/10 to-green-500/5 border border-green-500/30 rounded-2xl p-8 text-center">
@@ -501,7 +501,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold mb-4">PLANOS QUE CABEM NO SEU<span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600"> BOLSO</span></h2>
-            <p className="text-xl text-gray-400">4x mais barato que salas de sinais. Infinitamente mais valor.</p>
+            <p className="text-xl text-gray-400">4x mais barato que salas de entradas. Infinitamente mais valor.</p>
           </div>
           <div className="grid lg:grid-cols-3 gap-8">
             {PRICING_PLANS.map((plan, index) => (
@@ -603,7 +603,7 @@ export default function LandingPage() {
             PRONTO PARA INVESTIR COMO
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600"> PROFISSIONAL?</span>
           </h2>
-          <p className="text-xl text-gray-300 mb-8">Junte-se a 1.200+ investidores que já transformaram apostas em investimento sistemático.</p>
+          <p className="text-xl text-gray-300 mb-8">Junte-se a 1.200+ investidores que já transformaram entradas em investimento sistemático.</p>
           <a
             href="https://wa.me/5534991290648?text=Ol%C3%A1!%20Quero%20falar%20com%20um%20consultor%20do%20Or%C3%A1culo%20Mycroft."
             target="_blank"
@@ -730,7 +730,7 @@ export default function LandingPage() {
 
       {/* Footer +18 */}
       <footer className="w-full bg-[#0a0f1e] border-t border-white/10 py-4 text-center text-xs text-slate-400">
-        <p><strong className="text-red-400">+18 anos.</strong> Proibido para menores de 18 anos. Apostas esportivas envolvem risco de dependência. Jogue com responsabilidade.</p>
+        <p><strong className="text-red-400">+18 anos.</strong> Proibido para menores de 18 anos. Entradas esportivas envolvem risco de dependência. Jogue com responsabilidade.</p>
         <p className="mt-1">© 2026 Oráculo Mycroft. Nenhuma ferramenta pode garantir vitórias ou lucros constantes.</p>
       </footer>
     </>
@@ -741,7 +741,7 @@ export default function LandingPage() {
 
 const FEATURES = [
   { icon: <Brain className="w-6 h-6 text-white" />, title: "Mycroft IA Analista", description: "Cérebro quantitativo que processa 1.000+ jogos/dia e calcula Asset Score 0-100 para cada oportunidade." },
-  { icon: <Shield className="w-6 h-6 text-white" />, title: "Hórus Protetor", description: "Coach emocional que detecta tilt em tempo real e bloqueia apostas quando você está fora do seu estado ideal." },
+  { icon: <Shield className="w-6 h-6 text-white" />, title: "Hórus Protetor", description: "Coach emocional que detecta tilt em tempo real e bloqueia entradas quando você está fora do seu estado ideal." },
   { icon: <TrendingUp className="w-6 h-6 text-white" />, title: "Dual Bankroll", description: "Compare sua performance vs Hórus em tempo real. Veja exatamente quanto você perde ao não seguir recomendações." },
   { icon: <Target className="w-6 h-6 text-white" />, title: "Asset Score 0-100", description: "Cada jogo vira um ativo financeiro com score baseado em edge, probabilidade, sharp money e market inefficiency." },
   { icon: <BarChart3 className="w-6 h-6 text-white" />, title: "Track Record Auditável", description: "1.658 posições registradas. ROI +73%. Win rate 59.5%. Tudo verificável. Zero mentira." },
@@ -763,11 +763,11 @@ const PRICING_PLANS = [
     price: "49,90",
     description: "Para quem quer seguir os métodos prontos do Mycroft",
     features: [
-      "Arena Punter (sinais pré-jogo prontos)",
+      "Arena Punter (entradas pré-jogo prontos)",
       "Métodos globais do Mycroft já calibrados",
       "Asset Score + Edge calculado",
-      "Telegram VIP de sinais",
-      "Push de novos sinais aprovados",
+      "Telegram VIP de entradas",
+      "Push de novos entradas aprovados",
       "Bônus: Arena Blackjack (Hi-Lo + estratégia básica)",
       "Suporte por WhatsApp",
     ],
@@ -783,7 +783,7 @@ const PRICING_PLANS = [
       "Tudo do Iniciante +",
       "Arena Trader Sports (ao vivo)",
       "🚀 Método Hórus de Alavancagem — Hórus pilota a banca em ciclos",
-      "🛠️ Crie seus próprios métodos (Meu Plano)",
+      "🛠️ Crie seus próprios métodos (Meu Método)",
       "LABAREDA, APROVADO e cash-out em tempo real",
       "Eventos Raros (LAY Goleada, 2x2…)",
       "Bônus: Blackjack com Kelly Híbrido + Modo Ao Vivo",
@@ -815,10 +815,10 @@ const PRICING_PLANS = [
 const FAQ = [
   { question: "Como funciona o acesso após o pagamento?", answer: "Acesso liberado em segundos após a confirmação do pagamento na Kiwify. Você recebe e-mail com os dados de login e já pode entrar nas arenas Punter, Trader Sports (Profissional+) e Elite (Chat AO VIVO + Betfair Exchange)." },
   { question: "Posso testar antes de assinar um plano mensal?", answer: "Sim. Oferecemos um Day Pass de 24h por R$ 9,90 que libera tudo (Punter + Trader Sports + Hórus). É a forma mais barata de conhecer a plataforma na prática antes de escolher seu plano." },
-  { question: "Qual a diferença entre Iniciante, Profissional e Elite?", answer: "Iniciante (R$ 49,90): sinais prontos do Mycroft no Arena Punter + Blackjack básico. Profissional (R$ 149,90): destrava o Trader Sports ao vivo, a criação de métodos personalizados (Meu Plano) e o Método Hórus de Alavancagem. Elite (R$ 249,90): destrava o Chat AO VIVO com o Mycroft dentro de cada jogo e a integração com a Betfair Exchange. O Trader Financeiro (WIN/WDO/BTC) também acompanha o Elite, mas está em Beta — resultados não auditados enquanto refinamos o motor." },
-  { question: "Vocês são mais uma sala de sinais?", answer: "Não. Salas vendem 'dicas' sem comprovação. Nós somos uma plataforma de investimento esportivo com IA, track record auditável de 1.658 posições e ROI +73% verificável. A diferença é transparência total vs bullshit total." },
+  { question: "Qual a diferença entre Iniciante, Profissional e Elite?", answer: "Iniciante (R$ 49,90): entradas prontos do Mycroft no Arena Punter + Blackjack básico. Profissional (R$ 149,90): destrava o Trader Sports ao vivo, a criação de métodos personalizados (Meu Método) e o Método Hórus de Alavancagem. Elite (R$ 249,90): destrava o Chat AO VIVO com o Mycroft dentro de cada jogo e a integração com a Betfair Exchange. O Trader Financeiro (WIN/WDO/BTC) também acompanha o Elite, mas está em Beta — resultados não auditados enquanto refinamos o motor." },
+  { question: "Vocês são mais uma sala de entradas?", answer: "Não. Salas vendem 'dicas' sem comprovação. Nós somos uma plataforma de investimento esportivo com IA, track record auditável de 1.658 posições e ROI +73% verificável. A diferença é transparência total vs bullshit total." },
   { question: "Como funciona a Garantia Dobro?", answer: "Se você seguir ≥95% das recomendações Mycroft (compliance) por 3 meses consecutivos e não tiver ROI positivo, devolvemos em dobro sua assinatura. Sem letrinhas miúdas. Monitoramos tudo automaticamente." },
-  { question: "Preciso entender de apostas esportivas?", answer: "Não. Mycroft faz a análise quantitativa. Hórus te protege de decisões emocionais. Você só precisa: (1) seguir as recomendações, (2) respeitar o stake sugerido, (3) não operar em tilt. O resto é automático." },
+  { question: "Preciso entender de entradas esportivas?", answer: "Não. Mycroft faz a análise quantitativa. Hórus te protege de decisões emocionais. Você só precisa: (1) seguir as recomendações, (2) respeitar o stake sugerido, (3) não operar em tilt. O resto é automático." },
   { question: "Quanto preciso investir para começar?", answer: "Recomendamos R$ 1.000 como banca inicial para stake adequado (2-5% por posição). Mas você pode começar com R$ 500 e ir aumentando conforme os resultados. O importante é gestão de banca, não valor absoluto." },
   { question: "Posso cancelar quando quiser?", answer: "Sim. Sem fidelidade, sem multa, sem enrolação. Cancela direto na Kiwify a qualquer momento. Se cancelar no meio do mês, continuamos te atendendo até o fim do período pago." },
   { question: "Como é o suporte?", answer: "Iniciante: WhatsApp em horário comercial. Profissional: WhatsApp prioritário. Elite: mentoria direta via WhatsApp com o time. Nada de bot — pessoas reais que entendem do produto." },

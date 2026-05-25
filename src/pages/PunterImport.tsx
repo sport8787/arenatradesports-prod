@@ -39,14 +39,14 @@ export default function PunterImport() {
       </header>
 
       <div className="container mx-auto px-4 py-4 max-w-4xl space-y-4">
-        <PunterBreadcrumb items={[{ label: 'Funções', to: '/punter/funcoes' }, { label: 'Importar Apostas' }]} />
+        <PunterBreadcrumb items={[{ label: 'Funções', to: '/punter/funcoes' }, { label: 'Importar Entradas' }]} />
 
         {/* Aviso: para Betfair real, usar página dedicada */}
         <div className="border border-primary/30 bg-primary/5 rounded-lg p-3 flex items-start gap-2">
           <Brain className="w-4 h-4 text-primary shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold text-foreground">
-              Procurando análise das suas apostas reais Betfair?
+              Procurando análise das suas entradas reais Betfair?
             </p>
             <p className="text-[11px] text-muted-foreground mt-0.5">
               Esta página é para imports manuais (CSV/PDF/screenshot) e analytics da banca
@@ -58,7 +58,7 @@ export default function PunterImport() {
               className="text-primary px-0 h-auto text-xs mt-1"
               onClick={() => navigate('/punter/betfair-real')}
             >
-              Abrir Apostas Reais Betfair →
+              Abrir Entradas Reais Betfair →
             </Button>
           </div>
         </div>
@@ -126,7 +126,7 @@ function ImportedBetsList({ userId }: { userId: string }) {
   }, [userId]);
 
   if (loading) return <p className="text-xs text-muted-foreground text-center py-4">Carregando…</p>;
-  if (!bets.length) return <p className="text-xs text-muted-foreground text-center py-4">Nenhuma aposta importada manualmente ainda.</p>;
+  if (!bets.length) return <p className="text-xs text-muted-foreground text-center py-4">Nenhuma entrada importada manualmente ainda.</p>;
 
   const resultIcon = (r: string | null) => {
     if (r === 'green') return <CheckCircle className="w-3.5 h-3.5 text-success" />;
@@ -140,7 +140,7 @@ function ImportedBetsList({ userId }: { userId: string }) {
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
       className="bg-card border border-border rounded-lg overflow-hidden">
       <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-        <h3 className="font-mono text-xs font-bold text-foreground uppercase">Apostas Importadas (Manual)</h3>
+        <h3 className="font-mono text-xs font-bold text-foreground uppercase">Entradas Importadas (Manual)</h3>
         <span className={cn("font-mono text-xs font-bold", totalPL >= 0 ? "text-success" : "text-destructive")}>
           P/L: {totalPL >= 0 ? '+' : ''}{totalPL.toFixed(2)}
         </span>

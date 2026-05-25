@@ -121,7 +121,7 @@ export default function AssetScorePanel() {
                   <span className="text-[10px] font-mono text-muted-foreground">{d.count} bets</span>
                 </div>
               ))}
-              <p className="text-[9px] font-mono text-muted-foreground mt-1">Total: {totalBets} apostas com BAS</p>
+              <p className="text-[9px] font-mono text-muted-foreground mt-1">Total: {totalBets} entradas com BAS</p>
             </div>
           </div>
 

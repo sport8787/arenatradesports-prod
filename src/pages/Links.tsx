@@ -38,7 +38,7 @@ const links: LinkItem[] = [
   {
     id: 'telegram_vip',
     label: 'Telegram VIP',
-    sub: 'Grupo de sinais',
+    sub: 'Grupo de entradas',
     href: 'https://t.me/oraculo_mycroft',
     icon: Send,
     channel: 'telegram',

@@ -84,7 +84,7 @@ export default function MissedOpportunities({ userId }: MissedOpportunitiesProps
       <div className="px-4 py-2 border-b border-border flex items-center gap-4 text-[10px] font-mono text-muted-foreground">
         <span>{missedGreens.length} greens perdidos</span>
         <span>{missedReds.length} reds evitados</span>
-        <span>{missed.length} apostas não seguidas</span>
+        <span>{missed.length} entradas não seguidas</span>
       </div>
 
       <div className="divide-y divide-border">

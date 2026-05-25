@@ -269,11 +269,11 @@ function SetupCard({
               <div className="grid grid-cols-2 gap-1.5">
                 <button onClick={() => setHorusMode('assisted')} className={`px-2 py-2 rounded-md text-[11px] font-mono border ${horusMode === 'assisted' ? 'border-primary bg-primary/10 text-foreground' : 'border-border text-muted-foreground hover:text-foreground'}`}>
                   Assistido
-                  <span className="block text-[9px] opacity-80 mt-0.5">Hórus sugere, você aposta na Betfair</span>
+                  <span className="block text-[9px] opacity-80 mt-0.5">Hórus sugere, você entrada na Betfair</span>
                 </button>
                 <button onClick={() => setHorusMode('simulated')} className={`px-2 py-2 rounded-md text-[11px] font-mono border ${horusMode === 'simulated' ? 'border-primary bg-primary/10 text-foreground' : 'border-border text-muted-foreground hover:text-foreground'}`}>
                   Simulado
-                  <span className="block text-[9px] opacity-80 mt-0.5">Hórus aposta virtualmente</span>
+                  <span className="block text-[9px] opacity-80 mt-0.5">Hórus entrada virtualmente</span>
                 </button>
               </div>
             </div>
@@ -324,7 +324,7 @@ function HorusPilotPanel({ bk, onToggle, onResume }: { bk: CycleBankroll; onTogg
       <div className="rounded-lg border border-dashed border-border bg-card/30 p-3 flex items-center justify-between text-xs">
         <div className="flex items-center gap-2">
           <Bot className="w-4 h-4 text-muted-foreground" />
-          <span className="text-muted-foreground">Ativar Hórus Pilota para auto-vincular sinais de Match Odds ao ciclo</span>
+          <span className="text-muted-foreground">Ativar Hórus Pilota para auto-vincular entradas de Match Odds ao ciclo</span>
         </div>
         <Button size="sm" variant="outline" onClick={() => onToggle(true, 'simulated')} className="h-7 text-[11px]">
           Ativar piloto
@@ -361,7 +361,7 @@ function HorusPilotPanel({ bk, onToggle, onResume }: { bk: CycleBankroll; onTogg
           <PauseCircle className="w-4 h-4 text-warning mt-0.5" />
           <div className="flex-1 space-y-2">
             <p className="text-foreground font-medium">Auto-pausa após 2 REDs consecutivos.</p>
-            <p className="text-muted-foreground text-[11px]">Respiro obrigatório — robôs não respiram, você sim. Revise seus últimos sinais antes de continuar.</p>
+            <p className="text-muted-foreground text-[11px]">Respiro obrigatório — robôs não respiram, você sim. Revise seus últimos entradas antes de continuar.</p>
             <Button size="sm" onClick={onResume} className="h-7 text-[11px]"><PlayCircle className="w-3.5 h-3.5 mr-1" /> Retomar auto-vínculo</Button>
           </div>
         </div>

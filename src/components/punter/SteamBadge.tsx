@@ -19,8 +19,8 @@ interface SteamSig {
 }
 
 /**
- * SteamBadge — exibe sinal de movimentação Sharp money detectada via Futodds Exchange.
- * Mostra apenas o último sinal não-neutro nas últimas 6h.
+ * SteamBadge — exibe entrada de movimentação Sharp money detectada via Futodds Exchange.
+ * Mostra apenas o último entrada não-neutro nas últimas 6h.
  */
 export default function SteamBadge({ matchId, market, className }: Props) {
   const [sig, setSig] = useState<SteamSig | null>(null);
