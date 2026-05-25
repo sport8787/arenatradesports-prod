@@ -1,131 +1,94 @@
-## Objetivo
-Transformar leads Day Pass (R$ 9,90 / 24h) em assinantes recorrentes (R$ 47/mês) antes da janela expirar, com fallback de 5 emails + 3 pushes pós-expiração.
 
----
+# Ajustes finais na LP `/lp/day-pass.html`
 
-## 1. Backend — Asaas Subscription R$ 47/mês
+Plano aprovado pelo usuário, agora com dados confirmados de YouTube + lives.
 
-### 1.1 Tabela `day_pass_upsells`
+## Dados confirmados
+- **Canal:** https://www.youtube.com/@OraculoMycroft
+- **Lives:** Quarta-feira 21h30 e Sábado 19h (2x/semana)
+- **Decisão de embed:** usar **card com link** para o canal (mais leve, não polui LP, evita CLS do iframe do YouTube e mantém score de PageSpeed). O vídeo específico (`Hlp9rr0cueY`) pode entrar como thumbnail clicável dentro do card.
+
+## Mudanças a aplicar (em ordem)
+
+### 1. Hero — substituir pílula redundante (linhas 213–217)
+Trocar `<span><b>1.200+</b> usuários ativos</span>` por:
+`<span>📺 <b>2× por semana</b> ao vivo no YouTube</span>`
+
+### 2. Stats — neutralizar valor monetário isolado (linha 278)
+Trocar `R$ 7k · Desempenho passado documentado` por:
+`+4 anos · Histórico documentado de operações`
+
+### 3. Caption Betfair — remover "em 1 dia" (linha 308)
+`R$ 347,94 de resultado líquido em 1 dia · 5 mercados resolvidos` →
+`R$ 347,94 — exemplo de operação documentada na Betfair (5 mercados resolvidos no extrato oficial)`
+
+### 4. Caption GREENs — neutralizar jargão (linha 303)
+`5 GREENs consecutivos na Copa Libertadores — Over/Under 2.5 liquidados em sequência` →
+`5 mercados Over/Under 2.5 resolvidos com acerto na Copa Libertadores (exemplo documentado, 20–21/05)`
+
+### 5. NOVO BLOCO — "Transparência ao vivo" (inserir após linha 330, antes de "Método Mycroft")
+
+```html
+<!-- LIVE TRANSPARENCY -->
+<section class="block" style="background:rgba(239,68,68,.04)">
+  <div class="container">
+    <div class="eyebrow">📺 Transparência ao vivo</div>
+    <h2>Toda semana, ao vivo. <span class="hl">Sem corte, sem edição.</span></h2>
+    <p class="lead">
+      2 lives por semana no YouTube mostrando o Mycroft em operação real —
+      entradas, raciocínio matemático, acertos e erros. Você vê antes de assinar.
+    </p>
+
+    <div class="live-card">
+      <div class="live-thumb">
+        <a href="https://www.youtube.com/watch?v=Hlp9rr0cueY"
+           target="_blank" rel="noopener" aria-label="Assistir live no canal Oráculo Mycroft">
+          <img src="https://img.youtube.com/vi/Hlp9rr0cueY/maxresdefault.jpg"
+               alt="Live do canal Oráculo Mycroft no YouTube" loading="lazy" />
+          <span class="play">▶</span>
+        </a>
+      </div>
+      <div class="live-info">
+        <span class="live-badge">CANAL OFICIAL</span>
+        <h3>@OraculoMycroft</h3>
+        <ul class="live-schedule">
+          <li>🔴 <b>Quarta-feira</b> · 21h30</li>
+          <li>🔴 <b>Sábado</b> · 19h00</li>
+        </ul>
+        <a href="https://www.youtube.com/@OraculoMycroft?sub_confirmation=1"
+           target="_blank" rel="noopener" class="cta cta-secondary">
+          Inscrever-se no canal →
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
 ```
-user_id, asaas_subscription_id, status (pending|active|cancelled|overdue),
-first_charge_id, first_payment_at, next_due_date, cancelled_at,
-created_at, updated_at
+
+Mais o CSS correspondente (dentro do `<style>` existente) para `.live-card`, `.live-thumb`, `.live-info`, `.live-badge`, `.live-schedule`, `.cta-secondary` — grid responsivo (2 colunas desktop, 1 coluna mobile), thumb com play overlay vermelho, badge vermelha "CANAL OFICIAL".
+
+### 6. Card de preço — mencionar grupo WhatsApp como bônus (linhas 219–231 e 403–414)
+Acrescentar uma linha logo abaixo de `.price-sub`:
+```html
+<div class="price-bonus">
+  ✅ <b>Bônus:</b> acesso ao grupo dos fundadores no WhatsApp —
+  onde o método é operado e discutido em tempo real.
+</div>
 ```
-RLS: usuário lê próprio; service role escreve.
+(Aplicar nos dois cards de preço — hero e final.)
 
-### 1.2 Edge function `asaas-create-subscription`
-- Recebe `{ cpfCnpj }` do usuário autenticado.
-- Cria/recupera customer Asaas (reusa do `asaas-create-charge`).
-- POST `/v3/subscriptions` com `billingType=PIX`, `value=47`, `cycle=MONTHLY`, `nextDueDate=hoje+1`, `description="Oráculo Mycroft — Assinatura Mensal"`.
-- Persiste em `day_pass_upsells` com status=`pending`.
-- Retorna `{ subscriptionId, firstChargeId, pixQrCode, pixPayload, invoiceUrl }` pegando 1ª cobrança via `/v3/payments?subscription=`.
+### 7. Footer — remover link com slug "apostas" (linha 430)
+Trocar `<a href="/lp/ia-apostas-esportivas.html">Plataforma completa</a>` por:
+`<a href="/">Plataforma completa</a>`
+(O arquivo legado continua existindo; só removemos a referência interna da LP. Não renomeia o arquivo agora para evitar mexer em redirects/SEO em escopo separado.)
 
-### 1.3 Extensão do `asaas-webhook`
-- Já trata `PAYMENT_CONFIRMED` / `PAYMENT_RECEIVED` do Day Pass.
-- Adicionar: se `subscription` presente no payload → atualiza `day_pass_upsells` (status=`active`, atualiza `next_due_date`) e estende `user_subscriptions` por 30 dias (`plan='premium'`, `is_active=true`, `current_period_end=now()+30d`).
-- Tratar `PAYMENT_OVERDUE` → `status=overdue`.
-- Tratar `SUBSCRIPTION_DELETED` → `status=cancelled`.
+## Itens fora deste escopo (não vou tocar)
+- Forçar redirect pós-pagamento para tela "entre no grupo" em `LobbyPreview.tsx` — é mudança de fluxo, fica para um próximo turno se o usuário pedir.
+- Renomear `ia-apostas-esportivas.html` — exige redirect em `vercel.json`, pode ser pedido separado.
 
----
+## Verificação ao final
+- `rg -n "GREENs consecutivos|em 1 dia|R\\$ 7k" public/lp/day-pass.html` deve retornar zero.
+- Conferir visualmente o novo bloco no preview (mobile 743px e desktop).
+- Conferir que o card WhatsApp aparece nos dois cards de preço.
 
-## 2. Frontend — Upsell in-app
-
-### 2.1 Hook `useDayPassUpsell`
-- Lê do banco: tempo restante do Day Pass, status do upsell, se já tem GREEN no dia.
-- Calcula gatilhos:
-  - **Trigger A:** primeiro GREEN detectado (subscribe a `virtual_bets_punter`/`punter_sinais` onde `resultado=GREEN` e `user_id`=atual).
-  - **Trigger B:** restando ≤ 4h.
-  - **Trigger C:** restando ≤ 1h.
-- Estado de dismiss por gatilho em `localStorage` (não spammar).
-
-### 2.2 Componente `UpsellModal`
-- Headline dinâmica por gatilho:
-  - GREEN: "Você acaba de ver o Oráculo trabalhar. Continue por R$ 47/mês."
-  - 4h: "Faltam 4h. Garanta acesso contínuo por R$ 47/mês."
-  - 1h: "ÚLTIMA HORA. Não perca o ritmo — R$ 47/mês."
-- Input CPF (mascarado, validado) → chama `asaas-create-subscription`.
-- Mostra QR Code Pix + copia-cola + spinner aguardando webhook (igual `LobbyPreview`).
-- Banner persistente no topo (cor mudando por urgência) com botão "Continuar acesso".
-
-### 2.3 Montagem global
-- `UpsellGate` em `App.tsx` (dentro do RequireSubscription) renderiza modal/banner se `useDayPassUpsell.shouldShow`.
-
----
-
-## 3. Sequência Email/Push pós-Day Pass
-
-### 3.1 Edge function `day-pass-lifecycle-notify` (cron diário 13h UTC)
-Lê leads do Day Pass via `user_subscriptions` + `day_pass_upsells`:
-
-| Janela após signup | Canal | Mensagem |
-|---|---|---|
-| D+0 (4h antes de expirar) | Email + Push | "Seu acesso expira em 4h. Assine R$ 47/mês e mantenha o ritmo." |
-| D+1 (24h após expirar, sem upsell ativo) | Email | "Você viu o Oráculo trabalhar ontem. Volte por R$ 47/mês." |
-| D+2 | Push | "Hoje teve GREEN no Punter. Você está fora." (texto dinâmico se houve green) |
-| D+5 | Email | Recap de resultados reais dos últimos 5 dias (greens/wr/lucro) + CTA |
-| D+15 | Email (última) | "Reativação R$ 27 nos próximos 7 dias" (cupom único) |
-
-Dedup via tabela `day_pass_lifecycle_log` (user_id, touch, sent_at).
-
-### 3.2 Cron
-`SELECT cron.schedule('day-pass-lifecycle', '0 13 * * *', ...)`
-
----
-
-## 4. Analytics PostHog
-
-Eventos novos em `src/lib/analytics.ts`:
-- `day_pass_signup` (já existe? confirmar)
-- `lobby_preview_viewed`
-- `liberar_arenas_clicked`
-- `pix_day_pass_generated`
-- `pix_day_pass_paid`
-- `upsell_modal_viewed` (trigger: green|4h|1h)
-- `upsell_cpf_submitted`
-- `upsell_pix_generated`
-- `upsell_pix_paid`
-- `lifecycle_email_sent` (touch: D0|D1|D5|D15)
-
----
-
-## 5. Memória
-Salvar `mem://features/day-pass/funnel-and-upsell` com: ticket R$ 9,90 → upsell R$ 47/mês recorrente, gatilhos green/4h/1h, sequência D0/D1/D2/D5/D15.
-
----
-
-## Migrations necessárias
-1. Tabela `day_pass_upsells` + RLS.
-2. Tabela `day_pass_lifecycle_log` + RLS.
-3. Cron `day-pass-lifecycle` (via insert tool, com URL e anon key).
-
-## Edges novas
-- `asaas-create-subscription`
-- `day-pass-lifecycle-notify`
-
-## Edges editadas
-- `asaas-webhook` (subscription events)
-
-## Arquivos frontend
-- novo: `src/hooks/useDayPassUpsell.ts`
-- novo: `src/components/upsell/UpsellModal.tsx`
-- novo: `src/components/upsell/UpsellBanner.tsx`
-- novo: `src/components/upsell/UpsellGate.tsx`
-- edit: `src/App.tsx` (montar UpsellGate)
-- edit: `src/lib/analytics.ts` (eventos novos)
-
----
-
-## Detalhe técnico Asaas Subscription
-- Endpoint: `POST {ASAAS_BASE}/v3/subscriptions`
-- Pix recorrente: o Asaas gera **uma nova cobrança Pix por ciclo** automaticamente. Primeira cobrança via `GET /v3/payments?subscription={id}&limit=1`.
-- Webhook envia `PAYMENT_RECEIVED` em cada renovação → nossa edge estende `current_period_end` em 30 dias a cada pagamento.
-- Cancelamento user-side: futuro (não no escopo desta entrega).
-
----
-
-## Fora de escopo (alertar usuário)
-- Página de cancelamento de assinatura (admin pode cancelar via Asaas direto por enquanto).
-- Tela "Minha assinatura" detalhada com histórico de cobranças.
-- Cupom único D+15 (gera valor fixo R$ 27 — implementação simples, mas notificar).
-
-Tempo estimado: 2 migrations + 2 edges novas + 1 edge editada + 4 arquivos frontend.
+Pronto para entrar em build mode e aplicar.

@@ -182,6 +182,22 @@
     body{padding-bottom:90px}
   }
 
+  .price-bonus{margin-top:10px;padding:10px 12px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);border-radius:10px;font-size:13px;color:#bbf7d0;text-align:left;line-height:1.45}
+  .price-bonus b{color:#22c55e}
+  .live-card{display:grid;grid-template-columns:1.2fr 1fr;gap:24px;align-items:center;background:rgba(255,255,255,.03);border:1px solid rgba(239,68,68,.25);border-radius:16px;padding:20px;margin-top:24px}
+  .live-thumb{position:relative;border-radius:12px;overflow:hidden;aspect-ratio:16/9;background:#000}
+  .live-thumb a{display:block;width:100%;height:100%}
+  .live-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .live-thumb .play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:54px;color:#fff;text-shadow:0 4px 20px rgba(239,68,68,.8);background:rgba(0,0,0,.25);transition:background .2s}
+  .live-thumb:hover .play{background:rgba(0,0,0,.45)}
+  .live-info{display:flex;flex-direction:column;gap:12px}
+  .live-badge{display:inline-flex;align-self:flex-start;align-items:center;gap:6px;background:#ef4444;color:#fff;font-size:11px;font-weight:800;letter-spacing:.06em;padding:5px 10px;border-radius:999px}
+  .live-info h3{margin:0;font-size:24px;color:#fff}
+  .live-schedule{list-style:none;padding:0;margin:4px 0;display:flex;flex-direction:column;gap:8px;font-size:15px;color:#e5e7eb}
+  .live-schedule li b{color:#fff}
+  .cta-secondary{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:transparent;color:#fca5a5;border:1.5px solid #ef4444;padding:12px 18px;border-radius:10px;font-weight:700;text-decoration:none;transition:all .2s;align-self:flex-start}
+  .cta-secondary:hover{background:#ef4444;color:#fff}
+  @media (max-width:720px){.live-card{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -213,13 +229,14 @@
     <div class="hero-proof">
       <span><b>Modelagem</b> estatística</span>
       <span><b>Análise</b> quantitativa</span>
-      <span><b>1.200+</b> usuários ativos</span>
+      <span>📺 <b>2× por semana</b> ao vivo no YouTube</span>
     </div>
 
     <div class="price-card">
       <div class="plabel">🎟️ Day Pass · Pagamento único</div>
       <div class="price">R$ 9<small>,90</small></div>
       <div class="price-sub">24h de acesso completo · Sem mensalidade · Sem cartão</div>
+      <div class="price-bonus">✅ <b>Bônus:</b> acesso ao grupo dos fundadores no WhatsApp — onde o método é operado e discutido em tempo real.</div>
 
       <a href="/day-pass"
          target="_blank" rel="noopener" class="cta cta-whatsapp daypass-cta">
@@ -275,7 +292,7 @@
     <div class="stats">
       <div class="stat"><div class="stat-num">12.000+</div><div class="stat-lbl">Jogos analisados historicamente</div></div>
       <div class="stat"><div class="stat-num">Modelagem</div><div class="stat-lbl">Estatística de valor esperado</div></div>
-      <div class="stat"><div class="stat-num">R$ 7k</div><div class="stat-lbl">Desempenho passado documentado</div></div>
+      <div class="stat"><div class="stat-num">+4 anos</div><div class="stat-lbl">Histórico documentado de operações</div></div>
       <div class="stat"><div class="stat-num">1.200+</div><div class="stat-lbl">Usuários ativos</div></div>
     </div>
 
@@ -300,12 +317,12 @@
 
       <div class="proof-card wide">
         <img src="/lp/proof-greens-arena-live.png" alt="5 GREENs consecutivos da Copa Libertadores no Mycroft Arena Live" loading="lazy" />
-        <div class="cap"><span class="proof-tag">Greens</span><b>5 GREENs consecutivos</b> na Copa Libertadores — Over/Under 2.5 liquidados em sequência (20–21/05).</div>
+        <div class="cap"><span class="proof-tag">Greens</span><b>5 mercados Over/Under 2.5</b> resolvidos com acerto na Copa Libertadores (exemplo documentado, 20–21/05).</div>
       </div>
 
       <div class="proof-card">
         <img src="/lp/proof-betfair-lucro.jpeg" alt="Extrato Betfair real mostrando R$ 347,94 de resultado líquido em um único dia" loading="lazy" />
-        <div class="cap"><span class="proof-tag">Betfair real</span><b>R$ 347,94</b> de resultado líquido em 1 dia · 5 mercados resolvidos (extrato oficial Betfair).<br><span style="display:block;margin-top:6px;font-size:11px;color:#94a3b8">Resultado passado. Exemplo de performance documentada, não representa ganhos futuros.</span></div>
+        <div class="cap"><span class="proof-tag">Betfair real</span><b>R$ 347,94</b> — exemplo de operação documentada na Betfair (5 mercados resolvidos no extrato oficial).<br><span style="display:block;margin-top:6px;font-size:11px;color:#94a3b8">Resultado passado. Exemplo de performance documentada, não representa ganhos futuros.</span></div>
       </div>
       <div class="proof-card">
         <img src="/lp/proof-betfair-banca.jpeg" alt="Banca principal Betfair com R$ 6.304,23 operando ao vivo" loading="lazy" />
@@ -329,8 +346,39 @@
   </div>
 </section>
 
+
+<!-- LIVE TRANSPARENCY -->
+<section class="block" style="background:rgba(239,68,68,.04)">
+  <div class="container">
+    <div class="eyebrow">📺 Transparência ao vivo</div>
+    <h2>Toda semana, ao vivo. <span class="hl">Sem corte, sem edição.</span></h2>
+    <p class="lead">2 lives por semana no YouTube mostrando o Mycroft em operação real — entradas, raciocínio matemático, acertos e erros. Você vê antes de assinar.</p>
+
+    <div class="live-card">
+      <div class="live-thumb">
+        <a href="https://www.youtube.com/watch?v=Hlp9rr0cueY" target="_blank" rel="noopener" aria-label="Assistir live no canal Oráculo Mycroft">
+          <img src="https://img.youtube.com/vi/Hlp9rr0cueY/maxresdefault.jpg" alt="Live do canal Oráculo Mycroft no YouTube" loading="lazy" />
+          <span class="play">▶</span>
+        </a>
+      </div>
+      <div class="live-info">
+        <span class="live-badge">● CANAL OFICIAL</span>
+        <h3>@OraculoMycroft</h3>
+        <ul class="live-schedule">
+          <li>🔴 <b>Quarta-feira</b> · 21h30</li>
+          <li>🔴 <b>Sábado</b> · 19h00</li>
+        </ul>
+        <a href="https://www.youtube.com/@OraculoMycroft?sub_confirmation=1" target="_blank" rel="noopener" class="cta-secondary">
+          Inscrever-se no canal →
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- HOW IT WORKS -->
 <section class="block">
+
   <div class="container">
     <div class="eyebrow">Método Mycroft</div>
     <h2>Método Mycroft — Da Coleta à Execução.</h2>
@@ -404,6 +452,7 @@
       <div class="plabel">🎟️ Day Pass · 24h</div>
       <div class="price">R$ 9<small>,90</small></div>
       <div class="price-sub">Pagamento único · Sem mensalidade</div>
+      <div class="price-bonus">✅ <b>Bônus:</b> acesso ao grupo dos fundadores no WhatsApp — onde o método é operado e discutido em tempo real.</div>
 
       <a href="/day-pass"
          target="_blank" rel="noopener" class="cta cta-whatsapp daypass-cta">
@@ -427,7 +476,7 @@
 <footer class="compliance">
   <div class="container">
     <div class="footer-links">
-      <a href="/lp/ia-apostas-esportivas.html">Plataforma completa</a>
+      <a href="/">Plataforma completa</a>
       <a href="https://wa.me/5534991290648" target="_blank" rel="noopener">Contato WhatsApp</a>
       <a href="/termos">Termos de Uso</a>
       <a href="/privacidade">Política de Privacidade</a>
