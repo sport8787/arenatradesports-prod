@@ -46,9 +46,12 @@ interface CycleEntry {
   created_at: string;
 }
 
+import { useHorusTrigger } from '@/hooks/useHorusTrigger';
+
 export default function Ciclos() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  useHorusTrigger('ciclos_first_visit');
   const [loading, setLoading] = useState(true);
   const [bk, setBk] = useState<CycleBankroll | null>(null);
   const [entries, setEntries] = useState<CycleEntry[]>([]);
