@@ -340,9 +340,9 @@ export default function ArenaTraderSportsMeuPlano() {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <Target className="w-4 h-4 text-primary" />
-          <h1 className="font-mono text-sm font-semibold tracking-tight">MEUS PLANOS · ARENA TRADER SPORTS</h1>
+          <h1 className="font-mono text-sm font-semibold tracking-tight">MEUS MÉTODOS · ARENA TRADER SPORTS</h1>
           <Badge variant="outline" className="ml-auto text-[10px] font-mono">
-            {plans.length} planos · {enabledCount} ativo{enabledCount === 1 ? '' : 's'}
+            {plans.length} métodos · {enabledCount} ativo{enabledCount === 1 ? '' : 's'}
           </Badge>
         </div>
       </header>
@@ -351,8 +351,8 @@ export default function ArenaTraderSportsMeuPlano() {
         <div className="rounded-lg border border-border bg-card/40 p-4 text-sm space-y-1">
           <p className="font-medium text-foreground">Como funciona</p>
           <p className="text-muted-foreground text-[13px]">
-            Crie quantos planos quiser, cada um com seus próprios critérios. Os planos <span className="text-success font-medium">ativos</span> rodam no seu navegador em cima dos jogos ao vivo e os sinais aparecem em
-            <span className="text-primary font-medium"> "Meus Sinais" </span>
+            Crie quantos métodos quiser, cada um com seus próprios critérios. Os métodos <span className="text-success font-medium">ativos</span> rodam no seu navegador em cima dos jogos ao vivo e as operações aparecem em
+            <span className="text-primary font-medium"> "Meus Métodos" </span>
             dentro da Arena Trader Sports — em paralelo aos sinais do Mycroft global.
           </p>
         </div>
@@ -362,8 +362,8 @@ export default function ArenaTraderSportsMeuPlano() {
             <p className="text-sm font-medium text-foreground">Visibilidade</p>
             <p className="text-[12px] text-muted-foreground">
               {visibility === 'public'
-                ? 'Público — seus planos podem aparecer no ranking da Liga Mycroft (em breve).'
-                : 'Privado — só você e o admin veem seus planos e ROI.'}
+                ? 'Público — seus métodos podem aparecer no ranking da Liga Mycroft (em breve).'
+                : 'Privado — só você e o admin veem seus métodos e ROI.'}
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">

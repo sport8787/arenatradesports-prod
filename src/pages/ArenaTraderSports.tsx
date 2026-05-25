@@ -525,7 +525,7 @@ export default function ArenaTraderSports() {
               </GoldButton>
               <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/meu-plano')}>
                 <Sparkles className="w-4 h-4 mr-1" />
-                Meu Plano
+                Meu Método
               </GoldButton>
               <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/ciclos')}>
                 <TrendingUp className="w-4 h-4 mr-1" />
