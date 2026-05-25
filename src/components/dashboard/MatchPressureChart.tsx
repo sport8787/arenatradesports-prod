@@ -49,12 +49,14 @@ export function useMatchPressure(args: FetchArgs, refreshMs = 60000) {
         let resp: any = null;
         // Sportmonks PRIMEIRO (Pressure Index oficial / Trends suavizado)
         try {
-          const sm = await supabase.functions.invoke("sportmonks-pressure", {
-            body: { home: args.home, away: args.away, commence_time: args.commenceTime, fixtureId: args.fixtureId },
-          });
-          const smData: any = sm.data;
-          if (!sm.error && smData && Array.isArray(smData.timeline) && smData.timeline.length > 0) {
-            resp = smData;
+          if (args.fixtureId || (args.home && args.away)) {
+            const sm = await supabase.functions.invoke("sportmonks-pressure", {
+              body: { home: args.home, away: args.away, commence_time: args.commenceTime, fixtureId: args.fixtureId },
+            });
+            const smData: any = sm.data;
+            if (!sm.error && smData && Array.isArray(smData.timeline) && smData.timeline.length > 0) {
+              resp = smData;
+            }
           }
         } catch { /* cai para Futodds */ }
 
