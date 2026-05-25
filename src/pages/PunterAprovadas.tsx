@@ -72,7 +72,7 @@ export default function PunterAprovadasPage() {
           {isAdmin && (
             <p className="font-mono text-[11px] text-primary/80 mt-2">
               <Sparkles className="w-3 h-3 inline mr-1" />
-              <strong>Admin:</strong> use o botão <em>Sportmonks</em> para rodar uma segunda opinião pré-live com dados da Sportmonks (cobre melhor sul-americano e 2ª divisão). Os sinais aparecerão marcados com <code className="text-[10px]">analyzed_by: sportmonks</code>.
+              <strong>Admin:</strong> use o botão <em>Sportmonks</em> para rodar uma segunda opinião pré-live com dados da Sportmonks (cobre melhor sul-americano e 2ª divisão). As entradas aparecerão marcadas com <code className="text-[10px]">analyzed_by: sportmonks</code>.
             </p>
           )}
         </div>
