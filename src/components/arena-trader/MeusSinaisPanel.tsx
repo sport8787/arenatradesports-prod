@@ -104,11 +104,11 @@ export default function MeusSinaisPanel() {
         <div className="flex items-center gap-3">
           <Target className="w-4 h-4 text-primary" />
           <div>
-            <p className="text-sm font-medium text-foreground">Meus Sinais (planos pessoais)</p>
+            <p className="text-sm font-medium text-foreground">Meus Métodos (método pessoal)</p>
             <p className="text-[12px] text-muted-foreground">
               {plans.length === 0
-                ? 'Crie seus próprios planos e o Mycroft filtra ao vivo só para você.'
-                : `Você tem ${plans.length} plano(s) salvo(s), mas nenhum está ativo.`}
+                ? 'Crie seus próprios métodos de operar e o Mycroft filtra ao vivo só para você.'
+                : `Você tem ${plans.length} método(s) salvo(s), mas nenhum está ativo.`}
             </p>
           </div>
         </div>
@@ -116,7 +116,7 @@ export default function MeusSinaisPanel() {
           onClick={() => navigate('/arena-trader-sports/meu-plano')}
           className="text-xs font-mono text-primary hover:underline flex items-center gap-1"
         >
-          <Settings2 className="w-3.5 h-3.5" /> {plans.length === 0 ? 'Criar plano' : 'Gerenciar'}
+          <Settings2 className="w-3.5 h-3.5" /> {plans.length === 0 ? 'Criar método' : 'Gerenciar'}
         </button>
       </div>
     );
@@ -127,7 +127,7 @@ export default function MeusSinaisPanel() {
       <div className="px-4 py-2.5 flex items-center justify-between border-b border-border">
         <div className="flex items-center gap-2">
           <Target className="w-4 h-4 text-primary" />
-          <span className="font-mono text-xs uppercase tracking-wider text-foreground">Meus Sinais</span>
+          <span className="font-mono text-xs uppercase tracking-wider text-foreground">Meus Métodos</span>
           <span className="text-[11px] text-muted-foreground">
             ({activePlans.length} plano{activePlans.length > 1 ? 's' : ''} ativo{activePlans.length > 1 ? 's' : ''} · {hits.length} aprovaç{hits.length === 1 ? 'ão' : 'ões'})
           </span>
@@ -144,14 +144,14 @@ export default function MeusSinaisPanel() {
 
       {hits.length === 0 ? (
         <div className="px-4 py-4 space-y-2">
-          <p className="text-sm font-medium text-foreground">⏳ Ainda não há sinais aprovados pelos seus planos.</p>
+          <p className="text-sm font-medium text-foreground">⏳ Ainda não há operações aprovadas pelos seus métodos.</p>
           <p className="text-[12px] text-muted-foreground leading-relaxed">
             Varrendo {matches.filter(m => (m.status === 'live' || m.status === 'halftime') && !(m.match_id || '').startsWith('sim_')).length} jogo(s) ao vivo.
-            Nenhum atendeu aos critérios dos planos: {activePlans.map((p) => p.name).join(', ')}.
+            Nenhum atendeu aos critérios dos métodos: {activePlans.map((p) => p.name).join(', ')}.
           </p>
           <ul className="text-[11px] text-muted-foreground list-disc pl-4 space-y-0.5">
             <li>A lista atualiza sozinha a cada 30s.</li>
-            <li>Se estiver muito restritivo, edite em <button onClick={() => navigate('/arena-trader-sports/meu-plano')} className="text-primary hover:underline">Meus Planos</button>.</li>
+            <li>Se estiver muito restritivo, edite em <button onClick={() => navigate('/arena-trader-sports/meu-plano')} className="text-primary hover:underline">Meus Métodos</button>.</li>
           </ul>
         </div>
       ) : (
