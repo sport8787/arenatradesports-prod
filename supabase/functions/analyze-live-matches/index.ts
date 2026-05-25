@@ -1194,6 +1194,7 @@ serve(async (req) => {
         }
         // ====================================================================
 
+        const _isApprovedVerdict = ['APROVADO', 'APROVADO_SITUACIONAL', 'LABAREDA'].includes(analysis.verdict);
         const { data: analysisRow, error: insertError } = await supabase
           .from('mycroft_analyses')
           .insert({
@@ -1208,6 +1209,10 @@ serve(async (req) => {
             alerts: Array.isArray(analysis.alerts) ? analysis.alerts.filter((a: any) => typeof a === 'string') : [],
             fundamentation: analysis.fundamentation ?? { stats: enrichedStats },
             stats_snapshot: _isApprovedSm ? { provider: 'sportmonks', minute: match.minute ?? 0, score_home: match.score_home ?? 0, score_away: match.score_away ?? 0, stats: enrichedStats } : null,
+            // Snapshot do placar no momento da aprovação — exigido pela RPC settle_mycroft_analysis
+            // para liquidar mercados "Próximo Gol" (e útil para auditoria de qualquer mercado).
+            approved_at_score_home: _isApprovedVerdict ? (match.score_home ?? 0) : null,
+            approved_at_score_away: _isApprovedVerdict ? (match.score_away ?? 0) : null,
           })
           .select('id')
           .single();
