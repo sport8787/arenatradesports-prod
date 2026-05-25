@@ -108,7 +108,7 @@ export default function AdminAuditoriaSinais() {
   const [rows, setRows] = useState<AuditRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "inconsistent" | "green" | "red" | "pending">("inconsistent");
-  const [sourceFilter, setSourceFilter] = useState<"all" | "primary" | "shadow_af">("all");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "primary">("all");
   const [search, setSearch] = useState("");
   const [days, setDays] = useState<7 | 14 | 30>(7);
 
