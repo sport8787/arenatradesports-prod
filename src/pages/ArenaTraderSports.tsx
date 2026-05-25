@@ -397,7 +397,7 @@ export default function ArenaTraderSports() {
           if (effectiveStatus !== 'live') return false;
           const approvedStatuses = ['APROVADO', 'APROVADO_SITUACIONAL', 'opportunity', 'LABAREDA'];
           if (!approvedStatuses.includes(m.mycroftStatus)) return false;
-          // Excluir sinais de 1º tempo já expirados (após HT)
+          // Excluir entradas de 1º tempo já expiradas (após HT)
           if (isExpiredHtSignal({ market: m.market, minute: m.minute, period: m.period, status: m.status })) return false;
           // Filtro por mercado (selecionado pelo usuário)
           if (marketFilters.length > 0) {
@@ -429,7 +429,7 @@ export default function ArenaTraderSports() {
       });
   }, [statusFilter, selectedChampionships, selectedRegions, allMatches, onlyFavorites, isMatchFavorite, marketFilters, focusMode]);
 
-  // Mercados disponíveis nos sinais APROVADOS ao vivo (para popular o filtro)
+  // Mercados disponíveis nas entradas APROVADAS ao vivo (para popular o filtro)
   const approvedMarketOptions = useMemo(() => {
     const approvedStatuses = ['APROVADO', 'APROVADO_SITUACIONAL', 'opportunity', 'LABAREDA'];
     const counts = new Map<string, number>();
