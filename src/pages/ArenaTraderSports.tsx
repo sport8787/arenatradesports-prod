@@ -391,7 +391,7 @@ export default function ArenaTraderSports() {
         }
         // In all other tabs, exclude sim_ matches
         if (m.matchId?.startsWith('sim_')) return false;
-        // Aba "Sinais Aprovados": apenas APROVADOS com jogo em andamento (live ou halftime)
+        // Aba "Entradas Aprovadas": apenas APROVADOS com jogo em andamento (live ou halftime)
         if (statusFilter === 'aprovados') {
           const effectiveStatus = (m.status as string) === 'halftime' ? 'live' : m.status;
           if (effectiveStatus !== 'live') return false;
