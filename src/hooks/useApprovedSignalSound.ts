@@ -11,6 +11,8 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { playCriticalAlert } from '@/lib/criticalAlertSound';
+import { horusMentor } from '@/services/horusMentor';
+
 
 const APPROVED_VERDICTS = new Set([
   'APROVADO',
