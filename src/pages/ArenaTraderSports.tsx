@@ -154,7 +154,7 @@ export default function ArenaTraderSports() {
   const { bankroll, loading: bankrollLoading, placeBet, cashOut, settleBets, updateInitialBalance } = useSportsBankroll();
   const { games: scheduledGames, loading: scheduledLoading } = useScheduledGames();
   const { requestPush, isSupported: pushSupported } = usePushNotifications();
-  const validStatusFilters: StatusFilter[] = ['all','proximos','live','aprovados','meus_sinais','aprovados_af','aprovados_ai','det_vs_ia','scheduled','finished','simulado'];
+  const validStatusFilters: StatusFilter[] = ['all','proximos','live','aprovados','meus_sinais','aprovados_ai','det_vs_ia','scheduled','finished','simulado'];
   const [statusFilter, setStatusFilter] = usePersistedState<StatusFilter>('arenaTraderSports.statusFilter', 'all');
   const [selectedChampionships, setSelectedChampionships] = useState<string[]>(() => {
     if (typeof window === 'undefined') return [];
