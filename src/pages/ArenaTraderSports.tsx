@@ -742,10 +742,10 @@ export default function ArenaTraderSports() {
             <SimulationPanel onFetched={refetch} />
           )}
 
-          {/* Meus Sinais — painel grande quando a aba está ativa */}
+          {/* Meus Métodos — painel grande quando a aba está ativa */}
           {statusFilter === 'meus_sinais' && (
             <div className="space-y-3">
-              <MeusSinaisPanel />
+              <MeusMetodosPanel />
             </div>
           )}
 
