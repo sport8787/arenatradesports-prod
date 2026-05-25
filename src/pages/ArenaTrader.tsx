@@ -804,13 +804,18 @@ export default function ArenaTrader() {
       <MarketEventOverlay event={marketEvent} />
       <TraderBalanceHeader balance={balance} unrealizedPnl={totalUnrealizedPnl} />
 
-      {/* Development Notice */}
+      {/* Beta Notice */}
       <div className="pt-16 px-3 max-w-7xl mx-auto">
-        <div className="mb-4 flex items-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
-          <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
-          <p className="text-sm font-mono text-amber-300">
-            🚧 <span className="font-semibold">Arena Trader Financeiro em desenvolvimento.</span> Algumas funcionalidades podem estar indisponíveis.
-          </p>
+        <div className="mb-4 flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3">
+          <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-sm font-mono font-semibold text-amber-300">
+              🧪 BETA · resultados não auditados
+            </p>
+            <p className="text-xs font-mono text-amber-300/80 mt-1 leading-relaxed">
+              Arena Trader Financeiro está em fase experimental. WIN, WDO e BTC ainda estão sendo calibrados — sem garantia de paridade com o Trader Sports. Resultados desta arena <strong>não entram na Liga Mycroft</strong>. Use por sua conta e risco.
+            </p>
+          </div>
         </div>
       </div>
 

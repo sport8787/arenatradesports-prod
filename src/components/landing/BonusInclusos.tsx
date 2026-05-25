@@ -49,18 +49,18 @@ const BONUS = [
   },
   {
     icon: LineChart,
-    badge: '📈 BÔNUS · MESMO MÉTODO, OUTRO MERCADO',
-    title: 'Arena Trader Financeiro',
-    desc: 'A mesma lógica do Trader Sports aplicada a WIN, WDO e BTC. Quem opera esporte e quer diversificar pra mercado financeiro tem o Mycroft trabalhando com R:R ≥ 1:1.5, stop loss automático e leitura técnica em tempo real.',
+    badge: '🧪 BETA · EM CALIBRAÇÃO',
+    title: 'Arena Trader Financeiro (Beta)',
+    desc: 'Versão experimental. Estamos calibrando R:R, stop loss e leitura técnica para WIN, WDO e BTC. Sem garantia de paridade com o Trader Sports — use por sua conta e risco enquanto o motor é refinado.',
     bullets: [
       'WIN (mini-índice) com proxy ^BVSP',
       'WDO (mini-dólar) com proxy USD/BRL',
       'BTC escalonado em 0.01 unidades',
-      'Stop loss e take profit automáticos',
+      'Beta: resultados não auditados, não entram na Liga Mycroft',
     ],
-    warning: '💡 Mesma filosofia: o Mycroft não torce, ele calcula. Ferramenta de gestão de risco.',
+    warning: '⚠️ Beta em testes. Não confunda com o Trader Sports (esportivo), que já é maduro e auditado.',
     accent: 'from-sky-500/15 to-sky-900/5 border-sky-500/40',
-    badgeColor: 'text-sky-300 border-sky-500/40',
+    badgeColor: 'text-amber-300 border-amber-500/40',
   },
 ];
 
@@ -121,7 +121,7 @@ export default function BonusInclusos() {
         </div>
 
         <p className="text-center text-xs text-gray-500 mt-8 max-w-2xl mx-auto">
-          Ciclos e Blackjack: já no Profissional. Chat ao Vivo + Trader Financeiro completo: exclusivo do Elite.
+          Ciclos e Blackjack: já no Profissional. Chat ao Vivo: exclusivo do Elite. Trader Financeiro está em <span className="text-amber-400 font-semibold">Beta</span> — incluso no Elite enquanto refinamos.
         </p>
       </div>
     </section>

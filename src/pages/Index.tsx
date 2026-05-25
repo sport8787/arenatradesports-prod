@@ -31,11 +31,12 @@ const heroArenas = [
 const sideArenas = [
   {
     title: 'Arena Trader Financeiro',
-    description: 'WIN, WDO e BTC com a mesma lógica do Trader Sports.',
+    description: 'Experimental — WIN, WDO e BTC sendo testados com a lógica do Trader Sports. Resultados não auditados.',
     href: '/arena-trader',
     icon: LineChart,
-    badge: null,
+    badge: 'BETA',
     accent: 'from-sky-500/15 to-sky-700/5 border-sky-500/30',
+    badgeClass: 'bg-amber-500 text-black',
   },
   {
     title: 'Arena Blackjack',
@@ -163,7 +164,11 @@ export default function Index() {
                   className={`group relative rounded-xl border bg-gradient-to-br ${arena.accent} p-4 text-left transition hover:scale-[1.02] hover:shadow-lg`}
                 >
                   {arena.badge && (
-                    <span className="absolute top-2 right-2 rounded-full bg-background/70 backdrop-blur px-2 py-0.5 text-[9px] font-bold tracking-wider text-foreground/80 border border-border/50">
+                    <span className={`absolute top-2 right-2 rounded-full backdrop-blur px-2 py-0.5 text-[9px] font-bold tracking-wider border ${
+                      arena.badge === 'BETA'
+                        ? 'bg-amber-500/15 text-amber-400 border-amber-500/40'
+                        : 'bg-background/70 text-foreground/80 border-border/50'
+                    }`}>
                       {arena.badge}
                     </span>
                   )}
