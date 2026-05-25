@@ -29,7 +29,7 @@ export default function ArenaTraderSportsEventosRarosPage() {
           <h2 className="text-xl font-bold text-foreground">Oportunidades raras de Lay</h2>
           <p className="font-mono text-xs text-muted-foreground mt-1">
             Candidatos pré-live aprovados pelo Mycroft para Lay Goleada, 2x2, 1x3 e 3x1.
-            Sinais ao vivo são enviados automaticamente para o Telegram.
+            Entradas ao vivo são enviadas automaticamente para o Telegram.
           </p>
         </div>
         <EventosRarosPanel arena="trader_sports" />
