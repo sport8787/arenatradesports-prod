@@ -31,7 +31,7 @@ import { useApprovedSignalSound } from '@/hooks/useApprovedSignalSound';
 import { useApprovedAiSignalSound } from '@/hooks/useApprovedAiSignalSound';
 
 import CompactMatchTable from '@/components/dashboard/CompactMatchTable';
-import ShadowAfApprovedTab from '@/components/dashboard/ShadowAfApprovedTab';
+
 import ShadowAiApprovedTab from '@/components/dashboard/ShadowAiApprovedTab';
 import ComparativoDetVsIaTab from '@/components/dashboard/ComparativoDetVsIaTab';
 import NextMatchEmptyState from '@/components/arena-trader/NextMatchEmptyState';
