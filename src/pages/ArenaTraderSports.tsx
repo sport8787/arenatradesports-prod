@@ -517,7 +517,7 @@ export default function ArenaTraderSports() {
               </GoldButton>
               <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/sinais-aprovados')}>
                 <CheckCircle2 className="w-4 h-4 mr-1" />
-                Sinais Aprovados
+                Entradas Aprovadas
               </GoldButton>
               <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/eventos-raros')}>
                 <Sparkles className="w-4 h-4 mr-1" />
@@ -595,7 +595,7 @@ export default function ArenaTraderSports() {
           <Tabs value={statusFilter} onValueChange={v => setStatusFilter(v as StatusFilter)}>
             <TabsList className="bg-secondary/50">
               <TabsTrigger value="aprovados" className="gap-1.5">
-                Sinais Aprovados
+                Entradas Aprovadas
                 {(() => {
                   const approved = ['APROVADO', 'APROVADO_SITUACIONAL', 'opportunity', 'LABAREDA'];
                   const count = allMatches.filter(m => {

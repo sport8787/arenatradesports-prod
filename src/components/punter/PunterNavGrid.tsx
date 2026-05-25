@@ -196,7 +196,7 @@ export default function PunterNavGrid({ onApprovedSignalsClick }: Props) {
 
       <HorusAudioFallback
         visible={pendingAudio?.chave === 'sinais_aprovados'}
-        label="Ouvir mensagem dos Sinais Aprovados"
+        label="Ouvir mensagem das Entradas Aprovadas"
         onPlay={playPending}
         onDismiss={dismissPending}
       />
