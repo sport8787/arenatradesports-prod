@@ -152,14 +152,21 @@ export default function LobbyPreview() {
 
         {/* Tour das arenas */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {arenas.map(({ icon: Icon, title, desc }) => (
+          {arenas.map(({ icon: Icon, title, desc, badge }) => (
             <Card key={title} className="border-border/60">
               <CardContent className="p-4 flex gap-3 items-start">
                 <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
                   <Icon className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="font-semibold">{title}</div>
+                  <div className="font-semibold flex items-center gap-2">
+                    {title}
+                    {badge && (
+                      <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 tracking-wider">
+                        {badge}
+                      </span>
+                    )}
+                  </div>
                   <div className="text-sm text-muted-foreground">{desc}</div>
                 </div>
               </CardContent>
