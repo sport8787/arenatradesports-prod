@@ -39,7 +39,7 @@ import PushOptInBanner from '@/components/punter/PushOptInBanner';
 import { useFavorites } from '@/hooks/useFavorites';
 import { Star } from 'lucide-react';
 import TraderViewModeToggle from '@/components/arena-trader/TraderViewModeToggle';
-import MeusSinaisPanel from '@/components/arena-trader/MeusSinaisPanel';
+import MeusMetodosPanel from '@/components/arena-trader/MeusSinaisPanel';
 import { useTraderViewMode } from '@/hooks/useTraderViewMode';
 import { usePersistedState } from '@/hooks/usePersistedState';
 
@@ -561,7 +561,7 @@ export default function ArenaTraderSports() {
         {isAdvanced && <ActivePositions />}
 
         {/* Meus Sinais (plano pessoal) — promo discreta. Conteúdo completo na aba "Meus Sinais". */}
-        {statusFilter !== 'meus_sinais' && <MeusSinaisPanel />}
+        {statusFilter !== 'meus_sinais' && <MeusMetodosPanel />}
 
         {/* Eventos Raros movido para /arena-trader-sports/eventos-raros */}
 
