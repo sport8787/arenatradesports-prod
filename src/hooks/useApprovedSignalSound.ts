@@ -11,6 +11,8 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { playCriticalAlert } from '@/lib/criticalAlertSound';
+import { horusMentor } from '@/services/horusMentor';
+
 
 const APPROVED_VERDICTS = new Set([
   'APROVADO',
@@ -47,6 +49,8 @@ export function useApprovedSignalSound(enabled: boolean = true) {
 
       try {
         playCriticalAlert();
+        // Voz cirúrgica do Hórus Mentor (respeita modo do usuário)
+        horusMentor.speak('opportunity_approved_trader').catch(() => {});
         // Notificação visual leve (se permitida)
         if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
           new Notification('🎯 Sinal Aprovado', {
@@ -55,6 +59,7 @@ export function useApprovedSignalSound(enabled: boolean = true) {
             silent: false,
           });
         }
+
       } catch (err) {
         console.warn('[useApprovedSignalSound] erro ao tocar alerta:', err);
       }

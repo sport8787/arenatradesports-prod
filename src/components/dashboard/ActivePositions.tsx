@@ -7,7 +7,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { playCriticalAlert, playWarningAlert } from '@/lib/criticalAlertSound';
+import { horusMentor } from '@/services/horusMentor';
 import { toast } from 'sonner';
+
 
 // Padrões de alerta do plano BACK FAVORITO COM VALOR
 const BACKFAV_IMMEDIATE_STOP = /(gol\s+do\s+advers[áa]rio.*odd|odd\s*<\s*1[.,]40.*gol|stop\s+imediato.*back\s*fav)/i;
@@ -120,7 +122,9 @@ export default function ActivePositions() {
 
           if (isCritical) {
             playCriticalAlert();
+            horusMentor.speak('cashout_critical').catch(() => {});
             lastPlayedAt.set(pos.id, now);
+
             toast.error('🚨 FECHE A POSIÇÃO AGORA', {
               description: `${pos.match_name} — ${reason}`,
               duration: 20000,
