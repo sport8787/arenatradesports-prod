@@ -154,7 +154,7 @@ export default function AdminAuditoriaSinalDetalhe() {
             </div>
           </div>
           {row && (
-            <Badge variant="outline" className="text-xs">{row.source === "primary" ? "API-Football (primary)" : "Shadow AF"}</Badge>
+            <Badge variant="outline" className="text-xs">API-Football (primary)</Badge>
           )}
         </div>
 
