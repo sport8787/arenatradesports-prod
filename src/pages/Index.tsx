@@ -31,11 +31,12 @@ const heroArenas = [
 const sideArenas = [
   {
     title: 'Arena Trader Financeiro',
-    description: 'WIN, WDO e BTC com a mesma lógica do Trader Sports.',
+    description: 'Experimental — WIN, WDO e BTC sendo testados com a lógica do Trader Sports. Resultados não auditados.',
     href: '/arena-trader',
     icon: LineChart,
-    badge: null,
+    badge: 'BETA',
     accent: 'from-sky-500/15 to-sky-700/5 border-sky-500/30',
+    badgeClass: 'bg-amber-500 text-black',
   },
   {
     title: 'Arena Blackjack',
