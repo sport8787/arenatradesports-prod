@@ -24,7 +24,7 @@ export const AI_EDGES: AIEdge[] = [
   { name: "mycroft-match-chat", provider: "gemini", arena: "mycroft", description: "Debate ao vivo sobre partida" },
   { name: "mycroft-sports-chat", provider: "gemini", arena: "mycroft", description: "Chat geral de esportes" },
   { name: "claude-jury", provider: "gemini", arena: "mycroft", description: "Júri de validação (3 jurados)" },
-  { name: "analyze-real-bets", provider: "gemini", arena: "mycroft", description: "Análise de apostas reais importadas" },
+  { name: "analyze-real-bets", provider: "gemini", arena: "mycroft", description: "Análise de entradas reais importadas" },
   { name: "parse-bet-screenshot", provider: "gemini", arena: "mycroft", description: "Vision: parse de screenshots" },
 
   // Arena Trader Sports

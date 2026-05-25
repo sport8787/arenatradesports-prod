@@ -44,7 +44,7 @@ export default function BetImportPanel({ isOpen, onClose }: BetImportPanelProps)
   const handleImport = async () => {
     const result = await confirmImport(preview);
     if (result.success) {
-      toast.success(`${result.count} apostas importadas com sucesso!`);
+      toast.success(`${result.count} entradas importadas com sucesso!`);
       onClose();
     } else {
       toast.error(result.error || 'Erro ao importar');
@@ -54,7 +54,7 @@ export default function BetImportPanel({ isOpen, onClose }: BetImportPanelProps)
   const handleBetfairSync = async () => {
     const result = await syncBetfair();
     if (result.success) {
-      toast.success(`Betfair: ${result.synced} apostas sincronizadas (${result.settled} liquidadas, ${result.pending} pendentes)`);
+      toast.success(`Betfair: ${result.synced} entradas sincronizadas (${result.settled} liquidadas, ${result.pending} pendentes)`);
       onClose();
     } else {
       toast.error(result.error || 'Erro ao sincronizar Betfair');
@@ -90,7 +90,7 @@ export default function BetImportPanel({ isOpen, onClose }: BetImportPanelProps)
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
               <h2 className="font-orbitron text-sm font-bold text-primary uppercase tracking-wider">
-                📥 Importar Apostas
+                📥 Importar Entradas
               </h2>
               <button onClick={onClose} className="p-1.5 rounded-md hover:bg-secondary/50 text-muted-foreground">
                 <X className="w-5 h-5" />
@@ -105,7 +105,7 @@ export default function BetImportPanel({ isOpen, onClose }: BetImportPanelProps)
                   <h3 className="font-mono text-sm font-bold text-foreground">Betfair Exchange</h3>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Sincronize automaticamente suas apostas da Betfair. Configure suas credenciais nas Configurações primeiro.
+                  Sincronize automaticamente suas entradas da Betfair. Configure suas credenciais nas Configurações primeiro.
                 </p>
                 <button
                   onClick={handleBetfairSync}
@@ -124,7 +124,7 @@ export default function BetImportPanel({ isOpen, onClose }: BetImportPanelProps)
                   <h3 className="font-mono text-sm font-bold text-foreground">Import CSV / PDF / Imagem</h3>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Suporta: Bet365, Betano e formato genérico. Aceita <span className="text-primary font-bold">screenshots PNG/JPG</span> de comprovantes de apostas.
+                  Suporta: Bet365, Betano e formato genérico. Aceita <span className="text-primary font-bold">screenshots PNG/JPG</span> de comprovantes de entradas.
                 </p>
 
                 {/* Drop zone */}
@@ -177,7 +177,7 @@ export default function BetImportPanel({ isOpen, onClose }: BetImportPanelProps)
                   <div className="flex items-center justify-between">
                     <h3 className="font-mono text-sm font-bold text-success flex items-center gap-2">
                       <CheckCircle2 className="w-4 h-4" />
-                      {stats.total} apostas encontradas
+                      {stats.total} entradas encontradas
                     </h3>
                     <button onClick={clearPreview} className="p-1 text-muted-foreground hover:text-foreground">
                       <Trash2 className="w-4 h-4" />
@@ -229,7 +229,7 @@ export default function BetImportPanel({ isOpen, onClose }: BetImportPanelProps)
                     ))}
                     {preview.length > 20 && (
                       <p className="text-center text-xs text-muted-foreground py-1">
-                        ... e mais {preview.length - 20} apostas
+                        ... e mais {preview.length - 20} entradas
                       </p>
                     )}
                   </div>
@@ -245,7 +245,7 @@ export default function BetImportPanel({ isOpen, onClose }: BetImportPanelProps)
                     ) : (
                       <ArrowRight className="w-4 h-4" />
                     )}
-                    {importing ? 'Importando...' : `Confirmar Import (${stats.total} apostas)`}
+                    {importing ? 'Importando...' : `Confirmar Import (${stats.total} entradas)`}
                   </button>
                 </motion.div>
               )}
@@ -256,7 +256,7 @@ export default function BetImportPanel({ isOpen, onClose }: BetImportPanelProps)
                   <AlertTriangle className="w-3.5 h-3.5" /> Formatos aceitos
                 </h3>
                 <div className="space-y-1.5 text-xs text-muted-foreground">
-                  <p><span className="text-primary font-bold">📸 Screenshot (PNG/JPG):</span> Comprovante de aposta da Betano, Bet365 ou similar — a IA extrai automaticamente!</p>
+                  <p><span className="text-primary font-bold">📸 Screenshot (PNG/JPG):</span> Comprovante de entrada da Betano, Bet365 ou similar — a IA extrai automaticamente!</p>
                   <p><span className="text-foreground font-bold">Bet365:</span> CSV com colunas Date, Event, Selection, Odds, Stake, Returns</p>
                   <p><span className="text-foreground font-bold">Betano:</span> CSV com colunas Data, Evento, Mercado, Seleção, Odd, Stake, Resultado</p>
                   <p><span className="text-foreground font-bold">Genérico:</span> CSV com colunas Evento, Mercado, Odd, Stake, Resultado, Lucro</p>

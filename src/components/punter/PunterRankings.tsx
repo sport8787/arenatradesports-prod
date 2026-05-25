@@ -55,7 +55,7 @@ export default function PunterRankings({ onClose }: { onClose: () => void }) {
 
       <div className="container mx-auto px-4 py-4 max-w-2xl space-y-3">
         <p className="text-xs text-muted-foreground text-center">
-          Ranking por ROI — mínimo 50 apostas para participar
+          Ranking por ROI — mínimo 50 entradas para participar
         </p>
 
         {loading ? (
@@ -65,7 +65,7 @@ export default function PunterRankings({ onClose }: { onClose: () => void }) {
         ) : rankings.length === 0 ? (
           <div className="text-center py-12">
             <Trophy className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-50" />
-            <p className="text-muted-foreground text-sm">Nenhum investidor com 50+ apostas ainda</p>
+            <p className="text-muted-foreground text-sm">Nenhum investidor com 50+ entradas ainda</p>
           </div>
         ) : (
           <AnimatePresence>
@@ -91,7 +91,7 @@ export default function PunterRankings({ onClose }: { onClose: () => void }) {
                 <div className="flex-1 min-w-0">
                   <p className="font-orbitron text-sm font-bold text-foreground truncate">{entry.username}</p>
                   <div className="flex gap-3 text-[10px] text-muted-foreground">
-                    <span>{entry.total_bets} apostas</span>
+                    <span>{entry.total_bets} entradas</span>
                     <span>WR: {Number(entry.win_rate).toFixed(0)}%</span>
                     <span>Streak: {entry.best_streak}</span>
                   </div>

@@ -20,7 +20,7 @@ interface Row {
 
 /**
  * Liga Mycroft — ranking por ROI%.
- * Mostra Hórus + usuários fake seedados + usuários reais com ≥5 apostas liquidadas.
+ * Mostra Hórus + usuários fake seedados + usuários reais com ≥5 entradas liquidadas.
  * ROI premia consistência e não volume.
  */
 export default function LigaMycroftLeaderboard() {
@@ -57,7 +57,7 @@ export default function LigaMycroftLeaderboard() {
       <div className="rounded-xl border border-yellow-500/20 bg-card/40 p-6 text-center">
         <Trophy className="h-8 w-8 text-yellow-400/40 mx-auto mb-2" />
         <p className="text-sm text-muted-foreground">
-          Ranking abrindo. Faça pelo menos 5 apostas virtuais para entrar na disputa.
+          Ranking abrindo. Faça pelo menos 5 entradas virtuais para entrar na disputa.
         </p>
       </div>
     );
@@ -83,7 +83,7 @@ export default function LigaMycroftLeaderboard() {
 
       <p className="text-[10px] font-mono text-muted-foreground mb-3 leading-snug">
         Ranking por <span className="text-yellow-400 font-semibold">ROI%</span> (retorno sobre stake).
-        Mínimo 5 apostas liquidadas. Quem é mais <span className="text-foreground font-semibold">consistente</span> sobe — não quem aposta mais.
+        Mínimo 5 entradas liquidadas. Quem é mais <span className="text-foreground font-semibold">consistente</span> sobe — não quem entrada mais.
       </p>
 
       <ol className="space-y-1.5">

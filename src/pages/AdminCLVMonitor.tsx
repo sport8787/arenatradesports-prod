@@ -192,7 +192,7 @@ export default function AdminCLVMonitor() {
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Sinais avaliados</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground">Entradas avaliados</CardTitle></CardHeader>
             <CardContent><div className="text-2xl font-mono font-bold">{summary?.total ?? 0}</div></CardContent>
           </Card>
           <Card>
@@ -239,7 +239,7 @@ export default function AdminCLVMonitor() {
           <CardHeader><CardTitle className="text-sm">Buckets — piores ROI (sample ≥ 5)</CardTitle></CardHeader>
           <CardContent>
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : buckets.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Sem dados ainda. Execute "Recalcular buckets" após termos sinais com resultado GREEN/RED.</p>
+              <p className="text-sm text-muted-foreground">Sem dados ainda. Execute "Recalcular buckets" após termos entradas com resultado GREEN/RED.</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-xs font-mono">

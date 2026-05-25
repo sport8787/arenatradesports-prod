@@ -227,7 +227,7 @@ export default function ArenaTraderSports() {
   const [onlyFavorites, setOnlyFavorites] = usePersistedState('arenaTraderSports.onlyFavorites', false);
   const { isMatchFavorite, favs } = useFavorites();
 
-  // Sinais sonoros realtime: determinístico (sirene) + Gemini IA (arpejo sci-fi distinto)
+  // Entradas sonoros realtime: determinístico (sirene) + Gemini IA (arpejo sci-fi distinto)
   useApprovedSignalSound(true);
   useApprovedAiSignalSound(true);
 
@@ -261,7 +261,7 @@ export default function ArenaTraderSports() {
     try {
       const result = await settleBets();
       if (result.success) {
-        toast.success(result.data?.message || 'Apostas liquidadas!');
+        toast.success(result.data?.message || 'Entradas liquidadas!');
       } else {
         toast.error(result.error || 'Erro ao liquidar apostas');
       }
@@ -533,7 +533,7 @@ export default function ArenaTraderSports() {
               </GoldButton>
               <GoldButton size="sm" variant="outline" onClick={() => navigate('/sinais-alavanca')}>
                 <TrendingUp className="w-4 h-4 mr-1" />
-                Sinais Alavanca
+                Entradas Alavanca
               </GoldButton>
               <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/performance')}>
                 <TrendingUp className="w-4 h-4 mr-1" />

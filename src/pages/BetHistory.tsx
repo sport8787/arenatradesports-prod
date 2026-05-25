@@ -93,7 +93,7 @@ export default function BetHistoryPage() {
 
     const punterBets: Bet[] = (punterData || []).map((b: any) => {
       // Prioriza confidence da analysis vinculada; se ausente (ex.: Plano Favorito grava só thesis),
-      // extrai o score do texto da tese para manter a categoria CAT consistente com o sinal aprovado.
+      // extrai o score do texto da tese para manter a categoria CAT consistente com o entrada aprovado.
       const analysisConf = b.punter_analyses?.confidence ?? null;
       const thesisScore = extractScoreFromThesis(b.thesis);
       const conf = analysisConf ?? thesisScore;
@@ -217,7 +217,7 @@ export default function BetHistoryPage() {
       .eq('id', data.betId);
 
     if (betError) {
-      toast.error('Erro ao liquidar aposta');
+      toast.error('Erro ao liquidar entrada');
       console.error(betError);
       return;
     }
@@ -255,7 +255,7 @@ export default function BetHistoryPage() {
         .eq('status', 'pending');
     }
 
-    toast.success(`Aposta liquidada: ${betResult.toUpperCase()}`);
+    toast.success(`Entrada liquidada: ${betResult.toUpperCase()}`);
     await fetchBets();
   }, [user, bankroll, bets]);
 
@@ -274,7 +274,7 @@ export default function BetHistoryPage() {
 
     const { error } = await supabase.from(table).update(updatePayload).eq('id', bet.id);
     if (error) {
-      toast.error('Erro ao reverter aposta');
+      toast.error('Erro ao reverter entrada');
       console.error(error);
       return;
     }
@@ -312,7 +312,7 @@ export default function BetHistoryPage() {
         .eq('status', 'settled');
     }
 
-    toast.success('Aposta revertida para pendente');
+    toast.success('Entrada revertida para pendente');
     await fetchBets();
   }, [user, bankroll, bets]);
 
@@ -328,7 +328,7 @@ export default function BetHistoryPage() {
       .eq('id', bet.id);
 
     if (error) {
-      toast.error('Erro ao cancelar aposta');
+      toast.error('Erro ao cancelar entrada');
       console.error(error);
       return;
     }
@@ -342,7 +342,7 @@ export default function BetHistoryPage() {
       } as any)
       .eq('user_id', user.id);
 
-    toast.success(`Aposta cancelada — R$ ${bet.stake.toFixed(2)} estornado`);
+    toast.success(`Entrada cancelada — R$ ${bet.stake.toFixed(2)} estornado`);
     await fetchBets();
   }, [user, bankroll]);
 
@@ -561,7 +561,7 @@ export default function BetHistoryPage() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-16 text-muted-foreground">
-            <p className="font-orbitron">Nenhuma aposta encontrada</p>
+            <p className="font-orbitron">Nenhuma entrada encontrada</p>
           </div>
         ) : (
           <div className="space-y-3">

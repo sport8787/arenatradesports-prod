@@ -133,7 +133,7 @@ export default function PunterBetfairReal() {
         lastError: null,
         startedAt: null,
       });
-      toast.success(`${r.synced} apostas sincronizadas`);
+      toast.success(`${r.synced} entradas sincronizadas`);
       runAnalysis(true);
     } else {
       setSync(s => ({
@@ -186,7 +186,7 @@ export default function PunterBetfairReal() {
         <PunterBreadcrumb
           items={[
             { label: 'Funções', to: '/punter/funcoes' },
-            { label: 'Apostas Reais Betfair' },
+            { label: 'Entradas Reais Betfair' },
           ]}
         />
 
@@ -206,7 +206,7 @@ export default function PunterBetfairReal() {
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 Configure suas credenciais (App Key + SSOID) e sincronize automaticamente
-                todas as suas apostas reais. Apenas dados desta seção serão analisados.
+                todas as suas entradas reais. Apenas dados desta seção serão analisados.
               </p>
               <BetfairConfig userId={user.id} />
               <div className="flex gap-2 pt-2">
@@ -254,11 +254,11 @@ export default function PunterBetfairReal() {
                   ) : (
                     <Brain className="w-3.5 h-3.5 mr-1.5" />
                   )}
-                  {analyzing ? 'Analisando…' : 'Analisar Apostas'}
+                  {analyzing ? 'Analisando…' : 'Analisar Entradas'}
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                O Hórus cruza suas apostas reais com os sinais aprovados/vetados da Arena
+                O Hórus cruza suas entradas reais com os entradas aprovados/vetados da Arena
                 Trader Sports, identifica padrões de erro e sugere correções.
               </p>
 
@@ -279,7 +279,7 @@ function AnalysisResultPanel({ result }: { result: AnalysisResult }) {
       <div className="text-center py-6 space-y-2">
         <Target className="w-8 h-8 text-muted-foreground mx-auto" />
         <p className="text-xs text-muted-foreground">
-          Nenhuma aposta Betfair encontrada. Sincronize primeiro.
+          Nenhuma entrada Betfair encontrada. Sincronize primeiro.
         </p>
       </div>
     );
@@ -335,11 +335,11 @@ function AnalysisResultPanel({ result }: { result: AnalysisResult }) {
         </div>
       )}
 
-      {/* Lista de apostas analisadas */}
+      {/* Lista de entradas analisadas */}
       <div className="border border-border rounded-lg overflow-hidden">
         <div className="px-3 py-2 border-b border-border">
           <p className="font-mono text-[10px] font-bold uppercase text-muted-foreground">
-            Últimas {bets.length} Apostas Analisadas
+            Últimas {bets.length} Entradas Analisadas
           </p>
         </div>
         <div className="divide-y divide-border max-h-[400px] overflow-y-auto">
@@ -401,7 +401,7 @@ function BetRow({ bet }: { bet: AnalysisResult['bets'][number] }) {
     aligned_won: { label: 'Alinhado ✓', tone: 'bg-success/15 text-success border-success/30' },
     aligned_lost: { label: 'Aprovado RED', tone: 'bg-warning/15 text-warning border-warning/30' },
     against_signal: { label: 'Contra veto', tone: 'bg-destructive/15 text-destructive border-destructive/30' },
-    no_signal: { label: 'Sem sinal', tone: 'bg-muted/30 text-muted-foreground border-border' },
+    no_signal: { label: 'Sem entrada', tone: 'bg-muted/30 text-muted-foreground border-border' },
     pending: { label: 'Pendente', tone: 'bg-muted/30 text-muted-foreground border-border' },
   };
   const badge = alignmentBadge[bet.alignment];

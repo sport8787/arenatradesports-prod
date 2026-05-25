@@ -60,7 +60,7 @@ export default function WhyDifferentSection({ onCTA }: WhyDifferentSectionProps)
                 TRANSPARÊNCIA
               </div>
               <p className="text-5xl lg:text-6xl font-black text-blue-400 mb-2">138</p>
-              <p className="text-sm text-gray-300 font-semibold">apostas analisadas</p>
+              <p className="text-sm text-gray-300 font-semibold">entradas analisadas</p>
               <p className="text-xs text-gray-500 mt-1">Cada uma com timestamp + resultado</p>
             </div>
           </div>
@@ -98,7 +98,7 @@ export default function WhyDifferentSection({ onCTA }: WhyDifferentSectionProps)
             </div>
             <div className="flex items-center gap-3 bg-red-500/5 border border-red-500/20 rounded-xl p-4">
               <X className="w-6 h-6 text-red-500 flex-shrink-0" />
-              <p className="text-gray-300"><span className="font-bold text-red-400">Não é</span> um robô de sinais.</p>
+              <p className="text-gray-300"><span className="font-bold text-red-400">Não é</span> um robô de entradas.</p>
             </div>
           </div>
 
@@ -156,19 +156,19 @@ export default function WhyDifferentSection({ onCTA }: WhyDifferentSectionProps)
 const PILLARS = [
   {
     title: 'Leitura de Mercado',
-    description: 'IA detecta apostas com vantagem real antes das casas ajustarem as odds. Você entra no momento certo.',
+    description: 'IA detecta entradas com vantagem real antes das casas ajustarem as odds. Você entra no momento certo.',
     icon: <Brain className="w-6 h-6 text-white" />,
     gradient: 'from-blue-600 to-blue-700',
   },
   {
     title: 'Anti-Tilt',
-    description: 'Hórus monitora seu comportamento e bloqueia apostas emocionais — seu maior inimigo é você mesmo.',
+    description: 'Hórus monitora seu comportamento e bloqueia entradas emocionais — seu maior inimigo é você mesmo.',
     icon: <Shield className="w-6 h-6 text-white" />,
     gradient: 'from-yellow-600 to-orange-600',
   },
   {
     title: 'Treino Obrigatório',
-    description: 'Você não só aposta: aprende. Cenários reais te treinam a tomar decisões frias sob pressão.',
+    description: 'Você não só entrada: aprende. Cenários reais te treinam a tomar decisões frias sob pressão.',
     icon: <GraduationCap className="w-6 h-6 text-white" />,
     gradient: 'from-purple-600 to-purple-700',
   },

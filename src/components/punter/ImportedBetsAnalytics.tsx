@@ -134,7 +134,7 @@ export default function ImportedBetsAnalytics({ userId }: Props) {
     return (
       <div className="text-center py-16 space-y-2">
         <BarChart3 className="w-8 h-8 text-muted-foreground mx-auto" />
-        <p className="text-muted-foreground text-sm">Nenhuma aposta importada ainda.</p>
+        <p className="text-muted-foreground text-sm">Nenhuma entrada importada ainda.</p>
         <p className="text-muted-foreground text-xs">Importe via CSV/PDF ou sincronize com a Betfair.</p>
       </div>
     );
@@ -145,7 +145,7 @@ export default function ImportedBetsAnalytics({ userId }: Props) {
       {/* KPI Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Total Apostas', value: stats.total, icon: Target, color: 'text-primary' },
+          { label: 'Total Entradas', value: stats.total, icon: Target, color: 'text-primary' },
           { label: 'Win Rate', value: `${stats.winRate.toFixed(1)}%`, icon: Percent, color: 'text-primary' },
           { label: 'P&L Total', value: `R$ ${stats.totalPL.toFixed(2)}`, icon: stats.totalPL >= 0 ? TrendingUp : TrendingDown, color: stats.totalPL >= 0 ? 'text-success' : 'text-destructive' },
           { label: 'ROI', value: `${stats.roi.toFixed(1)}%`, icon: Wallet, color: stats.roi >= 0 ? 'text-success' : 'text-destructive' },
@@ -197,7 +197,7 @@ export default function ImportedBetsAnalytics({ userId }: Props) {
           className="bg-card border border-border rounded-lg p-4"
         >
           <h3 className="font-mono text-xs font-semibold text-muted-foreground uppercase mb-3">
-            Evolução P&L — Apostas Reais
+            Evolução P&L — Entradas Reais
           </h3>
           <ResponsiveContainer width="100%" height={220}>
             <AreaChart data={chartData}>
@@ -241,7 +241,7 @@ export default function ImportedBetsAnalytics({ userId }: Props) {
               <div key={b.name} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                 <div>
                   <p className="text-sm font-mono font-bold text-foreground">{b.name}</p>
-                  <p className="text-[10px] text-muted-foreground">{b.count} apostas · WR {b.winRate.toFixed(0)}%</p>
+                  <p className="text-[10px] text-muted-foreground">{b.count} entradas · WR {b.winRate.toFixed(0)}%</p>
                 </div>
                 <div className="text-right">
                   <p className={cn("text-sm font-mono font-bold", b.pl >= 0 ? 'text-success' : 'text-destructive')}>

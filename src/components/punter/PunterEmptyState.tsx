@@ -11,7 +11,7 @@ interface Props {
 
 /**
  * Empty state honesto do Punter.
- * Em vez de "Nenhum sinal nesta categoria" mostra:
+ * Em vez de "Nenhum entrada nesta categoria" mostra:
  *  - Próxima janela de análise (cron diário 11:30 BRT)
  *  - Contagem regressiva
  *  - Atalhos para Liquidações e Arena Live (engajamento)
@@ -45,10 +45,10 @@ export default function PunterEmptyState({ category = 'all' }: Props) {
             ? `Nenhum ${category === 'green' ? 'GREEN' : 'RED'} ainda nesta janela`
             : isLive
               ? 'Nenhum jogo ao vivo no momento'
-              : 'Nenhum sinal aprovado agora'}
+              : 'Nenhum entrada aprovado agora'}
         </p>
         <p className="font-mono text-[11px] text-muted-foreground max-w-md mx-auto leading-relaxed">
-          O Mycroft não força sinais. Quando os jogos do dia não passam pelos critérios,
+          O Mycroft não força entradas. Quando os jogos do dia não passam pelos critérios,
           a tela fica limpa — isso é proteção da banca, não falha do sistema.
         </p>
       </div>

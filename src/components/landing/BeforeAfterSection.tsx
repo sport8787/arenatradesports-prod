@@ -2,10 +2,10 @@ import { motion } from 'framer-motion';
 import { X, Check, TrendingDown, TrendingUp } from 'lucide-react';
 
 const BEFORE = [
-  'Aposta no "feeling" e na zebra do dia',
+  'Entrada no "feeling" e na zebra do dia',
   'Stake aleatório (R$50, R$200, R$500...)',
   'Entra em tilt depois de 2 reds',
-  'Persegue prejuízo com aposta dobrada',
+  'Persegue prejuízo com entrada dobrada',
   'Sem registro: não sabe se ganha ou perde',
   'ROI médio: -15% a -30% ao ano',
 ];

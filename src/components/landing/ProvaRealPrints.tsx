@@ -6,7 +6,7 @@ import analisePunter1 from '@/assets/prints-reais/analise-punter-1.png';
 import analisePunter2 from '@/assets/prints-reais/analise-punter-2.png';
 import aprovadoMancity from '@/assets/prints-reais/aprovado-mancity.png';
 import aprovadoGoias from '@/assets/prints-reais/aprovado-goias.png';
-import sinalAprovadoLive from '@/assets/prints-reais/sinal-aprovado-live.png';
+import sinalAprovadoLive from '@/assets/prints-reais/entrada-aprovado-live.png';
 
 interface PrintItem {
   src: string;
@@ -22,8 +22,8 @@ const PRINTS: PrintItem[] = [
     src: resultado7d,
     alt: 'Performance consolidada do Punter — 7 dias: ROI +25.6%, Win Rate 67.9%',
     badge: '📊 PERFORMANCE 7 DIAS (REAL)',
-    title: '+25,6% de ROI · 67,9% de Win Rate · 115 sinais',
-    desc: 'Painel real de performance consolidada do Arena Punter (IA + Plano Favorito + Eventos Raros). 81 sinais decididos, 55 GREENs. Lucro hipotético de +20,77u sobre 1u por sinal — é o que aconteceria se você seguisse cada sinal com 1% da banca.',
+    title: '+25,6% de ROI · 67,9% de Win Rate · 115 entradas',
+    desc: 'Painel real de performance consolidada do Arena Punter (IA + Plano Favorito + Eventos Raros). 81 entradas decididos, 55 GREENs. Lucro hipotético de +20,77u sobre 1u por entrada — é o que aconteceria se você seguisse cada entrada com 1% da banca.',
     wide: true,
   },
   {
@@ -31,28 +31,28 @@ const PRINTS: PrintItem[] = [
     alt: 'Lista de GREENs do Arena Punter: 71 greens em 7 dias',
     badge: '✅ 71 GREENS EM 7 DIAS',
     title: 'Histórico de acertos auditado',
-    desc: 'A tela "Greens" do Arena Punter mostra um por um cada sinal vencedor — com liga, mercado, odd e data. Nada de print de WhatsApp duvidoso: é a sua própria conta mostrando o resultado.',
+    desc: 'A tela "Greens" do Arena Punter mostra um por um cada entrada vencedor — com liga, mercado, odd e data. Nada de print de WhatsApp duvidoso: é a sua própria conta mostrando o resultado.',
   },
   {
     src: greensLive,
     alt: 'GREENs do Arena Trader Sports ao vivo: Libertadores, Under 2.5, Over 2.5',
     badge: '⚡ GREENS AO VIVO',
-    title: 'Sinais ao vivo que viraram lucro',
+    title: 'Entradas ao vivo que viraram lucro',
     desc: 'Arena Trader Sports captura jogos durante a bola rolando: Libertadores, Under/Over 2.5 com confiança 72–90%. Mostra a entrada exata, a odd capturada e o resultado final do jogo.',
   },
   {
     src: analisePunter1,
-    alt: 'Sinal pré-jogo Goiás x Vila Nova: Over 2.5 com edge +15.5%',
+    alt: 'Entrada pré-jogo Goiás x Vila Nova: Over 2.5 com edge +15.5%',
     badge: '🎯 ASSET SCORE + EDGE',
-    title: 'Como a IA pontua cada aposta',
-    desc: 'Cada sinal traz Asset Score (0–100), barras de Probabilidade, Edge, Stats, Padrão e Liquidez. Aqui: Goiás x Vila Nova, Over 2.5 @ 2.32, edge +15,5%, stake sugerido 3% da banca (R$ 132,80). Sem palpite — é matemática.',
+    title: 'Como a IA pontua cada entrada',
+    desc: 'Cada entrada traz Asset Score (0–100), barras de Probabilidade, Edge, Stats, Padrão e Liquidez. Aqui: Goiás x Vila Nova, Over 2.5 @ 2.32, edge +15,5%, stake sugerido 3% da banca (R$ 132,80). Sem palpite — é matemática.',
   },
   {
     src: analisePunter2,
-    alt: 'Sinal moderado Santos x Bragantino: Over 2.5 com edge +10%',
+    alt: 'Entrada moderado Santos x Bragantino: Over 2.5 com edge +10%',
     badge: '🛡️ SINAL MODERADO',
     title: 'A IA também te avisa quando aliviar',
-    desc: 'Quando o edge cai, a IA reduz o stake para 2% e marca como "Sinal Moderado". Você não entra forte em jogo duvidoso — proteção de banca automática, sem você precisar pensar.',
+    desc: 'Quando o edge cai, a IA reduz o stake para 2% e marca como "Entrada Moderado". Você não entra forte em jogo duvidoso — proteção de banca automática, sem você precisar pensar.',
   },
   {
     src: aprovadoMancity,
@@ -66,14 +66,14 @@ const PRINTS: PrintItem[] = [
     alt: 'Goiás x Vila Nova ao vivo 0x0 no intervalo: Over 1.5 aprovado situacional',
     badge: '💡 APROVADO SITUACIONAL',
     title: 'Reconhece oportunidade rara',
-    desc: 'Goiás x Vila Nova 0x0 no intervalo, odd Over 1.5 a 9,64. A IA detectou critérios fortes mesmo no placar zerado — sinal situacional raro, com odd absurdamente inflada que o mercado não viu.',
+    desc: 'Goiás x Vila Nova 0x0 no intervalo, odd Over 1.5 a 9,64. A IA detectou critérios fortes mesmo no placar zerado — entrada situacional raro, com odd absurdamente inflada que o mercado não viu.',
   },
   {
     src: sinalAprovadoLive,
     alt: 'Junior x Sporting Cristal 3x2: entrada aprovada Over 2.5 @ 1.85',
     badge: '🎯 ENTRADA EXATA',
     title: 'Você sabe exatamente quando apostar',
-    desc: 'Junior 3x2 Sporting Cristal ao vivo. A IA aprovou entrada em Over 2.5 @ 1.85 com força do sinal 72%. Mostra a odd no momento da entrada — não promessa, número exato que você teria conseguido na Betfair.',
+    desc: 'Junior 3x2 Sporting Cristal ao vivo. A IA aprovou entrada em Over 2.5 @ 1.85 com força do entrada 72%. Mostra a odd no momento da entrada — não promessa, número exato que você teria conseguido na Betfair.',
   },
 ];
 
@@ -93,7 +93,7 @@ export default function ProvaRealPrints({ onCTA }: { onCTA?: () => void }) {
           </h2>
           <p className="text-base sm:text-lg text-gray-300 max-w-2xl mx-auto">
             Cansamos de VSL bonitinha e copy emocional. Abaixo estão <b>prints reais</b> do Oráculo Mycroft —
-            performance auditada, sinais aprovados e entradas ao vivo. Veja com seus olhos o que cada tela significa.
+            performance auditada, entradas aprovados e entradas ao vivo. Veja com seus olhos o que cada tela significa.
           </p>
         </div>
 
@@ -129,7 +129,7 @@ export default function ProvaRealPrints({ onCTA }: { onCTA?: () => void }) {
         </div>
 
         <p className="text-center text-xs text-gray-500 mt-8 max-w-2xl mx-auto">
-          ⚠️ Apostas envolvem risco. Resultados passados não garantem resultados futuros. Aposte com responsabilidade — proibido para menores de 18 anos.
+          ⚠️ Entradas envolvem risco. Resultados passados não garantem resultados futuros. Aposte com responsabilidade — proibido para menores de 18 anos.
         </p>
 
         {onCTA && (

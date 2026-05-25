@@ -454,7 +454,7 @@ export default function MycroftSinaisAprovados() {
               </span>
             </div>
             <span className="text-[10px] font-mono text-muted-foreground">
-              {periodSummary.total} sinais · {periodSummary.settled} liquidados
+              {periodSummary.total} entradas · {periodSummary.settled} liquidados
             </span>
           </div>
           <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
@@ -543,12 +543,12 @@ export default function MycroftSinaisAprovados() {
 
         {loading ? (
           <div className="text-center py-12 text-muted-foreground font-orbitron text-sm">
-            Carregando sinais...
+            Carregando entradas...
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground space-y-2">
             <Filter className="w-8 h-8 mx-auto opacity-50" />
-            <p className="text-sm">Nenhum sinal encontrado para {PERIOD_LABELS[period]} · {filter === 'all' ? 'Todos' : filter}.</p>
+            <p className="text-sm">Nenhum entrada encontrado para {PERIOD_LABELS[period]} · {filter === 'all' ? 'Todos' : filter}.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

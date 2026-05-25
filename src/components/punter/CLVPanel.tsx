@@ -61,7 +61,7 @@ export default function CLVPanel() {
             <KPI label="CLV Médio" value={`${(summary.avg_clv ?? 0).toFixed(2)}%`} positive={(summary.avg_clv ?? 0) > 0} />
             <KPI label="Market Beat Rate" value={`${(summary.market_beat_rate ?? 0).toFixed(0)}%`} positive={(summary.market_beat_rate ?? 0) > 50} />
             <KPI label="CLV+ Rate" value={`${(summary.positive_clv_rate ?? 0).toFixed(0)}%`} positive={(summary.positive_clv_rate ?? 0) > 50} />
-            <KPI label="Apostas Analisadas" value={String(summary.total_bets ?? 0)} neutral />
+            <KPI label="Entradas Analisadas" value={String(summary.total_bets ?? 0)} neutral />
           </div>
 
           {/* CLV Accuracy */}

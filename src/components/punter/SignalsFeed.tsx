@@ -52,7 +52,7 @@ export default function SignalsFeed() {
   const [tab, setTab] = useState<'all' | 'unread' | 'live' | 'green' | 'red'>('all');
 
   const fetchFeed = useCallback(async () => {
-    // 1) Sinais APROVADOS recentes (últimos 7 dias)
+    // 1) Entradas APROVADOS recentes (últimos 7 dias)
     const sinceIso = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
 
     const { data: aprovados } = await supabase
@@ -166,7 +166,7 @@ export default function SignalsFeed() {
     items.forEach((i) => next.add(i.id));
     setReadIds(next);
     saveRead(next);
-    toast.success('Todos os sinais marcados como lidos');
+    toast.success('Todos os entradas marcados como lidos');
   };
 
   const filtered = useMemo(() => {
@@ -187,7 +187,7 @@ export default function SignalsFeed() {
       <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
         <div className="flex items-center gap-2">
           <Bell className="h-5 w-5 text-primary" />
-          <CardTitle className="text-lg">Feed de Sinais</CardTitle>
+          <CardTitle className="text-lg">Feed de Entradas</CardTitle>
           {unreadCount > 0 && (
             <Badge variant="default" className="bg-primary text-primary-foreground">
               {unreadCount} não lido{unreadCount > 1 ? 's' : ''}

@@ -90,7 +90,7 @@ export default function PunterPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, profile, refetchProfile } = useAuth();
-  usePushNotifications(); // Auto-registra Web Push para receber sinais APROVADO + GREEN/RED
+  usePushNotifications(); // Auto-registra Web Push para receber entradas APROVADO + GREEN/RED
   const { isAdmin } = useAdmin();
   const { bankroll, loading: bankrollLoading, settleBets, updateInitialBalance } = useBankroll();
   const { bankroll: manualBankroll, loading: manualLoading, placeBet: placeManualBet, updateInitialBalance: updateManualBalance } = useManualBankroll();
@@ -212,8 +212,8 @@ export default function PunterPage() {
     }
   };
 
-  // Set de jogos com aposta já realizada (Hórus OU manual) — chaveado por home_away normalizado.
-  // Usado para impedir nova aposta no mesmo sinal e exibir etiqueta "JÁ APOSTADO".
+  // Set de jogos com entrada já realizada (Hórus OU manual) — chaveado por home_away normalizado.
+  // Usado para impedir nova entrada no mesmo entrada e exibir etiqueta "JÁ APOSTADO".
   const placedBetMatchKeys = useMemo(() => {
     const keys = new Set<string>();
     const norm = (s: string) => (s || '').toLowerCase().replace(/\s+/g, '_').replace(/\+00:00/g, 'z');
@@ -238,7 +238,7 @@ export default function PunterPage() {
   // Compatibilidade: mantém referência antiga (mesma estrutura)
   const pendingMatchKeys = placedBetMatchKeys;
 
-  // Sinais NOVOS = aprovados após a última visita (persistido em localStorage)
+  // Entradas NOVOS = aprovados após a última visita (persistido em localStorage)
   const SEEN_KEY = 'punter_seen_signal_ids_v1';
   const [seenSignalIds, setSeenSignalIds] = useState<Set<string>>(() => {
     try {
@@ -248,14 +248,14 @@ export default function PunterPage() {
     return new Set<string>();
   });
 
-  // Helper para extrair um id estável por sinal (analysis_id, ou home_away_market)
+  // Helper para extrair um id estável por entrada (analysis_id, ou home_away_market)
   const signalKey = (s: PunterSignal): string => {
     const aid = (s as any).analysis_id;
     if (aid) return String(aid);
     return `${s.match.home_team}_${s.match.away_team}_${s.recommendation.market}`.toLowerCase().replace(/\s+/g, '_');
   };
 
-  // Marca novos sinais e persiste após 8s para que o badge NOVO permaneça visível durante a visita
+  // Marca novos entradas e persiste após 8s para que o badge NOVO permaneça visível durante a visita
   useEffect(() => {
     if (!signals || signals.length === 0) return;
     const t = setTimeout(() => {
@@ -392,7 +392,7 @@ export default function PunterPage() {
       return;
     }
 
-    toast.success('Apostas liquidadas! Histórico e pendências atualizados.');
+    toast.success('Entradas liquidadas! Histórico e pendências atualizados.');
 
     const { data } = await supabase
       .from('virtual_bets_punter')
@@ -421,7 +421,7 @@ export default function PunterPage() {
     else if (panel === 'rankings') setShowRankings(true);
     else if (panel === 'certificate') setShowCertificate(true);
     else if (panel === 'analyze') {
-      // dispara análise automaticamente ao chegar via "Buscar Sinais Agora"
+      // dispara análise automaticamente ao chegar via "Buscar Entradas Agora"
       setTimeout(() => { analyzeGames(); }, 400);
     }
     // limpa o param para não reabrir
@@ -474,7 +474,7 @@ export default function PunterPage() {
     const stakeAmount = Math.round(bankroll.balance * (stakePercent / 100) * 100) / 100;
 
     if (stakeAmount <= 0 || stakeAmount > bankroll.balance) {
-      toast.error('Saldo insuficiente para confirmar esta aposta');
+      toast.error('Saldo insuficiente para confirmar esta entrada');
       return;
     }
 
@@ -499,10 +499,10 @@ export default function PunterPage() {
 
     if (betError) {
       if (betError.code === '23505') {
-        toast.info('Aposta já existe para este jogo');
+        toast.info('Entrada já existe para este jogo');
         return;
       }
-      toast.error('Erro ao confirmar aposta');
+      toast.error('Erro ao confirmar entrada');
       return;
     }
 
@@ -539,7 +539,7 @@ export default function PunterPage() {
       .eq('id', signal.id);
 
     setFutureSignals(prev => prev.filter(s => s.id !== signal.id));
-    toast.info('Sinal dispensado');
+    toast.info('Entrada dispensado');
   };
 
 
@@ -686,13 +686,13 @@ export default function PunterPage() {
       }
 
       if (!confirmedSignal) {
-        console.log(`[Hórus] ⚠️ Nenhum sinal confirmado para ${signal.match.home_team} vs ${signal.match.away_team} — tentando aposta direta`);
+        console.log(`[Hórus] ⚠️ Nenhum entrada confirmado para ${signal.match.home_team} vs ${signal.match.away_team} — tentando entrada direta`);
         // Don't block — proceed with direct placement since signal came from analysis
       } else {
         canonicalMatchId = confirmedSignal.match_id || matchId;
       }
     } else {
-      console.log(`[Hórus] ✅ Aposta direta (fresh analysis): ${signal.match.home_team} vs ${signal.match.away_team}`);
+      console.log(`[Hórus] ✅ Entrada direta (fresh analysis): ${signal.match.home_team} vs ${signal.match.away_team}`);
     }
 
     // Kelly Criterion for smart stake sizing — use fair_odd to derive real probability
@@ -732,7 +732,7 @@ export default function PunterPage() {
       estimated_probability: signal.recommendation.estimated_probability ?? undefined,
     });
 
-    console.log(`[Hórus] 🎯 Inserindo aposta: ${matchName} | Stake: ${stake} | Odd: ${signal.recommendation.odd} | MatchID: ${canonicalMatchId}`);
+    console.log(`[Hórus] 🎯 Inserindo entrada: ${matchName} | Stake: ${stake} | Odd: ${signal.recommendation.odd} | MatchID: ${canonicalMatchId}`);
     // Normalize match_id to prevent Z vs +00:00 duplicates
     const normalizedMatchId = canonicalMatchId.replace(/\+00:00/g, 'Z');
     const { error: betError } = await supabase
@@ -753,7 +753,7 @@ export default function PunterPage() {
     if (betError) {
       // If duplicate constraint error, just skip silently
       if (betError.code === '23505') {
-        console.log(`[Hórus] ⏭️ Aposta duplicada detectada — ignorando: ${matchName}`);
+        console.log(`[Hórus] ⏭️ Entrada duplicada detectada — ignorando: ${matchName}`);
         return false;
       }
       console.error(`[Hórus] Bet insert error for ${matchName}:`, betError.message);
@@ -794,7 +794,7 @@ export default function PunterPage() {
     // Use signals if available, otherwise reload from DB
     let signalsToPlace = signals.length > 0 ? signals : await fetchSavedSignals();
     if (signalsToPlace.length === 0) {
-      toast.error('Sem sinais aprovados para executar');
+      toast.error('Sem entradas aprovados para executar');
       return;
     }
     setPlacingHorusBets(true);
@@ -999,14 +999,14 @@ export default function PunterPage() {
             const allSignals = Array.from(freshMap.values());
             setSignals(allSignals);
             setTotalApproved(allSignals.length);
-            toast.info(`⏱️ Análise parcial — ${allSignals.length} sinais carregados do banco`);
+            toast.info(`⏱️ Análise parcial — ${allSignals.length} entradas carregados do banco`);
           } else if (savedSignals.length > 0) {
-            toast.info(`${savedSignals.length} sinais salvos carregados (análise excedeu tempo)`);
+            toast.info(`${savedSignals.length} entradas salvos carregados (análise excedeu tempo)`);
           } else {
             toast.warning('Análise excedeu o tempo. Tente janela "15min" para análise mais rápida.');
           }
         } else if (savedSignals.length > 0) {
-          toast.info(`${savedSignals.length} sinais salvos carregados (nova análise falhou)`);
+          toast.info(`${savedSignals.length} entradas salvos carregados (nova análise falhou)`);
         } else {
           throw fnError;
         }
@@ -1016,8 +1016,8 @@ export default function PunterPage() {
         const remaining = data?.remaining_games || 0;
         const execTime = data?.execution_time_s || 0;
         let msg = savedOnly > 0
-          ? `${newApproved} novos + ${savedOnly} salvos = ${mergedSignals.length} sinais (Gemini)`
-          : `${newApproved} sinais aprovados de ${newAnalyzed} jogos (Gemini)`;
+          ? `${newApproved} novos + ${savedOnly} salvos = ${mergedSignals.length} entradas (Gemini)`
+          : `${newApproved} entradas aprovados de ${newAnalyzed} jogos (Gemini)`;
         if (timedOut) msg += ` ⏱️ Parcial (${remaining} jogos pendentes)`;
         toast.success(msg);
 
@@ -1231,7 +1231,7 @@ export default function PunterPage() {
       return;
     }
     if (customStake <= 0) {
-      toast.error('Valor da aposta deve ser maior que zero');
+      toast.error('Valor da entrada deve ser maior que zero');
       return;
     }
     if (customStake > manualBankroll.balance) {
@@ -1361,7 +1361,7 @@ export default function PunterPage() {
         <YesterdayRecapBanner />
         <PushOptInBanner />
 
-        {/* Hero Banner: prova social + sinal destaque + countdown + telegram CTA */}
+        {/* Hero Banner: prova social + entrada destaque + countdown + telegram CTA */}
         {(() => {
           const sortedByConfidence = [...signals].sort(
             (a, b) => (b.recommendation?.confidence ?? 0) - (a.recommendation?.confidence ?? 0)
@@ -1544,7 +1544,7 @@ export default function PunterPage() {
                 {placingHorusBets ? (
                   <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> EXECUTANDO ENTRADAS...</>
                 ) : (
-                  <><Bot className="mr-2 h-4 w-4" /> EXECUTAR ENTRADAS HÓRUS ({signals.length || futureSignals.length} sinais)</>
+                  <><Bot className="mr-2 h-4 w-4" /> EXECUTAR ENTRADAS HÓRUS ({signals.length || futureSignals.length} entradas)</>
                 )}
               </Button>
             )}
@@ -1714,7 +1714,7 @@ export default function PunterPage() {
                   </div>
                   {visibleSignals.length === 0 && (todayOnlyFilter || categoryFilter !== 'all') && (
                     <div className="border border-dashed border-border rounded-lg p-6 text-center text-xs text-muted-foreground">
-                      Nenhum sinal com os filtros atuais. Ajuste os filtros para ver mais.
+                      Nenhum entrada com os filtros atuais. Ajuste os filtros para ver mais.
                     </div>
                   )}
                   {visibleSignals.map((signal, index) => {
@@ -1866,7 +1866,7 @@ export default function PunterPage() {
         title="POSIÇÕES DO HÓRUS"
         icon={<Bot className="w-4 h-4 text-primary" />}
         initialBalance={bankroll?.initial_balance || 10000}
-        detailLink="/apostas"
+        detailLink="/entradas"
       />
 
       {/* Manual History Sheet */}
@@ -1916,7 +1916,7 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
 
   const handleManualBet = () => {
     if (userAlreadyBet) {
-      toast.info('Você já apostou neste sinal. Veja em "Minhas Apostas".');
+      toast.info('Você já apostou neste entrada. Veja em "Minhas Entradas".');
       return;
     }
     const stake = parseFloat(customStake);
@@ -2120,7 +2120,7 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
                         : `✅ R$ ${valor} preenchido na ENTRADA MANUAL`,
                       {
                         description: copiado
-                          ? 'Valor sugerido pelo Hórus pronto para colar na casa de aposta ou apostar na banca virtual.'
+                          ? 'Valor sugerido pelo Hórus pronto para colar na casa de entrada ou apostar na banca virtual.'
                           : 'Valor sugerido pelo Hórus aplicado no campo (cópia para a área de transferência indisponível).',
                         duration: 4000,
                       }
@@ -2144,14 +2144,14 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
                 size="sm"
                 className="h-8 px-3 font-mono text-xs"
                 disabled={!manualBankroll || !customStake || userAlreadyBet}
-                title={userAlreadyBet ? 'Você já apostou neste sinal' : undefined}
+                title={userAlreadyBet ? 'Você já apostou neste entrada' : undefined}
               >
                 {userAlreadyBet ? '✓ APOSTADO' : 'APOSTAR'}
               </Button>
             </div>
             {userAlreadyBet ? (
               <p className="text-[10px] font-mono text-success/90 leading-tight">
-                ✓ Aposta já registrada para este sinal — abra "Minhas Apostas" para acompanhar.
+                ✓ Entrada já registrada para este entrada — abra "Minhas Entradas" para acompanhar.
               </p>
             ) : horusStake > 0 && (
               <p className="text-[9px] font-mono text-muted-foreground/80 leading-tight">
@@ -2378,7 +2378,7 @@ function BetHistorySheet({ isOpen, onClose, bets, loading, filter, onFilterChang
           ) : filtered.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Target className="w-8 h-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">Nenhuma aposta encontrada</p>
+              <p className="text-sm">Nenhuma entrada encontrada</p>
             </div>
           ) : (
             <div className="space-y-2">

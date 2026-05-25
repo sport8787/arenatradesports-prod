@@ -24,7 +24,7 @@ export default function WhatIsOracleSection({ onCTA }: WhatIsOracleSectionProps)
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600"> ORÁCULO MYCROFT?</span>
           </h2>
           <p className="text-xl text-gray-400 max-w-3xl mx-auto leading-relaxed">
-            A primeira plataforma que transforma apostas esportivas em investimento quantitativo
+            A primeira plataforma que transforma entradas esportivas em investimento quantitativo
             usando Inteligência Artificial e proteção emocional.
           </p>
         </motion.div>
@@ -140,7 +140,7 @@ export default function WhatIsOracleSection({ onCTA }: WhatIsOracleSectionProps)
 
         {/* CTA */}
         <div className="text-center mt-12">
-          <p className="text-gray-400 mb-6">É assim que transformamos apostas em investimento sistemático</p>
+          <p className="text-gray-400 mb-6">É assim que transformamos entradas em investimento sistemático</p>
           <button
             onClick={onCTA}
             className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/50 inline-flex items-center gap-2 group"
@@ -191,7 +191,7 @@ const TRILOGY = [
     title: 'HÓRUS',
     badge: 'O PROTETOR',
     subtitle: 'O guardião emocional',
-    description: 'Coach de IA que detecta tilt em tempo real, bloqueia apostas emocionais e te protege do seu maior inimigo: você mesmo.',
+    description: 'Coach de IA que detecta tilt em tempo real, bloqueia entradas emocionais e te protege do seu maior inimigo: você mesmo.',
     icon: <Shield className="w-8 h-8 text-white" />,
     glowFrom: 'from-yellow-600/20',
     borderColor: 'border-yellow-500/30',
@@ -222,14 +222,14 @@ const STEPS = [
   },
   {
     title: 'Hórus Protege',
-    description: 'Monitora seu estado emocional e bloqueia apostas quando detecta tilt ou desvio',
+    description: 'Monitora seu estado emocional e bloqueia entradas quando detecta tilt ou desvio',
     icon: <Shield className="w-6 h-6 text-yellow-400 mx-auto mb-2" />,
     gradient: 'from-yellow-600 to-yellow-700',
     shadow: 'shadow-yellow-500/50',
   },
   {
     title: 'Sistema Aprende',
-    description: 'Cada aposta melhora o modelo. Quanto mais você usa, mais inteligente fica',
+    description: 'Cada entrada melhora o modelo. Quanto mais você usa, mais inteligente fica',
     icon: <Zap className="w-6 h-6 text-green-400 mx-auto mb-2" />,
     gradient: 'from-green-600 to-green-700',
     shadow: 'shadow-green-500/50',

@@ -125,7 +125,7 @@ export default function ComparativoDetVsIaTab() {
     try { localStorage.setItem('cmp_det_ia_mode', mode); } catch {}
   }, [mode]);
 
-  // Sincroniza period com URL + localStorage (mesma convenção da página de Sinais Liquidados).
+  // Sincroniza period com URL + localStorage (mesma convenção da página de Entradas Liquidados).
   useEffect(() => {
     const next = new URLSearchParams(searchParams);
     if (next.get('period') !== period) {
@@ -268,7 +268,7 @@ export default function ComparativoDetVsIaTab() {
 
         <p className="text-xs text-muted-foreground mb-3">
           Fonte: RPC <code className="text-[10px] bg-secondary px-1 rounded">compare_det_vs_ia(_period)</code> —
-          mesmo recorte (Brasília) usado em <strong>Sinais Liquidados</strong>. Determinístico ={' '}
+          mesmo recorte (Brasília) usado em <strong>Entradas Liquidados</strong>. Determinístico ={' '}
           <code className="text-[10px]">live_sinais</code> filtrado pelos mesmos mercados normalizados da IA
           (apples-to-apples — universo da IA é a referência) · IA ={' '}
           <code className="text-[10px]">mycroft_analyses_shadow_ai</code>.

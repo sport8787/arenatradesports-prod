@@ -163,7 +163,7 @@ export default function SignalHealthPanel({ market, stats }: Props) {
       <div className="flex items-center gap-1 mb-1">
         <Activity className="w-2.5 h-2.5 text-primary" />
         <span className="text-[8px] font-orbitron uppercase tracking-wider text-muted-foreground">
-          Saúde do sinal • {market}
+          Saúde do entrada • {market}
         </span>
       </div>
       <div className="flex gap-1.5">

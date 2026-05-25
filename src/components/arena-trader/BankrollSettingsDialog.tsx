@@ -95,7 +95,7 @@ export default function BankrollSettingsDialog({ isOpen, onClose, currentBalance
           <div className="flex items-start gap-2 p-3 rounded-lg bg-warning/10 border border-warning/20">
             <AlertTriangle className="w-4 h-4 text-warning mt-0.5 shrink-0" />
             <p className="text-xs text-warning">
-              Ao redefinir a banca, todas as estatísticas (win rate, green/red, ROI) serão zeradas. Apostas pendentes não serão afetadas.
+              Ao redefinir a banca, todas as estatísticas (win rate, green/red, ROI) serão zeradas. Entradas pendentes não serão afetadas.
             </p>
           </div>
         </div>

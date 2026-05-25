@@ -23,7 +23,7 @@ const FUNCTIONS: FunctionItem[] = [
     to: '/punter/analytics',
   },
   {
-    title: 'Apostas Reais Betfair',
+    title: 'Entradas Reais Betfair',
     description: 'Sincronize, analise erros e compare com a Arena Trader Sports',
     icon: <Brain className="w-4 h-4 text-primary" />,
     to: '/punter/betfair-real',

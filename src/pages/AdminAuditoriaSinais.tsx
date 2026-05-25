@@ -241,7 +241,7 @@ export default function AdminAuditoriaSinais() {
               </Button>
             </Link>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold">Auditoria de Sinais Aprovados</h1>
+              <h1 className="text-2xl md:text-3xl font-bold">Auditoria de Entradas Aprovadas</h1>
               <p className="text-sm text-muted-foreground">
                 Snapshot de aprovação × resultado final · destaca inconsistências (Próximo Gol, Over/Under, etc.)
               </p>
@@ -304,7 +304,7 @@ export default function AdminAuditoriaSinais() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Sinais</CardTitle>
+            <CardTitle className="text-base">Entradas</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             {loading ? (
@@ -408,7 +408,7 @@ export default function AdminAuditoriaSinais() {
                   {filtered.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
-                        Nenhum sinal encontrado.
+                        Nenhum entrada encontrado.
                       </TableCell>
                     </TableRow>
                   )}

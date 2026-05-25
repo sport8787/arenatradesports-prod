@@ -39,7 +39,7 @@ export default function CopySignalActions({ signal, compact = false }: { signal:
     try {
       await navigator.clipboard.writeText(formatted);
       setCopied(true);
-      toast.success('Sinal copiado!');
+      toast.success('Entrada copiado!');
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error('Não foi possível copiar');
@@ -55,7 +55,7 @@ export default function CopySignalActions({ signal, compact = false }: { signal:
         className="w-full gap-1.5 h-8 text-xs"
       >
         {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
-        {copied ? 'Copiado' : 'Copiar sinal'}
+        {copied ? 'Copiado' : 'Copiar entrada'}
       </Button>
 
       <div className="space-y-1.5">
@@ -91,7 +91,7 @@ export default function CopySignalActions({ signal, compact = false }: { signal:
         </div>
       </div>
       <p className="text-[10px] text-muted-foreground/80 italic leading-tight">
-        💡 Copie o sinal, abra a casa e cole/insira a aposta no bilhete.
+        💡 Copie o entrada, abra a casa e cole/insira a entrada no bilhete.
       </p>
     </div>
   );

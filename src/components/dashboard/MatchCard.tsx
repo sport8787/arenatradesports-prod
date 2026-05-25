@@ -53,7 +53,7 @@ export interface Match {
   alerts?: string[] | null;
   approvalOdd?: number | null;
   oddsLive?: { home?: number | null; draw?: number | null; away?: number | null; over25?: number | null; bookmaker?: string | null } | null;
-  /** Stats Futodds em tempo real para o painel "Saúde do Sinal". */
+  /** Stats Futodds em tempo real para o painel "Saúde do Entrada". */
   healthStats?: {
     pressure_indices?: { home?: number; away?: number; total?: number };
     last5min_stats?: any;
@@ -181,7 +181,7 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
   const eliminatoryFailed = summary.eliminatoryFailed;
   const vetoSummary = summary.vetoSummary;
 
-  // 🛡️ Sinal de 1º tempo deixa de valer após o intervalo — rebaixa o status visual
+  // 🛡️ Entrada de 1º tempo deixa de valer após o intervalo — rebaixa o status visual
   const htExpired = useMemo(
     () => isExpiredHtSignal({
       market: match.market,
@@ -206,7 +206,7 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
         : '';
   const isImminent = !eliminatoryFailed && criteriaMet >= 4 && (effectiveStatus === 'AGUARDAR' || effectiveStatus === 'analyzing');
 
-  // Gráfico de pressão embutido — somente jogos ao vivo OU sinais aprovados
+  // Gráfico de pressão embutido — somente jogos ao vivo OU entradas aprovados
   const showPressureChart =
     match.status === 'live' ||
     effectiveStatus === 'APROVADO' ||
@@ -405,8 +405,8 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
                 </div>
               )}
               {match.confidence != null && (
-                <div className="flex items-center justify-end gap-1" title="Força estatística do sinal. 70% ou mais = entrada recomendada. Abaixo disso, Mycroft só observa.">
-                  <span className="text-[10px] font-orbitron text-white/90 uppercase tracking-wider">Força do sinal</span>
+                <div className="flex items-center justify-end gap-1" title="Força estatística do entrada. 70% ou mais = entrada recomendada. Abaixo disso, Mycroft só observa.">
+                  <span className="text-[10px] font-orbitron text-white/90 uppercase tracking-wider">Força do entrada</span>
                   <span className="text-xs font-orbitron font-bold text-white tabular-nums">
                     {Math.round(Number(match.confidence))}%
                   </span>
@@ -534,7 +534,7 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
             </div>
           </div>
 
-          {/* CTA for approved (oculto se sinal expirou) */}
+          {/* CTA for approved (oculto se entrada expirou) */}
           {(effectiveStatus === 'opportunity' || effectiveStatus === 'APROVADO' || effectiveStatus === 'APROVADO_SITUACIONAL' || effectiveStatus === 'LABAREDA') && (
             <motion.button
               whileHover={{ scale: 1.02 }}

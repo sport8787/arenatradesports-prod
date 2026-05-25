@@ -57,7 +57,7 @@ export default function LiveStatsCounter() {
           <StatCard
             icon={<Zap className="w-5 h-5" />}
             value={signals.count.toLocaleString('pt-BR')}
-            label="Sinais emitidos"
+            label="Entradas emitidos"
             color="from-yellow-500 to-yellow-600"
             suffix="+"
           />

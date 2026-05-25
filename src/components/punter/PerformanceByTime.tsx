@@ -91,7 +91,7 @@ export default function PerformanceByTime({ userId }: PerformanceByTimeProps) {
             PADRÕES TEMPORAIS
           </span>
         </div>
-        <span className="text-[10px] font-mono text-muted-foreground">{data.totalBets} apostas analisadas</span>
+        <span className="text-[10px] font-mono text-muted-foreground">{data.totalBets} entradas analisadas</span>
       </div>
 
       <div className="p-4 space-y-3">
@@ -102,10 +102,10 @@ export default function PerformanceByTime({ userId }: PerformanceByTimeProps) {
             <div>
               <p className="text-xs font-mono font-semibold text-success">Melhor Horário</p>
               <p className="text-[11px] font-mono text-foreground/80 mt-0.5">
-                {bestHour.hour}h–{bestHour.hour + 1}h: {bestHour.winRate.toFixed(1)}% win rate ({bestHour.total} apostas)
+                {bestHour.hour}h–{bestHour.hour + 1}h: {bestHour.winRate.toFixed(1)}% win rate ({bestHour.total} entradas)
               </p>
               <p className="text-[10px] font-mono text-muted-foreground mt-0.5">
-                💡 Priorize apostas nesse horário
+                💡 Priorize entradas nesse horário
               </p>
             </div>
           </div>
@@ -118,10 +118,10 @@ export default function PerformanceByTime({ userId }: PerformanceByTimeProps) {
             <div>
               <p className="text-xs font-mono font-semibold text-destructive">Horário de Tilt</p>
               <p className="text-[11px] font-mono text-foreground/80 mt-0.5">
-                {worstHour.hour}h–{worstHour.hour + 1}h: {worstHour.winRate.toFixed(1)}% win rate ({worstHour.total} apostas)
+                {worstHour.hour}h–{worstHour.hour + 1}h: {worstHour.winRate.toFixed(1)}% win rate ({worstHour.total} entradas)
               </p>
               <p className="text-[10px] font-mono text-muted-foreground mt-0.5">
-                🛑 Considere evitar apostas nesse horário
+                🛑 Considere evitar entradas nesse horário
               </p>
             </div>
           </div>
@@ -169,7 +169,7 @@ export default function PerformanceByTime({ userId }: PerformanceByTimeProps) {
         {/* Best day insight */}
         {bestDay && (
           <p className="text-[10px] font-mono text-muted-foreground">
-            📅 Melhor dia: <span className="text-foreground font-semibold">{bestDay.label}</span> ({bestDay.winRate.toFixed(0)}% WR, {bestDay.total} apostas)
+            📅 Melhor dia: <span className="text-foreground font-semibold">{bestDay.label}</span> ({bestDay.winRate.toFixed(0)}% WR, {bestDay.total} entradas)
           </p>
         )}
       </div>

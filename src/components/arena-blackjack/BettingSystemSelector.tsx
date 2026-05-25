@@ -1,5 +1,5 @@
 // ══════════════════════════════════════════════════════════
-// BETTING SYSTEM SELECTOR - Seletor de modo de apostas
+// BETTING SYSTEM SELECTOR - Seletor de modo de entradas
 // ══════════════════════════════════════════════════════════
 
 import { useState } from 'react';
@@ -47,7 +47,7 @@ export function BettingSystemSelector({
       <CardHeader className="pb-3">
         <CardTitle className="text-base font-orbitron">🎯 Sistema de Gestão de Banca</CardTitle>
         <CardDescription className="text-xs">
-          Escolha a estratégia de apostas
+          Escolha a estratégia de entradas
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -72,7 +72,7 @@ export function BettingSystemSelector({
                     <div className="flex items-start gap-1.5">
                       <span>🛡️</span>
                       <div>
-                        <span className="font-semibold">TC ≤ -1:</span> Aposta mínima (proteção)
+                        <span className="font-semibold">TC ≤ -1:</span> Entrada mínima (proteção)
                       </div>
                     </div>
                     <div className="flex items-start gap-1.5">
@@ -104,7 +104,7 @@ export function BettingSystemSelector({
                   </div>
                   
                   <p className="text-[11px] text-muted-foreground">
-                    Aposta proporcional à vantagem matemática.
+                    Entrada proporcional à vantagem matemática.
                   </p>
 
                   <div className="grid grid-cols-3 gap-1.5">
@@ -254,7 +254,7 @@ function SimulationDisplay({ config }: { config: BettingConfig }) {
             <div className="font-bold text-[hsl(var(--destructive))]">-{result.maxDrawdownPercent.toFixed(1)}%</div>
           </div>
           <div>
-            <div className="text-muted-foreground">Maior Aposta</div>
+            <div className="text-muted-foreground">Maior Entrada</div>
             <div className="font-bold">R${result.largestBet.toFixed(0)}</div>
           </div>
         </div>

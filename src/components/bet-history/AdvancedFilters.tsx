@@ -460,7 +460,7 @@ export default function AdvancedFilters({ bets, onFilteredChange }: AdvancedFilt
       <div className="flex items-center justify-between">
         <div className="space-y-0.5">
           <p className="text-xs font-orbitron text-foreground">Sharp Money</p>
-          <p className="text-xs text-muted-foreground">Apenas apostas com movimentação profissional</p>
+          <p className="text-xs text-muted-foreground">Apenas entradas com movimentação profissional</p>
         </div>
         <Switch
           checked={filters.sharpMoneyOnly}
@@ -561,7 +561,7 @@ export default function AdvancedFilters({ bets, onFilteredChange }: AdvancedFilt
       <div className="text-center">
         <p className="text-sm font-orbitron text-muted-foreground">
           <span className="text-primary font-bold">{filteredBets.length}</span> de{' '}
-          <span className="font-bold">{bets.length}</span> apostas
+          <span className="font-bold">{bets.length}</span> entradas
         </p>
       </div>
     </div>

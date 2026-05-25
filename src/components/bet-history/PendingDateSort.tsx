@@ -18,7 +18,7 @@ export default function PendingDateSort({ value, onChange }: PendingDateSortProp
       <SelectContent>
         <SelectItem value="date_asc">Data do Jogo ↑</SelectItem>
         <SelectItem value="date_desc">Data do Jogo ↓</SelectItem>
-        <SelectItem value="placed_desc">Data da Aposta ↓</SelectItem>
+        <SelectItem value="placed_desc">Data da Entrada ↓</SelectItem>
       </SelectContent>
     </Select>
   );

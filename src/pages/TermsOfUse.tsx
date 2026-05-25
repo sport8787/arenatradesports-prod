@@ -43,7 +43,7 @@ export default function TermsOfUse() {
           <h1 className="text-3xl md:text-4xl font-bold mb-4">Termos de Uso</h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             Estes Termos regulam o uso do <strong>Oráculo Mycroft</strong>, uma ferramenta de
-            análise estatística, probabilística e gestão de risco aplicada a apostas esportivas.
+            análise estatística, probabilística e gestão de risco aplicada a entradas esportivas.
             Ao criar uma conta ou utilizar qualquer funcionalidade, você concorda integralmente
             com o disposto abaixo.
           </p>
@@ -78,10 +78,10 @@ export default function TermsOfUse() {
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground space-y-2">
               <p>
-                O Oráculo Mycroft disponibiliza painéis, sinais, análises automatizadas, simulação
+                O Oráculo Mycroft disponibiliza painéis, entradas, análises automatizadas, simulação
                 de banca virtual, conteúdo educativo e ferramentas de gestão de risco voltadas ao
-                mercado de apostas esportivas. O serviço <strong>não opera apostas</strong> em nome
-                do usuário e não é uma casa de apostas.
+                mercado de entradas esportivas. O serviço <strong>não opera entradas</strong> em nome
+                do usuário e não é uma casa de entradas.
               </p>
             </CardContent>
           </Card>
@@ -97,7 +97,7 @@ export default function TermsOfUse() {
               <ul className="space-y-1 list-disc list-inside">
                 <li>Necessário ter 18 anos ou mais e plena capacidade civil.</li>
                 <li>O usuário é responsável pela veracidade dos dados informados.</li>
-                <li>A conta é pessoal e intransferível. Não é permitido compartilhar senha, sinais ou conteúdo pago.</li>
+                <li>A conta é pessoal e intransferível. Não é permitido compartilhar senha, entradas ou conteúdo pago.</li>
                 <li>O usuário deve manter senha segura e notificar imediatamente qualquer acesso não autorizado.</li>
               </ul>
             </CardContent>
@@ -150,10 +150,10 @@ export default function TermsOfUse() {
             <CardContent className="text-sm text-muted-foreground space-y-2">
               <p>É vedado ao usuário:</p>
               <ul className="space-y-1 list-disc list-inside">
-                <li>Revender, redistribuir ou expor publicamente sinais e conteúdos do Mycroft;</li>
+                <li>Revender, redistribuir ou expor publicamente entradas e conteúdos do Mycroft;</li>
                 <li>Realizar engenharia reversa, scraping em massa ou tentativas de quebra de segurança;</li>
                 <li>Utilizar bots, automações não autorizadas ou múltiplas contas para burlar limites;</li>
-                <li>Promover apostas a menores de idade ou em jurisdições em que sejam ilegais;</li>
+                <li>Promover entradas a menores de idade ou em jurisdições em que sejam ilegais;</li>
                 <li>Praticar fraude, lavagem de dinheiro ou utilizar meios de pagamento de terceiros sem autorização;</li>
                 <li>Inserir conteúdo ofensivo, ilegal ou que viole direitos de terceiros.</li>
               </ul>
@@ -189,18 +189,18 @@ export default function TermsOfUse() {
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground space-y-2">
               <p>
-                Os sinais, análises e indicações do Oráculo Mycroft são <strong>opinativos e
+                Os entradas, análises e indicações do Oráculo Mycroft são <strong>opinativos e
                 probabilísticos</strong>. O usuário é o <strong>único responsável</strong> por suas
-                decisões financeiras e pelo capital efetivamente apostado em casas de apostas.
+                decisões financeiras e pelo capital efetivamente apostado em casas de entradas.
               </p>
               <p>
                 Na máxima extensão permitida pela legislação, o Oráculo Mycroft não responde por:
               </p>
               <ul className="space-y-1 list-disc list-inside">
-                <li>Perdas, prejuízos, lucros cessantes ou frustração de expectativa decorrentes de apostas;</li>
-                <li>Indisponibilidade temporária por manutenção, falha de terceiros (Supabase, Asaas, provedores de odds, casas de apostas, internet do usuário);</li>
+                <li>Perdas, prejuízos, lucros cessantes ou frustração de expectativa decorrentes de entradas;</li>
+                <li>Indisponibilidade temporária por manutenção, falha de terceiros (Supabase, Asaas, provedores de odds, casas de entradas, internet do usuário);</li>
                 <li>Erros, inconsistências ou atrasos em dados fornecidos por APIs de terceiros (API-Football, The Odds API, Sportmonks, Futodds, Betfair etc.);</li>
-                <li>Decisões da casa de apostas (limitação de conta, cancelamento, anulação de mercado).</li>
+                <li>Decisões da casa de entradas (limitação de conta, cancelamento, anulação de mercado).</li>
               </ul>
             </CardContent>
           </Card>

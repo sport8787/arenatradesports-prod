@@ -19,7 +19,7 @@ interface Candidato {
   status: string;
 }
 
-interface Sinal {
+interface Entrada {
   id: string;
   candidato_id: string;
   placar_alvo: string;
@@ -40,13 +40,13 @@ const PLACAR_LABEL: Record<string, { label: string; emoji: string; color: string
 
 interface Props {
   arena: "punter" | "trader_sports";
-  /** Quando true, colapsa o painel a uma linha quando não há sinais ao vivo */
+  /** Quando true, colapsa o painel a uma linha quando não há entradas ao vivo */
   compactWhenIdle?: boolean;
 }
 
 export default function EventosRarosPanel({ arena, compactWhenIdle = false }: Props) {
   const [candidatos, setCandidatos] = useState<Candidato[]>([]);
-  const [sinais, setSinais] = useState<Sinal[]>([]);
+  const [entradas, setSinais] = useState<Entrada[]>([]);
   const [loading, setLoading] = useState(true);
   const [enabled, setEnabled] = useState(true);
   const [threshold, setThreshold] = useState(60);
@@ -109,7 +109,7 @@ export default function EventosRarosPanel({ arena, compactWhenIdle = false }: Pr
 
   if (!enabled) return null;
 
-  const sinaisAtivos = sinais.filter((s) => s.status === "ATIVO");
+  const sinaisAtivos = entradas.filter((s) => s.status === "ATIVO");
   const preLiveCount = candidatos.length;
   const ativosCount = sinaisAtivos.length;
 
@@ -138,7 +138,7 @@ export default function EventosRarosPanel({ arena, compactWhenIdle = false }: Pr
             <CardContent className="space-y-3 pt-0">
               <p className="text-xs text-muted-foreground">
                 Placares incomuns identificados pelo motor estatístico (LAY na Betfair Exchange).
-                Modo atual: <strong>simulado</strong> — execute manualmente quando o sinal disparar.
+                Modo atual: <strong>simulado</strong> — execute manualmente quando o entrada disparar.
               </p>
               {preLiveCount === 0 ? (
                 <p className="text-xs text-muted-foreground italic">
@@ -193,7 +193,7 @@ export default function EventosRarosPanel({ arena, compactWhenIdle = false }: Pr
         </CardTitle>
         <p className="text-xs text-muted-foreground">
           Placares incomuns identificados pelo motor estatístico (LAY na Betfair Exchange).
-          Modo atual: <strong>simulado</strong> — execute manualmente quando o sinal disparar.
+          Modo atual: <strong>simulado</strong> — execute manualmente quando o entrada disparar.
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -202,7 +202,7 @@ export default function EventosRarosPanel({ arena, compactWhenIdle = false }: Pr
         {!loading && sinaisAtivos.length > 0 && (
           <div className="space-y-2">
             <h4 className="text-xs font-semibold text-purple-400 uppercase tracking-wider">
-              🔴 Sinais ao vivo
+              🔴 Entradas ao vivo
             </h4>
             {sinaisAtivos.map((s) => {
               const c = candidatos.find((x) => x.id === s.candidato_id);

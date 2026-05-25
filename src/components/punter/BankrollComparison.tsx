@@ -269,7 +269,7 @@ export default function BankrollComparison({ userId }: Props) {
         <div className="text-center py-12 space-y-2">
           <Scale className="w-8 h-8 text-muted-foreground mx-auto" />
           <p className="text-muted-foreground text-sm">Sem dados suficientes para comparação.</p>
-          <p className="text-muted-foreground text-xs">Importe apostas reais e aguarde sinais do Hórus.</p>
+          <p className="text-muted-foreground text-xs">Importe entradas reais e aguarde entradas do Hórus.</p>
         </div>
       )}
     </div>
@@ -289,7 +289,7 @@ function ComparisonCard({ data, accent }: { data: BankrollData; accent: string }
       </h4>
       <div className="space-y-1.5">
         <div className="flex justify-between">
-          <span className="text-[10px] text-muted-foreground">Apostas</span>
+          <span className="text-[10px] text-muted-foreground">Entradas</span>
           <span className="text-xs font-mono font-bold text-foreground">{data.totalBets}</span>
         </div>
         <div className="flex justify-between">

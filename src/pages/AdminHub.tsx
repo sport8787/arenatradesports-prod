@@ -95,7 +95,7 @@ const LINKS: AdminLink[] = [
   },
   {
     to: '/admin/auditoria-sinais',
-    label: 'Auditoria de Sinais (Trader Live)',
+    label: 'Auditoria de Entradas (Trader Live)',
     description: 'Inspeção minuto-a-minuto de cada análise ao vivo do Mycroft.',
     icon: <Search className="h-4 w-4" />,
     group: 'Análise',
@@ -103,7 +103,7 @@ const LINKS: AdminLink[] = [
   {
     to: '/admin/auditoria-punter',
     label: 'Auditoria Pré-Live (Punter)',
-    description: 'Sinais APROVADOS do Punter × resultado · simulação de banca virtual e drawdown.',
+    description: 'Entradas APROVADOS do Punter × resultado · simulação de banca virtual e drawdown.',
     icon: <Search className="h-4 w-4" />,
     group: 'Análise',
   },
@@ -146,7 +146,7 @@ const LINKS: AdminLink[] = [
   {
     to: '/admin/borderline-ai',
     label: 'Camada 2 — Validador IA Borderline',
-    description: 'Métricas do validador Gemini para sinais ao vivo com confiança 55-65%.',
+    description: 'Métricas do validador Gemini para entradas ao vivo com confiança 55-65%.',
     icon: <Activity className="h-4 w-4" />,
     group: 'Mycroft',
   },

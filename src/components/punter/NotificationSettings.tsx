@@ -77,7 +77,7 @@ export default function NotificationSettings({ userId }: NotificationSettingsPro
 
       const result = data as any;
       if (result.bets_sent === 0) {
-        toast.info('Nenhuma aposta aprovada pendente para enviar');
+        toast.info('Nenhuma entrada aprovada pendente para enviar');
       } else {
         toast.success(
           `Enviado! ${result.telegram_sent ? '✅ Telegram' : ''} ${result.emails_sent > 0 ? `✅ ${result.emails_sent} emails` : ''}`
@@ -102,7 +102,7 @@ export default function NotificationSettings({ userId }: NotificationSettingsPro
 
     const ok = await disablePush();
     if (ok) {
-      toast.success('Notificações de sinais aprovados desativadas');
+      toast.success('Notificações de entradas aprovados desativadas');
     } else {
       toast.error('Não foi possível desativar as notificações do navegador');
     }
@@ -131,7 +131,7 @@ export default function NotificationSettings({ userId }: NotificationSettingsPro
               <MessageCircle className="w-4 h-4 text-[#0088cc]" />
               <div>
                 <p className="text-xs font-mono font-semibold text-foreground">Telegram VIP</p>
-                <p className="text-[10px] font-mono text-muted-foreground">Apostas enviadas ao grupo</p>
+                <p className="text-[10px] font-mono text-muted-foreground">Entradas enviadas ao grupo</p>
               </div>
             </div>
             <Switch
@@ -143,7 +143,7 @@ export default function NotificationSettings({ userId }: NotificationSettingsPro
           {telegramEnabled && (
             <div className="mt-2 space-y-2">
               <p className="text-[10px] font-mono text-muted-foreground">
-                ✅ Apostas aprovadas são enviadas automaticamente ao grupo Telegram
+                ✅ Entradas aprovadas são enviadas automaticamente ao grupo Telegram
               </p>
               <a
                 href="https://t.me/oraculo_mycroft"
@@ -164,8 +164,8 @@ export default function NotificationSettings({ userId }: NotificationSettingsPro
             <div className="flex items-center gap-2.5">
               <Bell className="w-4 h-4 text-primary" />
               <div>
-                <p className="text-xs font-mono font-semibold text-foreground">Sinais Aprovados no Navegador</p>
-                <p className="text-[10px] font-mono text-muted-foreground">Alerta popup quando um sinal aprovado chegar</p>
+                <p className="text-xs font-mono font-semibold text-foreground">Entradas Aprovadas no Navegador</p>
+                <p className="text-[10px] font-mono text-muted-foreground">Alerta popup quando um entrada aprovado chegar</p>
               </div>
             </div>
             <Switch
@@ -177,7 +177,7 @@ export default function NotificationSettings({ userId }: NotificationSettingsPro
 
           <p className="text-[10px] font-mono text-muted-foreground">
             {browserPushSupported
-              ? 'Desative aqui para parar os avisos repetidos de sinal aprovado neste navegador.'
+              ? 'Desative aqui para parar os avisos repetidos de entrada aprovado neste navegador.'
               : 'Seu navegador atual não suporta notificações push.'}
           </p>
         </div>
@@ -189,7 +189,7 @@ export default function NotificationSettings({ userId }: NotificationSettingsPro
               <Mail className="w-4 h-4 text-primary" />
               <div>
                 <p className="text-xs font-mono font-semibold text-foreground">Email Diário</p>
-                <p className="text-[10px] font-mono text-muted-foreground">Resumo das apostas aprovadas</p>
+                <p className="text-[10px] font-mono text-muted-foreground">Resumo das entradas aprovadas</p>
               </div>
             </div>
             <Switch
@@ -208,7 +208,7 @@ export default function NotificationSettings({ userId }: NotificationSettingsPro
                 className="h-8 text-xs font-mono bg-muted/30 border-border"
               />
               <p className="text-[9px] font-mono text-muted-foreground mt-1">
-                Apostas aprovadas serão enviadas para este email
+                Entradas aprovadas serão enviadas para este email
               </p>
             </div>
           )}

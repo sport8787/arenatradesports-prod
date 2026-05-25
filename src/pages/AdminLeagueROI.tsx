@@ -91,7 +91,7 @@ export default function AdminLeagueROI() {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">📊 ROI por Liga — Antes vs Depois</h1>
-            <p className="text-sm text-muted-foreground">Compara performance dos sinais APROVADO/LABAREDA antes e depois da data de corte. Use para validar o impacto da redução para Tier A.</p>
+            <p className="text-sm text-muted-foreground">Compara performance dos entradas APROVADO/LABAREDA antes e depois da data de corte. Use para validar o impacto da redução para Tier A.</p>
           </div>
           <Button asChild size="sm" variant="outline"><a href="/admin/hub">← Hub Admin</a></Button>
         </div>
@@ -122,7 +122,7 @@ export default function AdminLeagueROI() {
           <Card className="p-4">
             <div className="text-xs text-muted-foreground">ANTES — Hit Rate</div>
             <div className="text-2xl font-bold">{totals.bHit.toFixed(1)}%</div>
-            <div className="text-xs text-muted-foreground">{totals.bT} sinais</div>
+            <div className="text-xs text-muted-foreground">{totals.bT} entradas</div>
           </Card>
           <Card className="p-4">
             <div className="text-xs text-muted-foreground">ANTES — ROI</div>
@@ -133,7 +133,7 @@ export default function AdminLeagueROI() {
           <Card className="p-4">
             <div className="text-xs text-muted-foreground">DEPOIS — Hit Rate</div>
             <div className="text-2xl font-bold">{totals.aHit.toFixed(1)}%</div>
-            <div className="text-xs text-muted-foreground">{totals.aT} sinais</div>
+            <div className="text-xs text-muted-foreground">{totals.aT} entradas</div>
           </Card>
           <Card className="p-4">
             <div className="text-xs text-muted-foreground">DEPOIS — ROI</div>

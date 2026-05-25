@@ -260,7 +260,7 @@ export default function AdminMycroftRules() {
           <Card>
             <CardHeader>
               <CardTitle>Relatório Shadow Mode (resultados liquidados)</CardTitle>
-              <p className="text-sm text-muted-foreground">Comparação por mercado: motor atual vs motor novo (regras), em sinais com resultado real.</p>
+              <p className="text-sm text-muted-foreground">Comparação por mercado: motor atual vs motor novo (regras), em entradas com resultado real.</p>
             </CardHeader>
             <CardContent>
               {shadowReport.length === 0 ? (

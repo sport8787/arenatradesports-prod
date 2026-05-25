@@ -29,7 +29,7 @@ export default function AdminPushTest() {
     { id: 1, title: "Permitir notificações", description: "Solicita permissão e registra a subscription deste dispositivo.", status: "pending" },
     { id: 2, title: "Push de teste (app aberto)", description: "Envia um push agora — você deve ver uma notificação na tela em segundos.", status: "pending" },
     { id: 3, title: "Push em segundo plano", description: "Aguarde 10s e volte para a home do celular ou troque de aba. O push deve chegar mesmo com app fechado.", status: "pending" },
-    { id: 4, title: "Simular GREEN real", description: "Cria uma aposta-teste e marca como GREEN — o trigger do banco dispara o push automaticamente.", status: "pending" },
+    { id: 4, title: "Simular GREEN real", description: "Cria uma entrada-teste e marca como GREEN — o trigger do banco dispara o push automaticamente.", status: "pending" },
   ]);
 
   useEffect(() => {
@@ -110,7 +110,7 @@ export default function AdminPushTest() {
   const runStep4 = async () => {
     if (!userId) return;
     updateStep(4, { status: "running" });
-    // Insere aposta pendente
+    // Insere entrada pendente
     const matchId = `push-test-${Date.now()}`;
     const { data: bet, error: insertErr } = await supabase
       .from("bets_history")
@@ -136,7 +136,7 @@ export default function AdminPushTest() {
       .eq("id", bet.id);
     if (updateErr) { updateStep(4, { status: "error", detail: updateErr.message }); return; }
 
-    updateStep(4, { status: "done", detail: "Aposta marcada como GREEN. O trigger SQL chamou send-web-push automaticamente." });
+    updateStep(4, { status: "done", detail: "Entrada marcada como GREEN. O trigger SQL chamou send-web-push automaticamente." });
   };
 
   const StepIcon = ({ status }: { status: StepStatus }) => {

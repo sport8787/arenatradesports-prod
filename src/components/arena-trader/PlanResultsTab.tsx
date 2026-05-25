@@ -65,7 +65,7 @@ export default function PlanResultsTab() {
       return;
     }
     const n = Array.isArray(data) && data[0] ? (data[0].settled ?? 0) : 0;
-    toast({ title: 'Reconciliação concluída', description: `${n} sinal(is) liquidado(s) com o placar final.` });
+    toast({ title: 'Reconciliação concluída', description: `${n} entrada(is) liquidado(s) com o placar final.` });
     void load();
   };
 
@@ -112,7 +112,7 @@ export default function PlanResultsTab() {
 
       {/* Resumo geral */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-        <Stat label="Sinais" value={totals.total} />
+        <Stat label="Entradas" value={totals.total} />
         <Stat label="GREEN" value={totals.greens} tone="success" />
         <Stat label="RED" value={totals.reds} tone="destructive" />
         <Stat label="Pendentes" value={totals.pending} tone="muted" />
@@ -130,7 +130,7 @@ export default function PlanResultsTab() {
         </div>
       ) : rows.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border bg-card/30 p-8 text-center text-sm text-muted-foreground">
-          Nenhum sinal aprovado por seus planos neste período.
+          Nenhum entrada aprovado por seus planos neste período.
         </div>
       ) : (
         <div className="rounded-lg border border-border bg-card/40 overflow-hidden">
@@ -140,7 +140,7 @@ export default function PlanResultsTab() {
                 <tr>
                   <th className="text-left px-3 py-2">Plano</th>
                   <th className="text-center px-2 py-2">Mercado</th>
-                  <th className="text-center px-2 py-2">Sinais</th>
+                  <th className="text-center px-2 py-2">Entradas</th>
                   <th className="text-center px-2 py-2">G</th>
                   <th className="text-center px-2 py-2">R</th>
                   <th className="text-center px-2 py-2">Pend.</th>
@@ -179,7 +179,7 @@ export default function PlanResultsTab() {
       )}
 
       <p className="text-[11px] text-muted-foreground leading-relaxed">
-        Stake fixo de <span className="font-mono">1u</span> por sinal · P/L = (odd − 1) em GREEN, −1 em RED · A reconciliação cruza o placar final de cada jogo (em <span className="font-mono">live_matches</span>) com o sinal aprovado.
+        Stake fixo de <span className="font-mono">1u</span> por entrada · P/L = (odd − 1) em GREEN, −1 em RED · A reconciliação cruza o placar final de cada jogo (em <span className="font-mono">live_matches</span>) com o entrada aprovado.
         Mercados de <span className="font-mono">Escanteios</span> ficam como "pendentes" porque o total de escanteios finais ainda não é armazenado no histórico — vamos liberar em breve.
       </p>
     </div>

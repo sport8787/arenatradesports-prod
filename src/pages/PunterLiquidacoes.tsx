@@ -47,7 +47,7 @@ export default function PunterLiquidacoesPage() {
 
       // FONTE OFICIAL/AUDITÁVEL: punter_analyses (mesma usada em /admin/auditoria-punter).
       // Garante que /punter/liquidacoes e a auditoria admin mostrem exatamente os
-      // MESMOS sinais Punter (1X2/Over/Under/BTTS/AH/escanteios) gerados pela IA.
+      // MESMOS entradas Punter (1X2/Over/Under/BTTS/AH/escanteios) gerados pela IA.
       const { data: sigs } = await supabase
         .from('punter_analyses')
         .select('id, match_id, home_team, away_team, league, market, odd, stake_percentage, verdict, result, profit_loss, commence_time, final_score_home, final_score_away, analyzed_by, thesis')
@@ -147,7 +147,7 @@ export default function PunterLiquidacoesPage() {
       );
       setRows(all);
     } catch (e: any) {
-      toast.error('Erro ao carregar sinais', { description: e.message });
+      toast.error('Erro ao carregar entradas', { description: e.message });
     } finally {
       setLoading(false);
     }
@@ -235,7 +235,7 @@ export default function PunterLiquidacoesPage() {
   };
 
   // Métricas honestas — calculadas SEPARADAMENTE por fonte para não inflar
-  // win-rate misturando Sinais Punter (1 sinal/jogo) com Plano Favorito (3 mercados/jogo)
+  // win-rate misturando Entradas Punter (1 entrada/jogo) com Plano Favorito (3 mercados/jogo)
   // e Eventos Raros (LAY com hit-rate naturalmente alto).
   const STAKE_UNIT = 1;
 
@@ -279,7 +279,7 @@ export default function PunterLiquidacoesPage() {
   const blockRaros = buildBlock(rarosRows);
 
   // Métricas-headline = TODAS as estratégias ativas combinadas
-  // (Sinais IA Punter + Plano Favorito + Eventos Raros), excluindo o mercado
+  // (Entradas IA Punter + Plano Favorito + Eventos Raros), excluindo o mercado
   // descontinuado de chutes. Esta é a performance real do produto Punter.
   const blockCombined = buildBlock([...punterRowsClean, ...favoritoRows, ...rarosRows]);
   const greenCount = blockCombined.greens;
@@ -316,16 +316,16 @@ export default function PunterLiquidacoesPage() {
         <div className="rounded-lg border border-border bg-card/50 p-4 space-y-3">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="text-lg font-bold text-foreground">Sinais Punter — {periodLabel}</h2>
+              <h2 className="text-lg font-bold text-foreground">Entradas Punter — {periodLabel}</h2>
               <p className="font-mono text-xs text-muted-foreground mt-1 max-w-2xl">
-                Lista <strong>todos os sinais gerados</strong> pelo Mycroft Punter (1X2, Over/Under, BTTS, AH, escanteios),
-                Plano Favorito e Eventos Raros — independente de stake/aposta. Cada sinal é classificado como
+                Lista <strong>todos os entradas gerados</strong> pelo Mycroft Punter (1X2, Over/Under, BTTS, AH, escanteios),
+                Plano Favorito e Eventos Raros — independente de stake/entrada. Cada entrada é classificado como
                 <span className="text-emerald-300"> GREEN</span>, <span className="text-rose-300"> RED</span>,
                 <span className="text-slate-300"> VOID</span> ou
                 <span className="text-amber-300"> Pendente</span> conforme o resultado real do jogo.
               </p>
               <p className="font-mono text-[10px] text-muted-foreground/70 mt-1.5">
-                Métricas combinam Sinais IA Punter + Plano Favorito + Eventos Raros (mercado de Chutes descontinuado por EV negativo). Blocos detalhados por estratégia abaixo. Auditoria completa em <code>/admin/auditoria-punter</code>.
+                Métricas combinam Entradas IA Punter + Plano Favorito + Eventos Raros (mercado de Chutes descontinuado por EV negativo). Blocos detalhados por estratégia abaixo. Auditoria completa em <code>/admin/auditoria-punter</code>.
               </p>
             </div>
             <div className="flex gap-1 rounded-md border border-border bg-background/50 p-1">
@@ -351,7 +351,7 @@ export default function PunterLiquidacoesPage() {
             </div>
           </div>
 
-          {/* Painel principal: APENAS Sinais IA Punter (mesma base do admin) */}
+          {/* Painel principal: APENAS Entradas IA Punter (mesma base do admin) */}
           <div className="rounded-md border border-primary/30 bg-primary/5 p-2">
             <div className="text-[10px] font-mono uppercase text-primary/80 mb-2">
               Performance Consolidada — Punter (IA + Plano Favorito + Eventos Raros)
@@ -362,14 +362,14 @@ export default function PunterLiquidacoesPage() {
                 <div className={cn('font-mono text-xl font-bold', profitData.profit > 0 ? 'text-emerald-400' : profitData.profit < 0 ? 'text-rose-400' : 'text-foreground')}>
                   {profitData.profit > 0 ? '+' : ''}{profitData.profit.toFixed(2)}u
                 </div>
-                <div className="text-[10px] font-mono text-muted-foreground">Base: 1u por sinal liquidado</div>
+                <div className="text-[10px] font-mono text-muted-foreground">Base: 1u por entrada liquidado</div>
               </div>
               <div className="rounded-md border border-border bg-background/40 p-3">
                 <div className="text-[10px] font-mono uppercase text-muted-foreground">ROI</div>
                 <div className={cn('font-mono text-xl font-bold', roi > 0 ? 'text-emerald-400' : roi < 0 ? 'text-rose-400' : 'text-foreground')}>
                   {roi > 0 ? '+' : ''}{roi.toFixed(1)}%
                 </div>
-                <div className="text-[10px] font-mono text-muted-foreground">{decided} sinais decididos</div>
+                <div className="text-[10px] font-mono text-muted-foreground">{decided} entradas decididos</div>
               </div>
               <div className="rounded-md border border-border bg-background/40 p-3">
                 <div className="text-[10px] font-mono uppercase text-muted-foreground">Win Rate</div>
@@ -377,7 +377,7 @@ export default function PunterLiquidacoesPage() {
                 <div className="text-[10px] font-mono text-muted-foreground">{greenCount}/{decided} greens</div>
               </div>
               <div className="rounded-md border border-border bg-background/40 p-3">
-                <div className="text-[10px] font-mono uppercase text-muted-foreground">Total de Sinais</div>
+                <div className="text-[10px] font-mono uppercase text-muted-foreground">Total de Entradas</div>
                 <div className="font-mono text-xl font-bold text-foreground">{blockCombined.total}</div>
                 <div className="text-[10px] font-mono text-muted-foreground">IA + Favorito + Raros</div>
               </div>
@@ -389,7 +389,7 @@ export default function PunterLiquidacoesPage() {
             <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
               <div className="text-[10px] font-mono uppercase text-amber-300/80 mb-1">Bloco 2 — Plano Favorito</div>
               <div className="flex items-center justify-between text-xs font-mono">
-                <span className="text-foreground">{blockFavorito.total} sinais · {blockFavorito.decided} liquidados</span>
+                <span className="text-foreground">{blockFavorito.total} entradas · {blockFavorito.decided} liquidados</span>
                 <span className="text-emerald-400">{blockFavorito.winRate.toFixed(1)}% WR</span>
               </div>
               <div className="text-[10px] font-mono text-muted-foreground mt-1">
@@ -399,7 +399,7 @@ export default function PunterLiquidacoesPage() {
             <div className="rounded-md border border-purple-500/30 bg-purple-500/5 p-3">
               <div className="text-[10px] font-mono uppercase text-purple-300/80 mb-1">Bloco 3 — Eventos Raros (LAY)</div>
               <div className="flex items-center justify-between text-xs font-mono">
-                <span className="text-foreground">{blockRaros.total} sinais · {blockRaros.decided} liquidados</span>
+                <span className="text-foreground">{blockRaros.total} entradas · {blockRaros.decided} liquidados</span>
                 <span className="text-emerald-400">{blockRaros.winRate.toFixed(1)}% WR</span>
               </div>
               <div className="text-[10px] font-mono text-muted-foreground mt-1">
@@ -442,7 +442,7 @@ export default function PunterLiquidacoesPage() {
               {loading ? (
                 <div className="p-6 text-center font-mono text-xs text-muted-foreground">Carregando…</div>
               ) : filtered.length === 0 ? (
-                <div className="p-6 text-center font-mono text-xs text-muted-foreground">Nenhum sinal nesta categoria.</div>
+                <div className="p-6 text-center font-mono text-xs text-muted-foreground">Nenhum entrada nesta categoria.</div>
               ) : (
                 <ul className="divide-y divide-border">
                   {filtered.map((r) => (
@@ -485,7 +485,7 @@ export default function PunterLiquidacoesPage() {
                         {isVoid(r) && (
                           <Badge
                             className="bg-slate-500/20 text-slate-300 border-slate-400/40 gap-1"
-                            title={r.void_reason || 'Sinal anulado: resultado não pôde ser determinado'}
+                            title={r.void_reason || 'Entrada anulado: resultado não pôde ser determinado'}
                           >
                             <AlertTriangle className="w-3.5 h-3.5" /> VOID
                           </Badge>

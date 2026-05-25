@@ -212,7 +212,7 @@ export default function SherlockAnalyticButton({
           <div className="mt-2 border-t border-border pt-3">
             <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-muted-foreground">
               <History className="h-3.5 w-3.5" />
-              Histórico Sherlock {analysisId ? "deste sinal" : "desta partida"}
+              Histórico Sherlock {analysisId ? "deste entrada" : "desta partida"}
             </div>
             {historyLoading ? (
               <p className="text-xs text-muted-foreground">Carregando…</p>

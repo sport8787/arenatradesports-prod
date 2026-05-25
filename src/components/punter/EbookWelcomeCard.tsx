@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, Download, X } from 'lucide-react';
 
-const EBOOK_URL = 'https://affquongjlhmusxzohjl.supabase.co/storage/v1/object/public/public-assets/ebooks/apostas-de-valor.pdf';
+const EBOOK_URL = 'https://affquongjlhmusxzohjl.supabase.co/storage/v1/object/public/public-assets/ebooks/entradas-de-valor.pdf';
 const STORAGE_KEY = 'ebook_welcome_dismissed';
 
 export default function EbookWelcomeCard() {
@@ -50,10 +50,10 @@ export default function EbookWelcomeCard() {
                 🎁 Bônus de boas-vindas
               </p>
               <p className="text-sm sm:text-base font-bold text-foreground leading-tight">
-                E-book "Apostas de Valor: Como Encontrar Edge Matemático"
+                E-book "Entradas de Valor: Como Encontrar Edge Matemático"
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Leitura rápida — fundamentos do que torna uma aposta lucrativa no longo prazo.
+                Leitura rápida — fundamentos do que torna uma entrada lucrativa no longo prazo.
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">

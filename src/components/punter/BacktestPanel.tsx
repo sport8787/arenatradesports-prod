@@ -220,7 +220,7 @@ export default function BacktestPanel({ onClose }: Props) {
       setResults(data.results || []);
       setLeagueName(data.league);
       setUsedSource(data.data_source || '');
-      toast.success(`Backtest concluído (${data.data_source || 'fonte ?'}): ${data.metrics.total_approved} apostas simuladas`);
+      toast.success(`Backtest concluído (${data.data_source || 'fonte ?'}): ${data.metrics.total_approved} entradas simuladas`);
     } catch (err: any) {
       toast.error(err.message || 'Erro ao executar backtest');
     } finally {
@@ -232,7 +232,7 @@ export default function BacktestPanel({ onClose }: Props) {
     { key: 'overview', label: 'Resumo', icon: Activity },
     { key: 'montecarlo', label: 'Monte Carlo', icon: Dice5 },
     { key: 'breakdown', label: 'Breakdown', icon: Layers },
-    { key: 'bets', label: 'Apostas', icon: Target },
+    { key: 'bets', label: 'Entradas', icon: Target },
   ] as const;
 
   return (
@@ -366,9 +366,9 @@ export default function BacktestPanel({ onClose }: Props) {
 
             <div className="bg-secondary/30 rounded-lg p-3 text-xs text-muted-foreground">
               <p><strong className="text-accent">Pipeline:</strong> Backtest No-Lookahead + Monte Carlo (10.000 simulações)</p>
-              <p className="mt-1">Banca: R$ {initialBankroll.toLocaleString('pt-BR')} | Stake: conforme nível do sinal | <strong className="text-warning">Limite por aposta: R$ {MAX_STAKE_CAP.toLocaleString('pt-BR')}</strong></p>
+              <p className="mt-1">Banca: R$ {initialBankroll.toLocaleString('pt-BR')} | Stake: conforme nível do entrada | <strong className="text-warning">Limite por entrada: R$ {MAX_STAKE_CAP.toLocaleString('pt-BR')}</strong></p>
               {usedSource && <p className="mt-1 text-[10px]">📡 Última execução usou: <strong className="text-accent">{usedSource}</strong></p>}
-              <p className="mt-1 text-[10px]">⚠️ Projeções consideram limite realista de casas de apostas — sem crescimento infinito</p>
+              <p className="mt-1 text-[10px]">⚠️ Projeções consideram limite realista de casas de entradas — sem crescimento infinito</p>
             </div>
 
             <GoldButton onClick={runBacktest} disabled={loading} className="w-full">
@@ -419,7 +419,7 @@ export default function BacktestPanel({ onClose }: Props) {
                       )}
                       {metrics.bets_per_day && (
                         <Badge variant="outline" className="text-[10px] border-border text-muted-foreground">
-                          {metrics.bets_per_day} apostas/dia
+                          {metrics.bets_per_day} entradas/dia
                         </Badge>
                       )}
                     </div>
@@ -481,7 +481,7 @@ export default function BacktestPanel({ onClose }: Props) {
                               <Tooltip
                                 contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: 12 }}
                                 formatter={(value: number) => [`R$ ${value.toFixed(0)}`, 'Banca']}
-                                labelFormatter={(label) => `Aposta #${label}`}
+                                labelFormatter={(label) => `Entrada #${label}`}
                               />
                               <ReferenceLine y={metrics.initial_bankroll} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
                               <Line type="monotone" dataKey="bankroll" stroke="hsl(var(--accent))" strokeWidth={2} dot={false} />
@@ -496,7 +496,7 @@ export default function BacktestPanel({ onClose }: Props) {
                   {metrics.tier_breakdown && metrics.tier_breakdown.length > 0 && (
                     <Card className="border-border">
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-orbitron">ROI por Tipo de Sinal</CardTitle>
+                        <CardTitle className="text-sm font-orbitron">ROI por Tipo de Entrada</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="h-44">
@@ -526,7 +526,7 @@ export default function BacktestPanel({ onClose }: Props) {
                             const tierLabel = labelMap[t.tier] || t.tier;
                             return (
                             <div key={i} className="flex justify-between text-xs">
-                              <span className="text-muted-foreground">{tierLabel}: {t.count} apostas ({t.greens}G / {t.reds}R) | Acerto: {t.hit_rate}%</span>
+                              <span className="text-muted-foreground">{tierLabel}: {t.count} entradas ({t.greens}G / {t.reds}R) | Acerto: {t.hit_rate}%</span>
                               <span className={cn("font-bold", t.roi >= 0 ? 'text-success' : 'text-destructive')}>
                                 {t.roi >= 0 ? '+' : ''}{t.roi.toFixed(1)}%
                               </span>
@@ -632,7 +632,7 @@ export default function BacktestPanel({ onClose }: Props) {
                           ))}
                         </div>
                         <p className="text-[10px] text-muted-foreground mt-3">
-                          * Projeções com cap de R$ {MAX_STAKE_CAP.toLocaleString('pt-BR')}/aposta. Taxa: {metrics!.bets_per_day?.toFixed(1) || '?'} apostas/dia. Monte Carlo P25/P50/P75.
+                          * Projeções com cap de R$ {MAX_STAKE_CAP.toLocaleString('pt-BR')}/entrada. Taxa: {metrics!.bets_per_day?.toFixed(1) || '?'} entradas/dia. Monte Carlo P25/P50/P75.
                         </p>
                       </CardContent>
                     </Card>
@@ -672,7 +672,7 @@ export default function BacktestPanel({ onClose }: Props) {
                           {metrics.roi_by_odd_range.map((r, i) => (
                             <div key={i} className="flex justify-between text-xs">
                               <span className="text-muted-foreground">
-                                {r.range}: {r.count} apostas ({r.greens}G/{r.reds}R) | Acerto: {r.hit_rate}% | Odd média: {r.avg_odd}
+                                {r.range}: {r.count} entradas ({r.greens}G/{r.reds}R) | Acerto: {r.hit_rate}% | Odd média: {r.avg_odd}
                               </span>
                               <span className={cn("font-bold", r.roi >= 0 ? 'text-success' : 'text-destructive')}>
                                 {r.roi >= 0 ? '+' : ''}{r.roi.toFixed(1)}%
@@ -701,7 +701,7 @@ export default function BacktestPanel({ onClose }: Props) {
                                 <div>
                                   <p className="text-xs font-bold text-foreground">{l.league}</p>
                                   <p className="text-[10px] text-muted-foreground">
-                                    {l.count} apostas • {l.greens}G / {l.reds}R • Acerto: {l.hit_rate}%
+                                    {l.count} entradas • {l.greens}G / {l.reds}R • Acerto: {l.hit_rate}%
                                   </p>
                                 </div>
                                 <div className="text-right">
@@ -732,7 +732,7 @@ export default function BacktestPanel({ onClose }: Props) {
                               <div>
                                 <p className="text-xs font-bold text-foreground">{t.tier}</p>
                                 <p className="text-[10px] text-muted-foreground">
-                                  {t.count} apostas • {t.greens}G / {t.reds}R • Acerto: {t.hit_rate}%
+                                  {t.count} entradas • {t.greens}G / {t.reds}R • Acerto: {t.hit_rate}%
                                 </p>
                               </div>
                               <div className="text-right">
@@ -756,7 +756,7 @@ export default function BacktestPanel({ onClose }: Props) {
               {activeTab === 'bets' && results.length > 0 && (
                 <Card className="border-border">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-orbitron">Apostas Simuladas ({results.length})</CardTitle>
+                    <CardTitle className="text-sm font-orbitron">Entradas Simuladas ({results.length})</CardTitle>
                   </CardHeader>
                   <CardContent className="max-h-[60vh] overflow-y-auto space-y-1.5">
                     {results.map((r, i) => {

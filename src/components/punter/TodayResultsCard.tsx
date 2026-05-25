@@ -21,7 +21,7 @@ interface Props {
 
 /**
  * Card no topo da Arena Punter mostrando Greens/Reds/Pending do dia
- * para o usuário logado. Usa virtual_bets_punter (apostas reais do Hórus,
+ * para o usuário logado. Usa virtual_bets_punter (entradas reais do Hórus,
  * incluindo as pendentes geradas pelo auto-bet global).
  *
  * PnL: soma APENAS profit_loss de bets concluídas (status green/red).

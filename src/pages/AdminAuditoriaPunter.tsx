@@ -119,7 +119,7 @@ export default function AdminAuditoriaPunter() {
     return { total, green, red, pending, settled, winRate, totalPL, avgOdd, avgConf };
   }, [rows]);
 
-  // Simulação de banca (cronológica) usando stake_percentage de cada sinal
+  // Simulação de banca (cronológica) usando stake_percentage de cada entrada
   const sim = useMemo(() => {
     const settledChrono = [...rows]
       .filter((r) => r.result && ["GREEN", "RED"].includes(r.result.toUpperCase()))
@@ -174,7 +174,7 @@ export default function AdminAuditoriaPunter() {
             <div>
               <h1 className="text-2xl md:text-3xl font-bold">Auditoria Pré-Live · Arena Punter</h1>
               <p className="text-sm text-muted-foreground">
-                Sinais APROVADOS do Punter × resultado final · simulação de banca virtual
+                Entradas APROVADOS do Punter × resultado final · simulação de banca virtual
               </p>
             </div>
           </div>
@@ -210,7 +210,7 @@ export default function AdminAuditoriaPunter() {
               ) : (
                 <TrendingUp className="w-4 h-4 text-emerald-400" />
               )}
-              Simulação de banca virtual ({sim.count} sinais liquidados em {days}d)
+              Simulação de banca virtual ({sim.count} entradas liquidados em {days}d)
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -223,7 +223,7 @@ export default function AdminAuditoriaPunter() {
                 className="w-32 h-8"
               />
               <span className="text-xs text-muted-foreground">
-                (usa stake_percentage real de cada sinal, clamp 0.5%–10%)
+                (usa stake_percentage real de cada entrada, clamp 0.5%–10%)
               </span>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -288,7 +288,7 @@ export default function AdminAuditoriaPunter() {
         {/* Tabela */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Sinais Pré-Live · Punter</CardTitle>
+            <CardTitle className="text-base">Entradas Pré-Live · Punter</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             {loading ? (
@@ -396,7 +396,7 @@ export default function AdminAuditoriaPunter() {
                     {filtered.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={10} className="text-center text-sm text-muted-foreground py-10">
-                          Nenhum sinal encontrado para os filtros atuais.
+                          Nenhum entrada encontrado para os filtros atuais.
                         </TableCell>
                       </TableRow>
                     )}

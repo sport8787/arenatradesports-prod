@@ -26,7 +26,7 @@ declare global {
 
 const DAY_PASS_INCLUDES = [
   'Acesso completo por 24 horas',
-  'Arena Punter (sinais pré-jogo)',
+  'Arena Punter (entradas pré-jogo)',
   'Arena Live (Trader Sports ao vivo)',
   'Push e Telegram VIP',
   'Liquidações com ROI 7d / 30d',

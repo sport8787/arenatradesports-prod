@@ -123,7 +123,7 @@ export default function PerformancePorMercado({ modalidade, title, backTo }: Pro
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Card>
             <CardContent className="p-4">
-              <div className="text-xs text-muted-foreground">Total de sinais</div>
+              <div className="text-xs text-muted-foreground">Total de entradas</div>
               <div className="text-2xl font-bold">{totals.total}</div>
             </CardContent>
           </Card>
@@ -159,7 +159,7 @@ export default function PerformancePorMercado({ modalidade, title, backTo }: Pro
         {chartData.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Win Rate por mercado (top 15, mín. 3 sinais)</CardTitle>
+              <CardTitle className="text-base">Win Rate por mercado (top 15, mín. 3 entradas)</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="w-full h-[320px]">
@@ -180,7 +180,7 @@ export default function PerformancePorMercado({ modalidade, title, backTo }: Pro
                         border: "1px solid hsl(var(--border))",
                         fontSize: 12,
                       }}
-                      formatter={(v: any, _n, p: any) => [`${v}% (${p.payload.total} sinais)`, "Win Rate"]}
+                      formatter={(v: any, _n, p: any) => [`${v}% (${p.payload.total} entradas)`, "Win Rate"]}
                     />
                     <Bar dataKey="win_rate" radius={[0, 4, 4, 0]}>
                       {chartData.map((d, i) => (
@@ -209,7 +209,7 @@ export default function PerformancePorMercado({ modalidade, title, backTo }: Pro
               <div className="text-sm text-red-400">Erro: {error}</div>
             ) : rows.length === 0 ? (
               <div className="text-sm text-muted-foreground py-6 text-center">
-                Nenhum sinal liquidado no período selecionado.
+                Nenhum entrada liquidado no período selecionado.
               </div>
             ) : (
               <Table>

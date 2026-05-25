@@ -286,7 +286,7 @@ export default function ArenaBlackjackLive() {
 
   function finishRound(result: RoundResult, finalDealer?: Rank[]) {
     if (!session) return;
-    // Caso double, dobra a aposta no resultado
+    // Caso double, dobra a entrada no resultado
     const betMultiplier = doubled ? 2 : 1;
     const effectiveState = { ...session, currentBet: session.currentBet * betMultiplier };
     const updated = applyRoundResult(effectiveState, result, trueCount);
@@ -380,7 +380,7 @@ export default function ArenaBlackjackLive() {
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            {session.pauseReason} — considere reduzir aposta ou trocar de mesa.{' '}
+            {session.pauseReason} — considere reduzir entrada ou trocar de mesa.{' '}
             <Button size="sm" variant="outline" className="ml-2" onClick={() => setSession({ ...session, paused: false, pauseReason: undefined, redStreak: 0, currentBet: session.config.baseBet })}>
               <RotateCcw className="h-3 w-3 mr-1" /> Retomar
             </Button>
@@ -446,7 +446,7 @@ export default function ArenaBlackjackLive() {
           <Card>
             <CardHeader className="pb-2 flex flex-row items-center justify-between">
               <CardTitle className="text-base">Rodada atual</CardTitle>
-              <Badge variant="outline">Aposta: R$ {session.currentBet.toFixed(2)}</Badge>
+              <Badge variant="outline">Entrada: R$ {session.currentBet.toFixed(2)}</Badge>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center gap-3 text-sm">

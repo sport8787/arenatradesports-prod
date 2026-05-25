@@ -771,7 +771,7 @@ export default function ArenaBlackjack() {
               <div>
                 <p className="text-sm font-bold text-primary">🔴 Modo Blackjack Ao Vivo</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Mesa Clássica ou Infinity · contagem Hi-Lo em tempo real · sugestão de aposta por TC + Martingale/Kelly.
+                  Mesa Clássica ou Infinity · contagem Hi-Lo em tempo real · sugestão de entrada por TC + Martingale/Kelly.
                 </p>
               </div>
               <ArrowLeft className="w-5 h-5 rotate-180 text-primary" />
@@ -823,7 +823,7 @@ export default function ArenaBlackjack() {
                     onChange={e => setConfig(prev => ({ ...prev, initialBankroll: Number(e.target.value) }))} />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Aposta Base (R$)</Label>
+                  <Label className="text-xs text-muted-foreground">Entrada Base (R$)</Label>
                   <Input type="number" value={config.baseUnit}
                     onChange={e => setConfig(prev => ({ ...prev, baseUnit: Number(e.target.value) }))} />
                 </div>
@@ -836,7 +836,7 @@ export default function ArenaBlackjack() {
                     onChange={e => setConfig(prev => ({ ...prev, increment: Number(e.target.value) }))} />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Aposta Máxima (R$)</Label>
+                  <Label className="text-xs text-muted-foreground">Entrada Máxima (R$)</Label>
                   <Input type="number" value={config.maxBet}
                     onChange={e => setConfig(prev => ({ ...prev, maxBet: Number(e.target.value) }))} />
                 </div>
@@ -885,7 +885,7 @@ export default function ArenaBlackjack() {
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-sm font-semibold">Blackjack Cashback</div>
-                    <div className="text-[10px] text-muted-foreground">Permite render mesmo após COMPRAR — recebe % da aposta de volta</div>
+                    <div className="text-[10px] text-muted-foreground">Permite render mesmo após COMPRAR — recebe % da entrada de volta</div>
                   </div>
                   <button
                     onClick={() => setConfig(prev => ({ ...prev, cashbackMode: !prev.cashbackMode }))}
@@ -902,7 +902,7 @@ export default function ArenaBlackjack() {
                       onChange={e => setConfig(prev => ({ ...prev, cashbackPercent: Math.min(100, Math.max(0, Number(e.target.value))) }))}
                     />
                     <div className="text-[10px] text-muted-foreground">
-                      Padrão 50%. Ex.: aposta R${config.baseUnit} → devolve R${(config.baseUnit * config.cashbackPercent / 100).toFixed(2)}, perda líquida R${(config.baseUnit * (1 - config.cashbackPercent / 100)).toFixed(2)}.
+                      Padrão 50%. Ex.: entrada R${config.baseUnit} → devolve R${(config.baseUnit * config.cashbackPercent / 100).toFixed(2)}, perda líquida R${(config.baseUnit * (1 - config.cashbackPercent / 100)).toFixed(2)}.
                     </div>
                   </div>
                 )}
@@ -944,7 +944,7 @@ export default function ArenaBlackjack() {
           </div>
         </div>
 
-        {/* Banca + Aposta + Stats - compact row */}
+        {/* Banca + Entrada + Stats - compact row */}
         <div className="grid grid-cols-4 gap-1 text-center p-2 rounded-lg bg-secondary/30 border border-border">
           <div>
             <div className={`text-base font-orbitron font-bold ${profit >= 0 ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--destructive))]'}`}>
@@ -954,7 +954,7 @@ export default function ArenaBlackjack() {
           </div>
           <div>
             <div className="text-base font-orbitron font-bold text-primary">R${splitMode ? splitHands.reduce((s, h) => s + h.bet, 0).toFixed(0) : currentBet.toFixed(0)}</div>
-            <div className="text-[9px] text-muted-foreground">Aposta</div>
+            <div className="text-[9px] text-muted-foreground">Entrada</div>
           </div>
           <div>
             <div className="text-base font-bold">{handsPlayed}</div>
@@ -1225,9 +1225,9 @@ export default function ArenaBlackjack() {
 
             {handStep === 'double_card' && (
               <>
-                <StepLabel text={`💰 DOBROU! Aposta: R$${currentBet.toFixed(0)} — Selecione a carta recebida`} active />
+                <StepLabel text={`💰 DOBROU! Entrada: R$${currentBet.toFixed(0)} — Selecione a carta recebida`} active />
                 <div className="p-3 rounded-xl bg-[hsl(var(--warning)_/_0.1)] border border-[hsl(var(--warning)_/_0.3)] text-center mb-2">
-                  <p className="text-xs text-muted-foreground">Você dobrou a aposta. Recebe apenas <b>1 carta</b> e deve parar.</p>
+                  <p className="text-xs text-muted-foreground">Você dobrou a entrada. Recebe apenas <b>1 carta</b> e deve parar.</p>
                 </div>
                 <ValueCardGrid onSelect={handleDoubleCard} />
               </>
@@ -1254,7 +1254,7 @@ export default function ArenaBlackjack() {
               <>
                 <StepLabel text={`💰 Mão ${activeSplitHand + 1} DOBROU! R$${splitHands[activeSplitHand]?.bet} — Selecione a carta`} active />
                 <div className="p-3 rounded-xl bg-[hsl(var(--warning)_/_0.1)] border border-[hsl(var(--warning)_/_0.3)] text-center mb-2">
-                  <p className="text-xs text-muted-foreground">Dobrou a aposta. Recebe apenas <b>1 carta</b> e deve parar.</p>
+                  <p className="text-xs text-muted-foreground">Dobrou a entrada. Recebe apenas <b>1 carta</b> e deve parar.</p>
                 </div>
                 <ValueCardGrid onSelect={handleSplitDoubleCard} />
               </>

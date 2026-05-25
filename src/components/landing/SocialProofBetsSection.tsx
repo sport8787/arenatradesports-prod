@@ -57,7 +57,7 @@ export default function SocialProofBetsSection({ onCTA }: SocialProofBetsSection
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-green-600"> RESULTADOS REAIS</span>
           </h2>
           <p className="text-xl text-gray-400 max-w-3xl mx-auto">
-            Apostas reais registradas no sistema. Sem edição, sem filtro. Greens e reds — transparência total.
+            Entradas reais registradas no sistema. Sem edição, sem filtro. Greens e reds — transparência total.
           </p>
         </motion.div>
 

@@ -73,7 +73,7 @@ export default function SessionSetup({ onStart }: Props) {
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label htmlFor="bb" className="mb-2 block">Aposta base (R$)</Label>
+            <Label htmlFor="bb" className="mb-2 block">Entrada base (R$)</Label>
             <Input id="bb" type="number" min={1} step={1} value={baseBet} onChange={e => setBaseBet(Math.max(1, +e.target.value || 0))} />
           </div>
           <div>

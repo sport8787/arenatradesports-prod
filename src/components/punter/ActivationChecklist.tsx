@@ -18,14 +18,14 @@ const STEPS: Step[] = [
   {
     key: 'saw_first_signal',
     icon: <Eye className="w-4 h-4" />,
-    title: 'Ver o primeiro sinal aprovado do Mycroft',
+    title: 'Ver o primeiro entrada aprovado do Mycroft',
     cta: 'Abrir Arena Punter',
     onClick: (nav) => nav('/punter'),
   },
   {
     key: 'enabled_push',
     icon: <Bell className="w-4 h-4" />,
-    title: 'Ativar alertas para receber sinais novos',
+    title: 'Ativar alertas para receber entradas novos',
     cta: 'Ativar push',
     onClick: () => {
       // disparado pelo PushOptInModal/banner; apenas leva ao Punter onde o banner aparece
@@ -35,8 +35,8 @@ const STEPS: Step[] = [
   {
     key: 'placed_first_virtual_bet',
     icon: <Zap className="w-4 h-4" />,
-    title: 'Fazer sua 1ª aposta virtual (ganha BC se acertar)',
-    cta: 'Ver sinais',
+    title: 'Fazer sua 1ª entrada virtual (ganha BC se acertar)',
+    cta: 'Ver entradas',
     onClick: (nav) => nav('/punter'),
   },
   {

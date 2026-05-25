@@ -112,7 +112,7 @@ export default function Historico() {
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatsCard label="Sinais" value={stats.totalSignals} icon={<BarChart3 />} />
+              <StatsCard label="Entradas" value={stats.totalSignals} icon={<BarChart3 />} />
               <StatsCard label="Win Rate" value={`${stats.winRate}%`} icon={<Target />} valueColor="text-yellow-500" />
               <StatsCard label="Resultado" value={`${stats.totalPL >= 0 ? '+' : ''}${stats.totalPL} BC`} icon={<TrendingUp />} valueColor={stats.totalPL >= 0 ? "text-green-500" : "text-red-500"} />
               <StatsCard label="Perdidos" value={stats.notFollowed} icon={<AlertTriangle />} valueColor="text-orange-500" />
@@ -138,7 +138,7 @@ export default function Historico() {
                   ) : (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="col-span-full py-20 text-center space-y-4 bg-card border border-dashed border-border rounded-2xl">
                       <BarChart3 className="w-12 h-12 mx-auto text-muted-foreground/30" />
-                      <h2 className="font-orbitron text-lg">Nenhum sinal</h2>
+                      <h2 className="font-orbitron text-lg">Nenhum entrada</h2>
                       <GoldButton size="sm" onClick={() => navigate('/punter/menu')}>Voltar</GoldButton>
                     </motion.div>
                   )}

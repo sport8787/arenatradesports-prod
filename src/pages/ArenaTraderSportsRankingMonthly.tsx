@@ -157,7 +157,7 @@ export default function ArenaTraderSportsRankingMonthly() {
         ) : rows.length === 0 ? (
           <div className="text-center text-muted-foreground py-20">
             <Trophy className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            <p>Nenhum trader liquidou sinais este mês ainda.</p>
+            <p>Nenhum trader liquidou entradas este mês ainda.</p>
             <p className="text-xs mt-1 opacity-60">Seja o primeiro a aparecer aqui!</p>
           </div>
         ) : (
@@ -196,7 +196,7 @@ export default function ArenaTraderSportsRankingMonthly() {
                       {isProfit ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                       {isProfit ? '+' : '−'}R$ {Math.abs(r.total_pnl).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
-                    <p className="text-[10px] text-muted-foreground">{r.total_settled} sinais</p>
+                    <p className="text-[10px] text-muted-foreground">{r.total_settled} entradas</p>
                   </div>
                 </motion.div>
               );

@@ -308,7 +308,7 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
                 </div>
               </div>
               <p className="text-sm text-foreground/90 mt-2">
-                Execute <strong>cashout</strong> ou <strong>hedge</strong> imediatamente para limitar perda. As condições do sinal mudaram.
+                Execute <strong>cashout</strong> ou <strong>hedge</strong> imediatamente para limitar perda. As condições do entrada mudaram.
               </p>
             </motion.div>
           )}

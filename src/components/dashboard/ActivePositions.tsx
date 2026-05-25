@@ -105,7 +105,7 @@ export default function ActivePositions() {
           });
         }
 
-        // 🔊 Detectar NOVO sinal crítico/aviso (transição) e tocar som
+        // 🔊 Detectar NOVO entrada crítico/aviso (transição) e tocar som
         const now = Date.now();
         for (const pos of pendingList) {
           if (!pos.mycroft_cashout_signal || !pos.mycroft_cashout_reason) continue;
@@ -158,7 +158,7 @@ export default function ActivePositions() {
         }
       }
 
-      // Atualiza assinaturas conhecidas (sempre, inclusive no primeiro load — para não tocar som de sinais antigos)
+      // Atualiza assinaturas conhecidas (sempre, inclusive no primeiro load — para não tocar som de entradas antigos)
       knownAlertSig = new Map(
         pendingList
           .filter(p => p.mycroft_cashout_signal && p.mycroft_cashout_reason)

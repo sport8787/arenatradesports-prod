@@ -218,7 +218,7 @@ export default function SinaisLiquidados() {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="font-orbitron text-lg font-bold text-primary">Sinais Liquidados</h1>
+            <h1 className="font-orbitron text-lg font-bold text-primary">Entradas Liquidados</h1>
             <p className="text-xs text-muted-foreground">Arena Trader Sports · ao vivo</p>
           </div>
         </div>
@@ -227,7 +227,7 @@ export default function SinaisLiquidados() {
       <main className="container mx-auto px-4 py-6 space-y-6">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="text-xs text-muted-foreground font-orbitron">
-            Recorte: <span className="text-primary">{PERIOD_LABELS[period]}</span> · sinais aprovados entram na lista no momento do envio ao Telegram.
+            Recorte: <span className="text-primary">{PERIOD_LABELS[period]}</span> · entradas aprovados entram na lista no momento do envio ao Telegram.
           </div>
           <Button onClick={runManualSettlement} disabled={runningSettlement} variant="outline" className="w-full md:w-auto">
             {runningSettlement ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
@@ -332,7 +332,7 @@ export default function SinaisLiquidados() {
             {/* Signals list */}
             {filteredSignals.length === 0 ? (
               <Card className="p-10 text-center text-muted-foreground">
-                Nenhum sinal para este recorte.
+                Nenhum entrada para este recorte.
               </Card>
             ) : (
               <div className="space-y-2">

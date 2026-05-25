@@ -34,7 +34,7 @@ export default function DualBankrollDashboard({ horus, manual, horusPendingBets 
   const horusBankReturn = horus.initial_balance > 0 ? (horusPL / horus.initial_balance * 100) : 0;
   const manualBankReturn = manual.initial_balance > 0 ? (manualPL / manual.initial_balance * 100) : 0;
 
-  // ROI sobre Apostas = lucro / total apostado (betting efficiency)
+  // ROI sobre Entradas = lucro / total apostado (betting efficiency)
   const horusROI = horus.total_staked > 0 ? ((horus.total_profit || 0) / horus.total_staked * 100) : 0;
   const manualROI = manual.total_staked > 0 ? ((manual.total_profit || 0) / (manual.total_staked || 1) * 100) : 0;
 
@@ -73,10 +73,10 @@ export default function DualBankrollDashboard({ horus, manual, horusPendingBets 
           <MetricCard
             label="P&L HÓRUS"
             value={`${horusPL >= 0 ? '+' : ''}R$ ${horusPL.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-            sub={`ROI s/ apostas: ${horusROI >= 0 ? '+' : ''}${horusROI.toFixed(1)}%`}
+            sub={`ROI s/ entradas: ${horusROI >= 0 ? '+' : ''}${horusROI.toFixed(1)}%`}
             subColor={horusPL >= 0 ? 'text-success' : 'text-destructive'}
             icon={horusPL >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
-            tooltip="ROI s/ Apostas = Lucro ÷ Total Apostado (eficiência). Retorno da Banca = (Patrimônio - Capital Inicial) ÷ Capital Inicial (crescimento)."
+            tooltip="ROI s/ Entradas = Lucro ÷ Total Apostado (eficiência). Retorno da Banca = (Patrimônio - Capital Inicial) ÷ Capital Inicial (crescimento)."
           />
           <MetricCard
             label="WIN RATE HÓRUS"
@@ -84,7 +84,7 @@ export default function DualBankrollDashboard({ horus, manual, horusPendingBets 
             sub={`${horus.green_bets || 0}G / ${horus.red_bets || 0}R (${horusSettled} liquidadas)`}
             subColor={horusWinRate >= 55 ? 'text-success' : horusWinRate >= 45 ? 'text-warning' : 'text-destructive'}
             icon={<Target className="w-4 h-4" />}
-            tooltip="Win Rate = Greens ÷ (Greens + Reds). Apostas pendentes não são contabilizadas."
+            tooltip="Win Rate = Greens ÷ (Greens + Reds). Entradas pendentes não são contabilizadas."
           />
           <MetricCard
             label="EXPOSIÇÃO HÓRUS"
@@ -118,10 +118,10 @@ export default function DualBankrollDashboard({ horus, manual, horusPendingBets 
           <MetricCard
             label="MEU P&L"
             value={`${manualPL >= 0 ? '+' : ''}R$ ${manualPL.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-            sub={`ROI s/ apostas: ${manualROI >= 0 ? '+' : ''}${manualROI.toFixed(1)}%`}
+            sub={`ROI s/ entradas: ${manualROI >= 0 ? '+' : ''}${manualROI.toFixed(1)}%`}
             subColor={manualPL >= 0 ? 'text-success' : 'text-destructive'}
             icon={manualPL >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
-            tooltip="ROI s/ Apostas = Lucro ÷ Total Apostado (eficiência). Retorno da Banca = (Patrimônio - Capital Inicial) ÷ Capital Inicial (crescimento)."
+            tooltip="ROI s/ Entradas = Lucro ÷ Total Apostado (eficiência). Retorno da Banca = (Patrimônio - Capital Inicial) ÷ Capital Inicial (crescimento)."
           />
           <MetricCard
             label="MEU WIN RATE"
@@ -129,7 +129,7 @@ export default function DualBankrollDashboard({ horus, manual, horusPendingBets 
             sub={`${manual.green_bets || 0}G / ${manual.red_bets || 0}R (${manualSettled} liquidadas)`}
             subColor={manualWinRate >= 55 ? 'text-success' : manualWinRate >= 45 ? 'text-warning' : 'text-destructive'}
             icon={<Target className="w-4 h-4" />}
-            tooltip="Win Rate = Greens ÷ (Greens + Reds). Apostas pendentes não são contabilizadas."
+            tooltip="Win Rate = Greens ÷ (Greens + Reds). Entradas pendentes não são contabilizadas."
           />
           <MetricCard
             label="MINHA EXPOSIÇÃO"

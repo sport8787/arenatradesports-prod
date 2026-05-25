@@ -10,7 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 const heroArenas = [
   {
     title: 'Arena Punter',
-    description: 'Sinais pré-jogo aprovados pelo Mycroft com edge matemático real. O coração do sistema.',
+    description: 'Entradas pré-jogo aprovados pelo Mycroft com edge matemático real. O coração do sistema.',
     href: '/punter',
     icon: Target,
     badge: 'CORE',

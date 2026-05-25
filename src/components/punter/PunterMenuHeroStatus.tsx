@@ -20,9 +20,9 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
  * para que os números sejam idênticos.
  *
  * Métricas (últimos 7 dias por commence_time):
- *   - Sinais hoje: APROVADOS de punter_analyses cujo jogo começa hoje
- *   - ROI 7d: lucro hipotético em unidades / total apostado (1u por sinal liquidado)
- *   - G/R 7d: contagem de green/red entre sinais decididos
+ *   - Entradas hoje: APROVADOS de punter_analyses cujo jogo começa hoje
+ *   - ROI 7d: lucro hipotético em unidades / total apostado (1u por entrada liquidado)
+ *   - G/R 7d: contagem de green/red entre entradas decididos
  */
 export default function PunterMenuHeroStatus() {
   const cached = readCache<Omit<Stats, 'loading'>>(CACHE_KEY, CACHE_TTL_MS);
@@ -44,7 +44,7 @@ export default function PunterMenuHeroStatus() {
         const since7d = since7dDate.toISOString();
         const periodEnd = Date.now() + 86400000;
 
-        // Sinais APROVADOS em aberto — MESMA fonte/filtro do /punter
+        // Entradas APROVADOS em aberto — MESMA fonte/filtro do /punter
         // (punter_sinais APROVADO, commence_time > now - 3h, dedup por home_away_market)
         const inPlayCutoffIso = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
         const { data: openSignals } = await supabase
@@ -193,7 +193,7 @@ export default function PunterMenuHeroStatus() {
         </span>
         <div>
           <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-            Sinais em aberto
+            Entradas em aberto
           </p>
           <p className="text-sm font-semibold text-foreground">
             {stats.loading ? '—' : stats.signalsToday}

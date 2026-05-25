@@ -131,7 +131,7 @@ export default function MultiBetOptimizerPage() {
               <div>
                 <p className="font-mono text-xs font-semibold text-warning mb-1">AVISO IMPORTANTE</p>
                 <p className="text-xs text-muted-foreground">
-                  Apostas múltiplas REDUZEM seu edge. Se possível, aposte SIMPLES.
+                  Entradas múltiplas REDUZEM seu edge. Se possível, aposte SIMPLES.
                   Mas se você REALMENTE quer fazer múltipla, use as sugestões abaixo para maximizar suas chances.
                 </p>
               </div>
@@ -405,7 +405,7 @@ function ParlayCard({ parlay, rank }: { parlay: OptimizedParlay; rank: number })
             </p>
             <div className="grid grid-cols-2 gap-2 sm:gap-3">
               <div>
-                <p className="font-mono text-[9px] sm:text-[10px] text-muted-foreground">Se apostas SIMPLES:</p>
+                <p className="font-mono text-[9px] sm:text-[10px] text-muted-foreground">Se entradas SIMPLES:</p>
                 <p className="font-mono text-[11px] sm:text-xs font-bold text-foreground">
                   EV +R$ {(parlay.avgEdge * parlay.bets.length).toFixed(2)}
                 </p>
