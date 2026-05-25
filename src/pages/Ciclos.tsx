@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { nextTargetPct, cycleConfig, progressPct, fmtBRL } from '@/lib/ciclosMath';
+import { useHorusTrigger } from '@/hooks/useHorusTrigger';
 
 interface CycleBankroll {
   id: string;
