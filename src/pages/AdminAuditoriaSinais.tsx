@@ -279,14 +279,6 @@ export default function AdminAuditoriaSinais() {
                 <SelectItem value="pending">⏳ Pendentes</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={sourceFilter} onValueChange={(v: any) => setSourceFilter(v)}>
-              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as fontes</SelectItem>
-                <SelectItem value="primary">API-Football (primary)</SelectItem>
-                <SelectItem value="shadow_af">Shadow AF</SelectItem>
-              </SelectContent>
-            </Select>
             <Select value={String(days)} onValueChange={(v) => setDays(Number(v) as any)}>
               <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
               <SelectContent>
