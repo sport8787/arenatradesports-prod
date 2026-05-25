@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Coins, Target, Flame, Shield, Briefcase, Trophy, Calendar, Eye, Zap, Award } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { BC_REWARDS, getSafeHarborCardReward } from '@/services/bcRewardsService';
+import { useHorusTrigger } from '@/hooks/useHorusTrigger';
 
 interface RewardRow {
   icon: React.ElementType;
