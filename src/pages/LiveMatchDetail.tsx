@@ -321,43 +321,8 @@ export default function LiveMatchDetail() {
           }
         }
 
-        // 4) Se ainda não achou, tenta em mycroft_analyses_shadow_af (cards "Sinais Aprovados (API Football)")
-        let shadowRow: any = null;
-        if (!analysisRow) {
-          const { data: sh } = await (supabase as any)
-            .from('mycroft_analyses_shadow_af')
-            .select('*')
-            .eq('id', id)
-            .maybeSingle();
-          if (sh) {
-            shadowRow = sh as any;
-            matchKey = matchKey || sh.match_id;
-            analysisRow = {
-              id: sh.id,
-              match_id: sh.match_id,
-              verdict: sh.verdict,
-              market: sh.market,
-              odd: sh.odd,
-              confidence: sh.confidence,
-              thesis: sh.thesis,
-              alerts: sh.alerts,
-              risk_management: sh.risk_management,
-              fundamentation: sh.fundamentation,
-              plan_name: sh.plan_name,
-              created_at: sh.created_at,
-              result: sh.result,
-              final_score_home: sh.final_score_home,
-              final_score_away: sh.final_score_away,
-              settled_at: sh.settled_at,
-              settle_reason: sh.settle_reason,
-              approved_at_minute: sh.approved_at_minute,
-              approved_at_score_home: sh.approved_at_score_home,
-              approved_at_score_away: sh.approved_at_score_away,
-              stats_snapshot: sh.stats_snapshot,
-              _provider: sh.provider || 'api-football',
-            };
-          }
-        }
+        // (Shadow AF lookup removido — API-Football descontinuada)
+
 
         // 5) Se temos matchKey mas não temos lm, busca live_matches por match_id agora
         let liveRow: any = lm;
