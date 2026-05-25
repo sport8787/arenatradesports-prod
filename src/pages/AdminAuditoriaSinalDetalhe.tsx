@@ -85,7 +85,7 @@ function detectInconsistencies(r: DetailRow): string[] {
 
 export default function AdminAuditoriaSinalDetalhe() {
   const { user, loading: authLoading } = useAuth();
-  const { source, id } = useParams<{ source: "primary" | "shadow_af"; id: string }>();
+  const { source, id } = useParams<{ source: "primary"; id: string }>();
   const [row, setRow] = useState<DetailRow | null>(null);
   const [loading, setLoading] = useState(true);
 
