@@ -167,6 +167,7 @@ const App = () => {
             <ConditionalTrialBanner />
             <UpsellGate />
             <BCRewardToastsMount />
+            <ConditionalHorusMute />
             <React.Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center" />}>
               <Routes>
                 <Route path="/" element={<LandingPage />} />
