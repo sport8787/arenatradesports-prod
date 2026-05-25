@@ -73,11 +73,11 @@ function PlanEditor({ plan, onChange }: { plan: UserPlan; onChange: (p: UserPlan
       {/* Nome + ativar */}
       <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 items-end">
         <div className="space-y-1">
-          <Label className="text-[11px] text-muted-foreground uppercase tracking-wider">Nome do plano</Label>
+          <Label className="text-[11px] text-muted-foreground uppercase tracking-wider">Nome do método</Label>
           <Input
             value={plan.name}
             onChange={(e) => onChange({ ...plan, name: e.target.value })}
-            placeholder='Ex.: "Back Favorito Casa"'
+            placeholder='Ex.: "Método Back Favorito Casa"'
             className="h-10 text-base font-medium"
           />
         </div>
@@ -295,7 +295,7 @@ export default function ArenaTraderSportsMeuPlano() {
   const handleSave = async () => {
     if (!editing) return;
     if (!editing.name.trim()) {
-      toast({ title: 'Dê um nome ao plano', description: 'O campo Nome é obrigatório.', variant: 'destructive' });
+      toast({ title: 'Dê um nome ao método', description: 'O campo Nome é obrigatório.', variant: 'destructive' });
       return;
     }
     const saved = await saveUserPlan(editing);
@@ -304,7 +304,7 @@ export default function ArenaTraderSportsMeuPlano() {
       if (idx >= 0) { const next = [...prev]; next[idx] = saved; return next; }
       return [...prev, saved];
     });
-    toast({ title: 'Plano salvo', description: `"${saved.name}" vai filtrar a próxima sincronização.` });
+    toast({ title: 'Método salvo', description: `"${saved.name}" vai filtrar a próxima sincronização.` });
     setTab('list');
     setEditing(null);
   };
@@ -313,14 +313,14 @@ export default function ArenaTraderSportsMeuPlano() {
     await deleteUserPlan(id);
     setPlans((prev) => prev.filter((p) => p.id !== id));
     setConfirmDelete(null);
-    toast({ title: 'Plano excluído' });
+    toast({ title: 'Método excluído' });
   };
 
   const handleDuplicate = async (id: string) => {
     const copy = await duplicateUserPlan(id);
     if (copy) {
       setPlans((prev) => [...prev, copy]);
-      toast({ title: 'Plano duplicado', description: `Criado "${copy.name}"` });
+      toast({ title: 'Método duplicado', description: `Criado "${copy.name}"` });
     }
   };
 
