@@ -166,14 +166,13 @@ export default function AdminAuditoriaSinais() {
         return { ...base, inconsistencies: detectInconsistencies(base) };
       };
 
-      const combined: AuditRow[] = [
-        ...(primaryRes.data || []).map((r: any) => build(r, "primary")),
-        ...(shadowRes.data || []).map((r: any) => build(r, "shadow_af")),
-      ].sort(
-        (a, b) =>
-          new Date(b.approved_at_timestamp || 0).getTime() -
-          new Date(a.approved_at_timestamp || 0).getTime()
-      );
+      const combined: AuditRow[] = (primaryRes.data || [])
+        .map((r: any) => build(r, "primary"))
+        .sort(
+          (a, b) =>
+            new Date(b.approved_at_timestamp || 0).getTime() -
+            new Date(a.approved_at_timestamp || 0).getTime()
+        );
 
       setRows(combined);
     } catch (e: any) {
