@@ -19,7 +19,7 @@ const ADMIN_EMAIL = "pabloescobar@gmail.com";
 
 interface AuditRow {
   id: string;
-  source: "primary" | "shadow_af";
+  source: "primary";
   match_id: string;
   market: string;
   verdict: string;
