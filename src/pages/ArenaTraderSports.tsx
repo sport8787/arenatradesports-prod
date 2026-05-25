@@ -39,7 +39,7 @@ import PushOptInBanner from '@/components/punter/PushOptInBanner';
 import { useFavorites } from '@/hooks/useFavorites';
 import { Star } from 'lucide-react';
 import TraderViewModeToggle from '@/components/arena-trader/TraderViewModeToggle';
-import MeusSinaisPanel from '@/components/arena-trader/MeusSinaisPanel';
+import MeusMetodosPanel from '@/components/arena-trader/MeusSinaisPanel';
 import { useTraderViewMode } from '@/hooks/useTraderViewMode';
 import { usePersistedState } from '@/hooks/usePersistedState';
 
@@ -391,13 +391,13 @@ export default function ArenaTraderSports() {
         }
         // In all other tabs, exclude sim_ matches
         if (m.matchId?.startsWith('sim_')) return false;
-        // Aba "Sinais Aprovados": apenas APROVADOS com jogo em andamento (live ou halftime)
+        // Aba "Entradas Aprovadas": apenas APROVADOS com jogo em andamento (live ou halftime)
         if (statusFilter === 'aprovados') {
           const effectiveStatus = (m.status as string) === 'halftime' ? 'live' : m.status;
           if (effectiveStatus !== 'live') return false;
           const approvedStatuses = ['APROVADO', 'APROVADO_SITUACIONAL', 'opportunity', 'LABAREDA'];
           if (!approvedStatuses.includes(m.mycroftStatus)) return false;
-          // Excluir sinais de 1º tempo já expirados (após HT)
+          // Excluir entradas de 1º tempo já expiradas (após HT)
           if (isExpiredHtSignal({ market: m.market, minute: m.minute, period: m.period, status: m.status })) return false;
           // Filtro por mercado (selecionado pelo usuário)
           if (marketFilters.length > 0) {
@@ -429,7 +429,7 @@ export default function ArenaTraderSports() {
       });
   }, [statusFilter, selectedChampionships, selectedRegions, allMatches, onlyFavorites, isMatchFavorite, marketFilters, focusMode]);
 
-  // Mercados disponíveis nos sinais APROVADOS ao vivo (para popular o filtro)
+  // Mercados disponíveis nas entradas APROVADAS ao vivo (para popular o filtro)
   const approvedMarketOptions = useMemo(() => {
     const approvedStatuses = ['APROVADO', 'APROVADO_SITUACIONAL', 'opportunity', 'LABAREDA'];
     const counts = new Map<string, number>();
@@ -517,7 +517,7 @@ export default function ArenaTraderSports() {
               </GoldButton>
               <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/sinais-aprovados')}>
                 <CheckCircle2 className="w-4 h-4 mr-1" />
-                Sinais Aprovados
+                Entradas Aprovadas
               </GoldButton>
               <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/eventos-raros')}>
                 <Sparkles className="w-4 h-4 mr-1" />
@@ -560,8 +560,8 @@ export default function ArenaTraderSports() {
         {/* Active Positions */}
         {isAdvanced && <ActivePositions />}
 
-        {/* Meus Sinais (plano pessoal) — promo discreta. Conteúdo completo na aba "Meus Sinais". */}
-        {statusFilter !== 'meus_sinais' && <MeusSinaisPanel />}
+        {/* Meus Métodos (método pessoal) — promo discreta. Conteúdo completo na aba "Meus Métodos". */}
+        {statusFilter !== 'meus_sinais' && <MeusMetodosPanel />}
 
         {/* Eventos Raros movido para /arena-trader-sports/eventos-raros */}
 
@@ -595,7 +595,7 @@ export default function ArenaTraderSports() {
           <Tabs value={statusFilter} onValueChange={v => setStatusFilter(v as StatusFilter)}>
             <TabsList className="bg-secondary/50">
               <TabsTrigger value="aprovados" className="gap-1.5">
-                Sinais Aprovados
+                Entradas Aprovadas
                 {(() => {
                   const approved = ['APROVADO', 'APROVADO_SITUACIONAL', 'opportunity', 'LABAREDA'];
                   const count = allMatches.filter(m => {
@@ -615,7 +615,7 @@ export default function ArenaTraderSports() {
               </TabsTrigger>
               <TabsTrigger value="meus_sinais" className="gap-1.5">
                 <Target className="w-3 h-3" />
-                Meus Sinais
+                Meus Métodos
               </TabsTrigger>
               <TabsTrigger value="all">Todos</TabsTrigger>
               <TabsTrigger value="proximos" className="gap-1.5">
@@ -742,10 +742,10 @@ export default function ArenaTraderSports() {
             <SimulationPanel onFetched={refetch} />
           )}
 
-          {/* Meus Sinais — painel grande quando a aba está ativa */}
+          {/* Meus Métodos — painel grande quando a aba está ativa */}
           {statusFilter === 'meus_sinais' && (
             <div className="space-y-3">
-              <MeusSinaisPanel />
+              <MeusMetodosPanel />
             </div>
           )}
 

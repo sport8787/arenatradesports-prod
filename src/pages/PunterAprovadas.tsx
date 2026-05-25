@@ -44,7 +44,7 @@ export default function PunterAprovadasPage() {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <h1 className="font-mono text-sm font-semibold text-foreground tracking-tight flex-1">
-            SINAIS APROVADOS GREENS/REDS
+            ENTRADAS APROVADAS GREENS/REDS
           </h1>
           {isAdmin && (
             <Button
@@ -63,16 +63,16 @@ export default function PunterAprovadasPage() {
       </header>
 
       <main className="container mx-auto px-4 py-5 max-w-5xl space-y-4">
-        <PunterBreadcrumb items={[{ label: 'Sinais Aprovados' }]} />
+        <PunterBreadcrumb items={[{ label: 'Entradas Aprovadas' }]} />
         <div>
-          <h2 className="text-xl font-bold text-foreground">Sinais ativos</h2>
+          <h2 className="text-xl font-bold text-foreground">Entradas ativas</h2>
           <p className="font-mono text-xs text-muted-foreground mt-1">
-            Todos os sinais aprovados pelo Mycroft com análise completa.
+            Todas as entradas aprovadas pelo Mycroft com análise completa.
           </p>
           {isAdmin && (
             <p className="font-mono text-[11px] text-primary/80 mt-2">
               <Sparkles className="w-3 h-3 inline mr-1" />
-              <strong>Admin:</strong> use o botão <em>Sportmonks</em> para rodar uma segunda opinião pré-live com dados da Sportmonks (cobre melhor sul-americano e 2ª divisão). Os sinais aparecerão marcados com <code className="text-[10px]">analyzed_by: sportmonks</code>.
+              <strong>Admin:</strong> use o botão <em>Sportmonks</em> para rodar uma segunda opinião pré-live com dados da Sportmonks (cobre melhor sul-americano e 2ª divisão). As entradas aparecerão marcadas com <code className="text-[10px]">analyzed_by: sportmonks</code>.
             </p>
           )}
         </div>

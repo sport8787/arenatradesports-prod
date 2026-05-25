@@ -129,7 +129,7 @@ export default function MeusSinaisPanel() {
           <Target className="w-4 h-4 text-primary" />
           <span className="font-mono text-xs uppercase tracking-wider text-foreground">Meus Métodos</span>
           <span className="text-[11px] text-muted-foreground">
-            ({activePlans.length} plano{activePlans.length > 1 ? 's' : ''} ativo{activePlans.length > 1 ? 's' : ''} · {hits.length} aprovaç{hits.length === 1 ? 'ão' : 'ões'})
+            ({activePlans.length} método{activePlans.length > 1 ? 's' : ''} ativo{activePlans.length > 1 ? 's' : ''} · {hits.length} entrada{hits.length === 1 ? '' : 's'})
           </span>
         </div>
         <div className="flex items-center gap-3">

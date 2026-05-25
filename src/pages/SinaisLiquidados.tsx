@@ -316,14 +316,14 @@ export default function SinaisLiquidados() {
             </div>
 
             <div className="text-[11px] text-muted-foreground/80">
-              A aba <span className="font-semibold text-foreground">Sinais Aprovados</span> mostra entradas pendentes de liquidação; GREEN e RED entram assim que forem fechados.
+              A aba <span className="font-semibold text-foreground">Entradas Aprovadas</span> mostra entradas pendentes de liquidação; GREEN e RED entram assim que forem fechados.
             </div>
 
             {/* Result filter */}
             <Tabs value={viewFilter} onValueChange={(v) => setViewFilter(v as ViewFilter)}>
               <TabsList className="bg-secondary/50">
                 <TabsTrigger value="all">Todos ({filterCounts.all})</TabsTrigger>
-                <TabsTrigger value="approved">Sinais Aprovados ({filterCounts.approved})</TabsTrigger>
+                <TabsTrigger value="approved">Entradas Aprovadas ({filterCounts.approved})</TabsTrigger>
                 <TabsTrigger value="GREEN">GREEN ({filterCounts.GREEN})</TabsTrigger>
                 <TabsTrigger value="RED">RED ({filterCounts.RED})</TabsTrigger>
               </TabsList>

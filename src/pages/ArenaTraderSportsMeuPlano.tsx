@@ -353,7 +353,7 @@ export default function ArenaTraderSportsMeuPlano() {
           <p className="text-muted-foreground text-[13px]">
             Crie quantos métodos quiser, cada um com seus próprios critérios. Os métodos <span className="text-success font-medium">ativos</span> rodam no seu navegador em cima dos jogos ao vivo e as operações aparecem em
             <span className="text-primary font-medium"> "Meus Métodos" </span>
-            dentro da Arena Trader Sports — em paralelo aos sinais do Mycroft global.
+            dentro da Arena Trader Sports — em paralelo às entradas do Mycroft global.
           </p>
         </div>
 

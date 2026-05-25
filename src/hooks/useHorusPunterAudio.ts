@@ -11,7 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 const inFlight = new Set<string>(); // evita race no mesmo tab
 
-type AudioChave = 'apresentacao_horus' | 'sinais_aprovados';
+type AudioChave = 'apresentacao_horus' | 'entradas_aprovadas';
 
 export function useHorusPunterAudio() {
   const [pendingAudio, setPendingAudio] = useState<{

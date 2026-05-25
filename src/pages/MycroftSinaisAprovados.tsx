@@ -415,7 +415,7 @@ export default function MycroftSinaisAprovados() {
           <div className="flex items-center gap-2">
             <Trophy className="w-5 h-5 text-primary" />
             <h1 className="font-orbitron text-base md:text-lg font-bold text-primary">
-              Sinais Aprovados — Histórico
+              Entradas Aprovadas — Histórico
             </h1>
           </div>
         </div>
