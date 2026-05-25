@@ -374,8 +374,11 @@ serve(async (req) => {
     let fixtureId: number | null = providedId ?? null;
     if (!fixtureId) {
       if (!home || !away) {
-        return new Response(JSON.stringify({ error: "home e away (ou fixtureId) são obrigatórios" }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        // Sem parâmetros suficientes → devolve payload vazio (200) para que o
+        // caller caia em fallback (Futodds) sem poluir logs com 400.
+        const payload = emptyPayload("missing_params");
+        return new Response(JSON.stringify(payload), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       fixtureId = await findFixture(home, away, commence_time);
