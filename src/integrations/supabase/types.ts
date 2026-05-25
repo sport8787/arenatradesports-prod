@@ -2588,6 +2588,33 @@ export type Database = {
           },
         ]
       }
+      horus_triggers: {
+        Row: {
+          categoria: string
+          created_at: string
+          enabled: boolean
+          min_mode: string
+          texto: string
+          trigger_key: string
+        }
+        Insert: {
+          categoria: string
+          created_at?: string
+          enabled?: boolean
+          min_mode?: string
+          texto: string
+          trigger_key: string
+        }
+        Update: {
+          categoria?: string
+          created_at?: string
+          enabled?: boolean
+          min_mode?: string
+          texto?: string
+          trigger_key?: string
+        }
+        Relationships: []
+      }
       imported_bets: {
         Row: {
           bet_date: string | null
@@ -6952,11 +6979,30 @@ export type Database = {
         }
         Relationships: []
       }
+      user_horus_seen: {
+        Row: {
+          seen_at: string
+          trigger_key: string
+          user_id: string
+        }
+        Insert: {
+          seen_at?: string
+          trigger_key: string
+          user_id: string
+        }
+        Update: {
+          seen_at?: string
+          trigger_key?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_preferences: {
         Row: {
           created_at: string
           email_notifications: boolean | null
           horus_alerts: Json
+          horus_mode: string
           id: string
           notification_email: string | null
           telegram_notifications: boolean | null
@@ -6967,6 +7013,7 @@ export type Database = {
           created_at?: string
           email_notifications?: boolean | null
           horus_alerts?: Json
+          horus_mode?: string
           id?: string
           notification_email?: string | null
           telegram_notifications?: boolean | null
@@ -6977,6 +7024,7 @@ export type Database = {
           created_at?: string
           email_notifications?: boolean | null
           horus_alerts?: Json
+          horus_mode?: string
           id?: string
           notification_email?: string | null
           telegram_notifications?: boolean | null
