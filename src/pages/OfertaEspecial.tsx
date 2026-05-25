@@ -311,15 +311,18 @@ export default function OfertaEspecial() {
                 <CardTitle className="flex items-center gap-2 text-base">
                   <LineChart className="w-5 h-5 text-sky-400" />
                   Arena Trader Financeiro
+                  <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 tracking-wider">
+                    BETA
+                  </span>
                 </CardTitle>
-                <CardDescription>Mesmo método aplicado a WIN, WDO e BTC</CardDescription>
+                <CardDescription>Versão experimental — mesmo método do esporte sendo calibrado para WIN, WDO e BTC</CardDescription>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground space-y-2">
                 <p>
-                  A mesma lógica do Trader Sports, agora no <strong className="text-foreground">mercado financeiro</strong>. R:R ≥ 1:1.5, stop loss automático, leitura técnica em tempo real. Quem opera esporte e quer diversificar sem mudar de método.
+                  Estamos calibrando R:R, stop loss e leitura técnica para o <strong className="text-foreground">mercado financeiro</strong>. Sem garantia de paridade com o Trader Sports, que já é maduro. Use por sua conta e risco enquanto o motor é refinado.
                 </p>
-                <p className="text-xs italic border-l-2 border-sky-500/40 pl-3 mt-3">
-                  💡 O Mycroft não torce — ele calcula. Sem promessa de "viver de day trade": é ferramenta de gestão de risco.
+                <p className="text-xs italic border-l-2 border-amber-500/40 pl-3 mt-3">
+                  ⚠️ Beta: resultados não auditados, não entram na Liga Mycroft. O Mycroft não torce — ele calcula, mesmo em testes.
                 </p>
               </CardContent>
             </Card>
