@@ -803,7 +803,7 @@ const PRICING_PLANS = [
       "Banca Real Betfair Exchange integrada",
       "Gerador de Múltiplas (IA + Kelly)",
       "Sherlock estatístico ilimitado",
-      "Bônus: Blackjack completa + Arena Trader Financeiro (WIN/WDO/BTC)",
+      "Bônus: Blackjack completa + Arena Trader Financeiro Beta (WIN/WDO/BTC — em calibração)",
       "Mentoria via WhatsApp",
     ],
     cta: "ASSINAR ELITE",
