@@ -46,8 +46,6 @@ interface CycleEntry {
   created_at: string;
 }
 
-import { useHorusTrigger } from '@/hooks/useHorusTrigger';
-
 export default function Ciclos() {
   const navigate = useNavigate();
   const { user } = useAuth();
