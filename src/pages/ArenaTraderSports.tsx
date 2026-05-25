@@ -649,13 +649,6 @@ export default function ArenaTraderSports() {
                   Simulado
                 </TabsTrigger>
               )}
-              {/* Aba "Aprovados (AF)" removida — API-Football descontinuada (Fase 1) */}
-              {false && isAdvanced && isAdmin && (
-                <TabsTrigger value="aprovados_af" className="gap-1.5 border border-amber-500/40 text-amber-600">
-                  <FlaskConical className="w-3 h-3" />
-                  Aprovados (AF)
-                </TabsTrigger>
-              )}
               {isAdmin && (
                 <TabsTrigger value="aprovados_ai" className="gap-1.5 border border-violet-500/40 text-violet-600">
                   <FlaskConical className="w-3 h-3" />
