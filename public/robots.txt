@@ -1,71 +1,41 @@
 # Oráculo Mycroft — robots.txt
-# Permite explicitamente crawlers de IA e buscadores
-
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: DuckDuckBot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
-# AI crawlers
-User-agent: GPTBot
-Allow: /
-
-User-agent: ChatGPT-User
-Allow: /
-
-User-agent: OAI-SearchBot
-Allow: /
-
-User-agent: PerplexityBot
-Allow: /
-
-User-agent: Perplexity-User
-Allow: /
-
-User-agent: ClaudeBot
-Allow: /
-
-User-agent: Claude-Web
-Allow: /
-
-User-agent: anthropic-ai
-Allow: /
-
-User-agent: Google-Extended
-Allow: /
-
-User-agent: Applebot
-Allow: /
-
-User-agent: Applebot-Extended
-Allow: /
-
-User-agent: CCBot
-Allow: /
-
-User-agent: Bytespider
-Allow: /
-
-User-agent: Meta-ExternalAgent
-Allow: /
-
-User-agent: Meta-ExternalFetcher
-Allow: /
-
-User-agent: cohere-ai
-Allow: /
+# Apenas Home, LP day-pass e rodadas dinâmicas Brasileirão são indexáveis.
+# Páginas legadas de venda foram desindexadas (noindex no HTML + Disallow aqui).
 
 User-agent: *
-Allow: /
+Allow: /$
+Allow: /lp/day-pass.html
+Allow: /blog/brasileirao-2026/
+Allow: /privacidade
+Allow: /termos
+Disallow: /landing.html
+Disallow: /lp/ia-apostas-esportivas.html
+Disallow: /blog/edge-gain-apostas-esportivas.html
+Disallow: /blog/ferramenta-analise-apostas-esportivas-ia.html
+Disallow: /blog/previsao-jogos-futebol-ia.html
+Disallow: /blog/index.html
+Disallow: /oferta-especial
+Disallow: /paywall
+Disallow: /auth
+Disallow: /punter
+Disallow: /arena-trader-sports
+Disallow: /arena-trader
+Disallow: /arena-blackjack
+Disallow: /loja-bc
+Disallow: /como-ganhar-bc
+Disallow: /admin
+Disallow: /mycroft-memory
+Disallow: /historico
+Disallow: /minhas-apostas
+Disallow: /apostas
+Disallow: /ciclos
+Disallow: /sinais-alavanca
+Disallow: /modo-treino
+Disallow: /menu
+Disallow: /trocar-senha
+Disallow: /day-pass
+Disallow: /lobby-preview
+Disallow: /lobby
+Disallow: /links
 
 Sitemap: https://oraculo-mycroft.com/sitemap.xml
