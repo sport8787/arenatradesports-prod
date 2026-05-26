@@ -42,7 +42,6 @@ Deno.serve(async (req) => {
       per_page: "200",
       filters: `fixtureLeagues:${mappedSm}`,
     }),
-    call(`/football/fixtures/between/${today}/${in7}`, { per_page: "5", include: "league" }),
   ]);
 
   return new Response(JSON.stringify({ tokenInfo, probes }, null, 2), {
