@@ -31,12 +31,18 @@ Deno.serve(async (req) => {
 
   const tokenInfo = { length: TOKEN.length, head: TOKEN.slice(0, 6), tail: TOKEN.slice(-4) };
 
+  const today = new Date().toISOString().slice(0, 10);
+  const in7 = new Date(Date.now() + 7 * 86400_000).toISOString().slice(0, 10);
+  const mappedSm = "8,564,384,82,301,648,649,72,462,208,501,600,779,743,271,932,9,109";
+
   const probes = await Promise.all([
     call("/football/leagues", { per_page: "5" }),
-    call("/football/livescores/inplay", { include: "scores;participants;state;league" }),
-    call("/football/fixtures/date/" + new Date().toISOString().slice(0, 10), { per_page: "3" }),
-    call("/core/my/resources"), // alguns planos expõem isso
-    call("/core/my/leagues"),
+    call(`/football/fixtures/between/${today}/${in7}`, {
+      include: "league",
+      per_page: "200",
+      filters: `fixtureLeagues:${mappedSm}`,
+    }),
+    call(`/football/fixtures/between/${today}/${in7}`, { per_page: "5", include: "league" }),
   ]);
 
   return new Response(JSON.stringify({ tokenInfo, probes }, null, 2), {
