@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Check, Sparkles, TrendingUp, Trophy, Rocket, Flame, ArrowLeft, MessageCircle, Ticket, Spade, LineChart } from 'lucide-react';
+import { Check, Sparkles, TrendingUp, Trophy, Rocket, Flame, ArrowLeft, MessageCircle, Ticket, LineChart } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
@@ -29,9 +29,7 @@ const PLANS = [
       'Notificações push de novas análises aprovadas',
       'Suporte por WhatsApp',
     ],
-    bonus: [
-      'Módulo educacional de Blackjack — estratégia básica + Hi-Lo',
-    ],
+    bonus: [],
     waText: 'Olá! Tenho interesse no Plano Iniciante (R$ 49,90). Pode me explicar?',
     popular: false,
   },
@@ -51,9 +49,7 @@ const PLANS = [
       'Eventos Raros (LAY Goleada, 2x2…)',
       'Suporte prioritário WhatsApp',
     ],
-    bonus: [
-      'Módulo Blackjack com Kelly Híbrido + Modo Ao Vivo',
-    ],
+    bonus: [],
     waText: 'Olá! Tenho interesse no Plano Profissional do Esporte (R$ 149,90). Pode me explicar?',
     popular: true,
   },
@@ -72,7 +68,6 @@ const PLANS = [
       'Mentoria via WhatsApp',
     ],
     bonus: [
-      'Módulo Blackjack completo (todas as features)',
       'Arena Trader Financeiro — Beta (WIN / WDO / BTC, em calibração)',
     ],
     waText: 'Olá! Tenho interesse no Plano Trading de Elite (R$ 249,90). Pode me explicar?',
@@ -288,24 +283,6 @@ export default function OfertaEspecial() {
             </h2>
           </div>
           <div className="grid md:grid-cols-2 gap-4">
-            <Card className="bg-card/60 backdrop-blur border-violet-500/30">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Spade className="w-5 h-5 text-violet-400" />
-                  Módulo Blackjack
-                </CardTitle>
-                <CardDescription>Estudo de probabilidade e gestão de risco aplicado ao Blackjack</CardDescription>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground space-y-2">
-                <p>
-                  Módulo educacional baseado em <strong className="text-foreground">contagem Hi-Lo</strong>, estratégia básica (Illustrious 18) e gestão Kelly Híbrido. Foco em probabilidade, não em entretenimento.
-                </p>
-                <p className="text-xs italic border-l-2 border-yellow-500/40 pl-3 mt-3">
-                  ⚠️ <strong className="text-foreground">Gestão obrigatória:</strong> meta diária R$ 50–R$ 100, stop loss definido, sessões de até 20 minutos. Sessões longas favorecem a banca da mesa.
-                </p>
-              </CardContent>
-            </Card>
-
             <Card className="bg-card/60 backdrop-blur border-sky-500/30">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base">

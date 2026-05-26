@@ -21,7 +21,7 @@ const FloatingWhatsApp = lazy(() => import('@/components/landing/FloatingWhatsAp
 const PromoSlotsCounter = lazy(() => import('@/components/landing/PromoSlotsCounter'));
 const SocialProofSection = lazy(() => import('@/components/landing/SocialProofSection'));
 const ProvaRealPrints = lazy(() => import('@/components/landing/ProvaRealPrints'));
-const BonusInclusos = lazy(() => import('@/components/landing/BonusInclusos'));
+
 const HouseEdgeEducation = lazy(() => import('@/components/landing/HouseEdgeEducation'));
 const ComunicadoImportante = lazy(() => import('@/components/landing/HouseEdgeEducation').then(m => ({ default: m.ComunicadoImportante })));
 import { useAuth } from '@/hooks/useAuth';
@@ -313,10 +313,6 @@ export default function LandingPage() {
         <ProvaRealPrints onCTA={ctaHandler('prova_real_prints', 'testar_gratis_7_dias')} />
       </Suspense>
 
-      {/* 🎁 BÔNUS INCLUSOS — Blackjack + Trader Financeiro */}
-      <Suspense fallback={null}>
-        <BonusInclusos />
-      </Suspense>
 
       {/* Tudo abaixo segue exibido (gate de VSL desativado) */}
       {pitchUnlocked && (
@@ -743,7 +739,7 @@ const PRICING_PLANS = [
       "Asset Score + Edge calculado",
       "Canal VIP de novas análises",
       "Notificações push de novas análises aprovadas",
-      "Bônus: Módulo educacional de Blackjack (estratégia básica + Hi-Lo)",
+      
       "Suporte por WhatsApp",
     ],
     cta: "FALAR COM CONSULTOR",
@@ -761,7 +757,7 @@ const PRICING_PLANS = [
       "🛠️ Criação de métodos personalizados (Meu Método)",
       "Status dinâmicos: APROVADO, LABAREDA e cash-out em tempo real",
       "Eventos Raros (LAY Goleada, 2x2…)",
-      "Bônus: Módulo Blackjack com Kelly Híbrido + Modo Ao Vivo",
+      
       "Suporte prioritário WhatsApp",
     ],
     cta: "FALAR COM CONSULTOR",
@@ -778,7 +774,7 @@ const PRICING_PLANS = [
       "Integração com Exchange para acompanhamento de banca",
       "Gerador de Múltiplas (IA + Kelly)",
       "Sherlock estatístico ilimitado",
-      "Bônus: Módulo Blackjack completo + Trader Financeiro Beta (WIN/WDO/BTC — em calibração)",
+      "Bônus: Trader Financeiro Beta (WIN/WDO/BTC — em calibração)",
       "Mentoria via WhatsApp",
     ],
     cta: "FALAR COM CONSULTOR",
@@ -790,7 +786,7 @@ const PRICING_PLANS = [
 const FAQ = [
   { question: "Como funciona o acesso após o pagamento?", answer: "Acesso liberado em segundos após a confirmação do pagamento. Você recebe os dados de login por e-mail e já pode entrar nas arenas Punter, Trader Sports (Profissional+) e Elite (Chat AO VIVO + integração com Exchange)." },
   { question: "Posso testar antes de assinar um plano mensal?", answer: "Sim. Oferecemos um Day Pass de 24h por R$ 9,90 que libera todas as áreas (Punter + Trader Sports + Hórus). É a forma mais barata de conhecer a plataforma na prática antes de escolher um plano." },
-  { question: "Qual a diferença entre Iniciante, Profissional e Elite?", answer: "Iniciante (R$ 49,90): análises prontas no Arena Punter + módulo educacional de Blackjack. Profissional (R$ 149,90): destrava o Trader Sports ao vivo, a criação de métodos personalizados (Meu Método) e o Método dos Ciclos. Elite (R$ 249,90): destrava o Chat AO VIVO com o Mycroft dentro de cada jogo e a integração com Exchange. O Trader Financeiro (WIN/WDO/BTC) também acompanha o Elite, mas está em Beta — resultados não auditados enquanto refinamos o motor." },
+  { question: "Qual a diferença entre Iniciante, Profissional e Elite?", answer: "Iniciante (R$ 49,90): análises prontas no Arena Punter com os métodos globais do Mycroft. Profissional (R$ 149,90): destrava o Trader Sports ao vivo, a criação de métodos personalizados (Meu Método) e o Método dos Ciclos. Elite (R$ 249,90): destrava o Chat AO VIVO com o Mycroft dentro de cada jogo e a integração com Exchange. O Trader Financeiro (WIN/WDO/BTC) também acompanha o Elite, mas está em Beta — resultados não auditados enquanto refinamos o motor." },
   { question: "Vocês são mais um canal de palpites?", answer: "Não. Somos uma plataforma técnica de análise estatística com IA. Cada operação fica registrada no painel de auditoria com timestamp, odd, edge e resultado. A diferença é o método, não a promessa." },
   { question: "Vocês garantem retorno financeiro?", answer: "Não. Nenhuma plataforma séria pode garantir resultado em apostas esportivas. O que oferecemos é método, modelo estatístico e painel auditável. Resultados passados não garantem resultados futuros. Em caso de insatisfação nos primeiros 7 dias, devolvemos integralmente o valor da assinatura." },
   { question: "Preciso entender de apostas esportivas?", answer: "Não. Mycroft faz a análise quantitativa. Hórus alerta sobre decisões emocionais. Você só precisa: (1) seguir as recomendações, (2) respeitar o stake sugerido, (3) não operar fora do estado ideal." },
