@@ -66,7 +66,7 @@ async function getCachedAllowedHA() {
 async function getUpcoming(): Promise<any[]> {
   const { ids: ALLOWED } = await getCachedAllowedHA();
   const ligasAF = Array.from(ALLOWED);
-  const sm = await getUpcomingFixturesSM(ligasAF, 25);
+  const sm = await getUpcomingFixturesSM(ligasAF, 120);
   return sm.map((f) => ({
     fixture: { id: f.fixture.id, date: f.fixture.date, status: { short: 'NS' }, timestamp: f.fixture.timestamp },
     league: { id: f.league.id, name: f.league.name, season: f.league.season },
