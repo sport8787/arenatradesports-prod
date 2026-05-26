@@ -153,7 +153,7 @@ async function getUpcomingFixtures(): Promise<any[]> {
   const { ids: ALLOWED } = await getAllowedFav()
   if (DATA_SOURCE === 'sportmonks') {
     const ligasAF = Array.from(ALLOWED)
-    return await getUpcomingFixturesSM(ligasAF, 36)
+    return await getUpcomingFixturesSM(ligasAF, 120)
   }
   const now  = new Date()
   const from = now.toISOString().split('T')[0]
