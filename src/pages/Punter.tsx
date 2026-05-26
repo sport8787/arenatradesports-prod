@@ -319,13 +319,15 @@ export default function PunterPage() {
             let autoPlaced = 0;
             const newAutoIds = new Set<string>();
             for (const signal of savedSignals) {
-              const matchId = `${signal.match.home_team}_${signal.match.away_team}_${signal.match.commence_time}`.replace(/\s+/g, '_').replace(/\+00:00/g, 'Z').toLowerCase();
-              if (pendingIds.has(matchId)) continue;
+              const matchKeyShort = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_').toLowerCase();
+              const marketKey = (signal.recommendation.market || '').toLowerCase().replace(/\s+/g, '_');
+              const combinedKey = `${matchKeyShort}|${marketKey}`;
+              if (pendingIds.has(combinedKey)) continue;
               const placed = await autoPlaceHorusBet(signal);
               if (placed) {
                 autoPlaced++;
-                newAutoIds.add(matchId);
-                pendingIds.add(matchId);
+                newAutoIds.add(combinedKey);
+                pendingIds.add(combinedKey);
               }
             }
             if (autoPlaced > 0) {
