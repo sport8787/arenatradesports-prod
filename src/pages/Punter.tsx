@@ -212,26 +212,28 @@ export default function PunterPage() {
     }
   };
 
-  // Set de jogos com entrada já realizada (Hórus OU manual) — chaveado por home_away normalizado.
-  // Usado para impedir nova entrada no mesmo entrada e exibir etiqueta "JÁ APOSTADO".
+  // Set de jogo+mercado com entrada já realizada (Hórus OU manual).
+  // Chaveado por `home_away|market` normalizado — assim sinais de mercados
+  // diferentes do mesmo jogo NÃO são marcados como "já apostado" indevidamente.
   const placedBetMatchKeys = useMemo(() => {
     const keys = new Set<string>();
     const norm = (s: string) => (s || '').toLowerCase().replace(/\s+/g, '_').replace(/\+00:00/g, 'z');
-    const addKey = (matchId?: string, matchName?: string) => {
+    const normMarket = (m: string) => (m || '').toLowerCase().replace(/\s+/g, '_');
+    const addKey = (matchId?: string, matchName?: string, market?: string) => {
+      const mk = normMarket(market || '');
+      if (!mk) return;
       if (matchId) {
-        keys.add(norm(matchId));
-        // Variante sem commence_time (último underscore + ISO)
+        keys.add(`${norm(matchId)}|${mk}`);
         const withoutTime = String(matchId).split('_').slice(0, 2).join('_');
-        if (withoutTime) keys.add(norm(withoutTime));
+        if (withoutTime) keys.add(`${norm(withoutTime)}|${mk}`);
       }
       if (matchName) {
-        // "Home vs Away" -> home_away
         const m = matchName.split(/\s+vs\s+/i);
-        if (m.length === 2) keys.add(norm(`${m[0]}_${m[1]}`));
+        if (m.length === 2) keys.add(`${norm(`${m[0]}_${m[1]}`)}|${mk}`);
       }
     };
-    for (const bet of pendingBets) addKey(bet.match_id, bet.match_name);
-    for (const bet of manualPendingBets) addKey(bet.match_id, bet.match_name);
+    for (const bet of pendingBets) addKey(bet.match_id, bet.match_name, bet.market);
+    for (const bet of manualPendingBets) addKey(bet.match_id, bet.match_name, bet.market);
     return keys;
   }, [pendingBets, manualPendingBets]);
 
@@ -317,13 +319,15 @@ export default function PunterPage() {
             let autoPlaced = 0;
             const newAutoIds = new Set<string>();
             for (const signal of savedSignals) {
-              const matchId = `${signal.match.home_team}_${signal.match.away_team}_${signal.match.commence_time}`.replace(/\s+/g, '_').replace(/\+00:00/g, 'Z').toLowerCase();
-              if (pendingIds.has(matchId)) continue;
+              const matchKeyShort = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_').toLowerCase();
+              const marketKey = (signal.recommendation.market || '').toLowerCase().replace(/\s+/g, '_');
+              const combinedKey = `${matchKeyShort}|${marketKey}`;
+              if (pendingIds.has(combinedKey)) continue;
               const placed = await autoPlaceHorusBet(signal);
               if (placed) {
                 autoPlaced++;
-                newAutoIds.add(matchId);
-                pendingIds.add(matchId);
+                newAutoIds.add(combinedKey);
+                pendingIds.add(combinedKey);
               }
             }
             if (autoPlaced > 0) {
@@ -1719,8 +1723,9 @@ export default function PunterPage() {
                   )}
                   {visibleSignals.map((signal, index) => {
               const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_').toLowerCase();
-              const hasPendingBet = pendingMatchKeys.has(matchId);
-              const wasAutoPlaced = autoPlacedMatchIds.has(matchId);
+              const marketKey = (signal.recommendation.market || '').toLowerCase().replace(/\s+/g, '_');
+              const hasPendingBet = pendingMatchKeys.has(`${matchId}|${marketKey}`);
+              const wasAutoPlaced = autoPlacedMatchIds.has(`${matchId}|${marketKey}`) || autoPlacedMatchIds.has(matchId);
               const kellyProb = signal.recommendation.estimated_probability
                 ?? (signal.recommendation.fair_odd > 0 ? (1 / signal.recommendation.fair_odd) * 100 : (signal.recommendation.confidence || 55));
               const kelly = bankroll ? calculateKellyStake({
@@ -1732,8 +1737,11 @@ export default function PunterPage() {
               const kellyStake = kelly?.stakeAmount || 0;
               const kellyPercent = kelly?.stakePercent || 3;
 
-              // Get real bet stake from pending bets if Hórus already entered
-              const realBet = pendingBets.find((b: any) => (b.match_id || '').toLowerCase() === matchId);
+              // Get real bet stake from pending bets if Hórus already entered (match + market)
+              const realBet = pendingBets.find((b: any) =>
+                (b.match_id || '').toLowerCase() === matchId
+                && (b.market || '').toLowerCase().replace(/\s+/g, '_') === marketKey
+              );
               const realHorusStake = realBet ? parseFloat(realBet.stake) : kellyStake;
               const realBetDate = realBet ? new Date(realBet.created_at) : null;
 
