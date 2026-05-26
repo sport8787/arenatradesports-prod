@@ -4,7 +4,7 @@ import { ShieldCheck } from 'lucide-react';
 const OBJECTIONS = [
   {
     objection: '"Não entendo de matemática nem de odds"',
-    answer: 'Você não precisa. Mycroft calcula tudo e te entrega a recomendação pronta: o que apostar, quanto apostar e quando apostar. Você só clica.',
+    answer: 'Você não precisa. Mycroft calcula tudo e te entrega a recomendação pronta: o que operar, quanto operar e quando operar. Você só clica.',
   },
   {
     objection: '"Já fui enganado por tipster, vai ser diferente?"',

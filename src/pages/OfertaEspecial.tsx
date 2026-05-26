@@ -327,8 +327,8 @@ export default function OfertaEspecial() {
 
       {/* Footer +18 */}
       <footer className="w-full bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">
-        <p><strong className="text-red-500">+18 anos.</strong> Proibido para menores de 18 anos. Entradas esportivas envolvem risco de dependência. Jogue com responsabilidade.</p>
-        <p className="mt-1">© 2026 Oráculo Mycroft. Nenhuma ferramenta pode garantir vitórias ou lucros constantes.</p>
+        <p><strong className="text-red-500">+18 anos.</strong> Conteúdo educacional para maiores de 18 anos. Entradas esportivas envolvem risco de dependência. Jogue com responsabilidade.</p>
+        <p className="mt-1">© 2026 Oráculo Mycroft. Nenhuma ferramenta pode garantir vitórias ou resultados constantes.</p>
       </footer>
     </>
   );

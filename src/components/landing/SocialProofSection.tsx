@@ -33,7 +33,7 @@ const TESTIMONIALS: Testimonial[] = [
   {
     url: 'https://affquongjlhmusxzohjl.supabase.co/storage/v1/object/public/public-assets/testimonials/depoimento-01.mp4',
     name: 'Usuário verificado',
-    role: 'Apostador profissional',
+    role: 'Operador profissional',
   },
 ];
 
@@ -139,7 +139,7 @@ export default function SocialProofSection() {
             </span>
           </h2>
           <p className="text-lg text-gray-400 max-w-2xl mx-auto">
-            Sem ator, sem roteiro. Apostador real contando o que mudou depois do Mycroft.
+            Sem ator, sem roteiro. Operador real contando o que mudou depois do Mycroft.
           </p>
         </motion.div>
 

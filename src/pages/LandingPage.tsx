@@ -251,7 +251,7 @@ export default function LandingPage() {
                       <div className="w-7 h-7 rounded-full bg-gradient-to-br from-yellow-500 to-orange-600 border-2 border-[#0a0f1e]" />
                     </div>
                     <p className="text-xs text-gray-300">
-                      <span className="text-yellow-400 font-bold">+1.200</span> apostadores ativos agora
+                      <span className="text-yellow-400 font-bold">+1.200</span> operadores ativos agora
                     </p>
                   </div>
 
@@ -701,8 +701,8 @@ export default function LandingPage() {
 
       {/* Footer +18 */}
       <footer className="w-full bg-[#0a0f1e] border-t border-white/10 py-4 text-center text-xs text-slate-400">
-        <p><strong className="text-red-400">+18 anos.</strong> Proibido para menores de 18 anos. Entradas esportivas envolvem risco de dependência. Jogue com responsabilidade.</p>
-        <p className="mt-1">© 2026 Oráculo Mycroft. Nenhuma ferramenta pode garantir vitórias ou lucros constantes.</p>
+        <p><strong className="text-red-400">+18 anos.</strong> Conteúdo educacional para maiores de 18 anos. Entradas esportivas envolvem risco de dependência. Jogue com responsabilidade.</p>
+        <p className="mt-1">© 2026 Oráculo Mycroft. Nenhuma ferramenta pode garantir vitórias ou resultados constantes.</p>
       </footer>
     </>
   );
@@ -788,8 +788,8 @@ const FAQ = [
   { question: "Posso testar antes de assinar um plano mensal?", answer: "Sim. Oferecemos um Day Pass de 24h por R$ 9,90 que libera todas as áreas (Punter + Trader Sports + Hórus). É a forma mais barata de conhecer a plataforma na prática antes de escolher um plano." },
   { question: "Qual a diferença entre Iniciante, Profissional e Elite?", answer: "Iniciante (R$ 49,90): análises prontas no Arena Punter com os métodos globais do Mycroft. Profissional (R$ 149,90): destrava o Trader Sports ao vivo, a criação de métodos personalizados (Meu Método) e o Método dos Ciclos. Elite (R$ 249,90): destrava o Chat AO VIVO com o Mycroft dentro de cada jogo e a integração com Exchange. O Trader Financeiro (WIN/WDO/BTC) também acompanha o Elite, mas está em Beta — resultados não auditados enquanto refinamos o motor." },
   { question: "Vocês são mais um canal de palpites?", answer: "Não. Somos uma plataforma técnica de análise estatística com IA. Cada operação fica registrada no painel de auditoria com timestamp, odd, edge e resultado. A diferença é o método, não a promessa." },
-  { question: "Vocês garantem retorno financeiro?", answer: "Não. Nenhuma plataforma séria pode garantir resultado em apostas esportivas. O que oferecemos é método, modelo estatístico e painel auditável. Resultados passados não garantem resultados futuros. Em caso de insatisfação nos primeiros 7 dias, devolvemos integralmente o valor da assinatura." },
-  { question: "Preciso entender de apostas esportivas?", answer: "Não. Mycroft faz a análise quantitativa. Hórus alerta sobre decisões emocionais. Você só precisa: (1) seguir as recomendações, (2) respeitar o stake sugerido, (3) não operar fora do estado ideal." },
+  { question: "Vocês garantem retorno financeiro?", answer: "Não. Nenhuma plataforma séria pode garantir resultado em operações esportivas. O que oferecemos é método, modelo estatístico e painel auditável. Resultados passados não garantem resultados futuros. Em caso de insatisfação nos primeiros 7 dias, devolvemos integralmente o valor da assinatura." },
+  { question: "Preciso entender de operações esportivas?", answer: "Não. Mycroft faz a análise quantitativa. Hórus alerta sobre decisões emocionais. Você só precisa: (1) seguir as recomendações, (2) respeitar o stake sugerido, (3) não operar fora do estado ideal." },
   { question: "Quanto preciso para começar?", answer: "Recomendamos R$ 1.000 como banca inicial para stake adequado (2-5% por operação). Mas você pode começar com R$ 500 e ir ajustando. O importante é gestão de banca, não valor absoluto." },
   { question: "Posso cancelar quando quiser?", answer: "Sim. Sem fidelidade, sem multa. Cancela direto na sua área da plataforma a qualquer momento." },
   { question: "Como é o suporte?", answer: "Iniciante: WhatsApp em horário comercial. Profissional: WhatsApp prioritário. Elite: mentoria direta via WhatsApp com o time. Atendimento humano." },

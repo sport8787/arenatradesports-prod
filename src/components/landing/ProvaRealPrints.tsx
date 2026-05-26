@@ -23,7 +23,7 @@ const PRINTS: PrintItem[] = [
     alt: 'Performance consolidada do Punter — 7 dias: ROI +25.6%, Win Rate 67.9%',
     badge: '📊 PERFORMANCE 7 DIAS (REAL)',
     title: '+25,6% de ROI · 67,9% de Win Rate · 115 entradas',
-    desc: 'Painel real de performance consolidada do Arena Punter (IA + Plano Favorito + Eventos Raros). 81 entradas decididos, 55 GREENs. Lucro hipotético de +20,77u sobre 1u por entrada — é o que aconteceria se você seguisse cada entrada com 1% da banca.',
+    desc: 'Painel real de performance consolidada do Arena Punter (IA + Plano Favorito + Eventos Raros). 81 entradas decididos, 55 GREENs. Retorno hipotético de +20,77u sobre 1u por entrada — é o que aconteceria se você seguisse cada entrada com 1% da banca.',
     wide: true,
   },
   {
@@ -37,7 +37,7 @@ const PRINTS: PrintItem[] = [
     src: greensLive,
     alt: 'GREENs do Arena Trader Sports ao vivo: Libertadores, Under 2.5, Over 2.5',
     badge: '⚡ GREENS AO VIVO',
-    title: 'Entradas ao vivo que viraram lucro',
+    title: 'Entradas ao vivo que viraram retorno',
     desc: 'Arena Trader Sports captura jogos durante a bola rolando: Libertadores, Under/Over 2.5 com confiança 72–90%. Mostra a entrada exata, a odd capturada e o resultado final do jogo.',
   },
   {
@@ -72,7 +72,7 @@ const PRINTS: PrintItem[] = [
     src: sinalAprovadoLive,
     alt: 'Junior x Sporting Cristal 3x2: entrada aprovada Over 2.5 @ 1.85',
     badge: '🎯 ENTRADA EXATA',
-    title: 'Você sabe exatamente quando apostar',
+    title: 'Você sabe exatamente quando operar',
     desc: 'Junior 3x2 Sporting Cristal ao vivo. A IA aprovou entrada em Over 2.5 @ 1.85 com força do entrada 72%. Mostra a odd no momento da entrada — não promessa, número exato que você teria conseguido na Betfair.',
   },
 ];
@@ -129,7 +129,7 @@ export default function ProvaRealPrints({ onCTA }: { onCTA?: () => void }) {
         </div>
 
         <p className="text-center text-xs text-gray-500 mt-8 max-w-2xl mx-auto">
-          ⚠️ Entradas envolvem risco. Resultados passados não garantem resultados futuros. Aposte com responsabilidade — proibido para menores de 18 anos.
+          ⚠️ Entradas envolvem risco. Resultados passados não garantem resultados futuros. Opere com responsabilidade — proibido para menores de 18 anos.
         </p>
 
         {onCTA && (
