@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Activity, Target, LineChart, Spade, Trophy, LogOut, Settings2 } from 'lucide-react';
+import { Activity, Target, LineChart, Trophy, LogOut, Settings2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import logoOraculo from '@/assets/logo_oraculo_mycroft.png';

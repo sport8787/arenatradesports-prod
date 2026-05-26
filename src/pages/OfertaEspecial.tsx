@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Check, Sparkles, TrendingUp, Trophy, Rocket, Flame, ArrowLeft, MessageCircle, Ticket, Spade, LineChart } from 'lucide-react';
+import { Check, Sparkles, TrendingUp, Trophy, Rocket, Flame, ArrowLeft, MessageCircle, Ticket, LineChart } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';

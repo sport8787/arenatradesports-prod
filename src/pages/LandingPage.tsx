@@ -21,7 +21,7 @@ const FloatingWhatsApp = lazy(() => import('@/components/landing/FloatingWhatsAp
 const PromoSlotsCounter = lazy(() => import('@/components/landing/PromoSlotsCounter'));
 const SocialProofSection = lazy(() => import('@/components/landing/SocialProofSection'));
 const ProvaRealPrints = lazy(() => import('@/components/landing/ProvaRealPrints'));
-const BonusInclusos = lazy(() => import('@/components/landing/BonusInclusos'));
+
 const HouseEdgeEducation = lazy(() => import('@/components/landing/HouseEdgeEducation'));
 const ComunicadoImportante = lazy(() => import('@/components/landing/HouseEdgeEducation').then(m => ({ default: m.ComunicadoImportante })));
 import { useAuth } from '@/hooks/useAuth';
