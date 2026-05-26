@@ -292,16 +292,16 @@ export default function OfertaEspecial() {
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Spade className="w-5 h-5 text-violet-400" />
-                  Arena Blackjack
+                  Módulo Blackjack
                 </CardTitle>
-                <CardDescription>Único jogo de cassino com vantagem matemática do jogador</CardDescription>
+                <CardDescription>Estudo de probabilidade e gestão de risco aplicado ao Blackjack</CardDescription>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground space-y-2">
                 <p>
-                  Não é tigrinho. Não é roleta. Combina <strong className="text-foreground">contagem Hi-Lo</strong>, estratégia básica perfeita (Illustrious 18) e gestão Kelly Híbrido. A casa fica abaixo de 0,5%.
+                  Módulo educacional baseado em <strong className="text-foreground">contagem Hi-Lo</strong>, estratégia básica (Illustrious 18) e gestão Kelly Híbrido. Foco em probabilidade, não em entretenimento.
                 </p>
                 <p className="text-xs italic border-l-2 border-yellow-500/40 pl-3 mt-3">
-                  ⚠️ <strong className="text-foreground">Gestão obrigatória:</strong> meta diária R$ 50–R$ 100, stop loss definido, sessões de até 20 minutos. Sessões longas favorecem a casa.
+                  ⚠️ <strong className="text-foreground">Gestão obrigatória:</strong> meta diária R$ 50–R$ 100, stop loss definido, sessões de até 20 minutos. Sessões longas favorecem a banca da mesa.
                 </p>
               </CardContent>
             </Card>
