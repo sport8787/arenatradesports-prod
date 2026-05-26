@@ -39,11 +39,11 @@ export default function WhyDifferentSection({ onCTA }: WhyDifferentSectionProps)
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
             <div className="relative bg-gradient-to-br from-green-500/15 to-green-700/5 border-2 border-green-500/40 rounded-2xl p-8 text-center group hover:border-green-500/70 transition">
               <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-green-500 text-black text-[10px] font-black rounded-full tracking-wider">
-                LUCRO REAL
+                PERFORMANCE HISTÓRICA
               </div>
-              <p className="text-5xl lg:text-6xl font-black text-green-400 mb-2">+R$ 7.100</p>
-              <p className="text-sm text-gray-300 font-semibold">de lucro acumulado</p>
-              <p className="text-xs text-gray-500 mt-1">Hórus IA — últimas operações</p>
+              <p className="text-5xl lg:text-6xl font-black text-green-400 mb-2">+71.0 u</p>
+              <p className="text-sm text-gray-300 font-semibold">unidades estatísticas acumuladas</p>
+              <p className="text-xs text-gray-500 mt-1">1 unidade = métrica de risco padrão do usuário</p>
             </div>
 
             <div className="relative bg-gradient-to-br from-yellow-500/15 to-yellow-700/5 border-2 border-yellow-500/40 rounded-2xl p-8 text-center group hover:border-yellow-500/70 transition">
