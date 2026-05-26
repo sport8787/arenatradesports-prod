@@ -934,7 +934,9 @@ async function fetchHistoricalFromSportmonksCached(
   const TOKEN = Deno.env.get('SPORTMONKS_API_KEY')
   if (!TOKEN) return { fixtures: [], fromCache: false }
 
-  // 1) Cache hit?
+  // 1) Cache hit? (incremental: completamos gap se existir)
+  let cachedFixtures: any[] = []
+  let hadCache = false
   try {
     const { data: cached } = await dbClient
       .from('sportmonks_fixtures_cache')
@@ -942,15 +944,14 @@ async function fetchHistoricalFromSportmonksCached(
       .eq('league_key', leagueKey)
       .eq('season', season)
       .maybeSingle()
-    if (cached?.is_complete && Array.isArray(cached.fixtures) && cached.fixtures.length > 0) {
-      console.log(`[Backtest][SM-Cache] HIT ${leagueKey}/${season}: ${cached.fixtures.length} fixtures (cached em ${cached.fetched_at})`)
-      return { fixtures: cached.fixtures, fromCache: true }
+    if (cached && Array.isArray(cached.fixtures) && cached.fixtures.length > 0) {
+      cachedFixtures = cached.fixtures
+      hadCache = true
+      console.log(`[Backtest][SM-Cache] HIT ${leagueKey}/${season}: ${cachedFixtures.length} fixtures (cached em ${cached.fetched_at})`)
     }
   } catch (e) {
     console.warn('[Backtest][SM-Cache] read failed:', (e as Error).message)
   }
-
-  console.log(`[Backtest][SM-Cache] MISS ${leagueKey}/${season}: buscando da API Sportmonks...`)
 
   // 1b) Resolver sportmonks_id via league_id_map (af_id → sm_id)
   let smId: number | null = null
@@ -965,19 +966,38 @@ async function fetchHistoricalFromSportmonksCached(
     console.warn('[Backtest][SM-Cache] league_id_map lookup failed:', (e as Error).message)
   }
   if (!smId) {
+    if (hadCache) {
+      console.warn(`[Backtest][SM-Cache] sem sportmonks_id para ${leagueName} (af=${afId}) — devolvendo cache existente`)
+      return { fixtures: cachedFixtures, fromCache: true }
+    }
     console.warn(`[Backtest][SM-Cache] sem sportmonks_id para ${leagueName} (af=${afId}) — pulando`)
     return { fixtures: [], fromCache: false }
   }
 
-  // 2) Buscar via /fixtures/between/{from}/{to} com filtro de liga e paginação.
-  // Cobre janela ampla: Jan(season) → min(Dec(season+1), hoje). Faz 1 req por
-  // página (até 100 fixtures cada) em vez de 1 req por dia → ~10-30 chamadas
-  // por liga em vez de 700.
-  const fromYmd = `${season}-01-01`
-  const endDate = new Date(Math.min(new Date(`${season + 1}-12-31T00:00:00Z`).getTime(), Date.now()))
-  const toYmd = endDate.toISOString().slice(0, 10)
+  // 2) Calcular janela incremental. Se já há cache, busca apenas do último
+  // dia do cache até hoje (mesmo dia para pegar jogos que terminaram após).
+  const seasonEnd = new Date(Math.min(new Date(`${season + 1}-12-31T00:00:00Z`).getTime(), Date.now()))
+  const toYmd = seasonEnd.toISOString().slice(0, 10)
+  let fromYmd: string
+  if (hadCache) {
+    const lastTs = cachedFixtures.reduce((mx: number, f: any) => {
+      const t = new Date(f?.fixture?.date || 0).getTime()
+      return isFinite(t) && t > mx ? t : mx
+    }, 0)
+    const fromDate = lastTs > 0 ? new Date(lastTs) : new Date(`${season}-01-01T00:00:00Z`)
+    fromYmd = fromDate.toISOString().slice(0, 10)
+    if (fromYmd > toYmd) {
+      console.log(`[Backtest][SM-Cache] ${leagueKey}/${season}: cache já cobre ${fromYmd} ≥ ${toYmd}`)
+      return { fixtures: cachedFixtures, fromCache: true }
+    }
+    console.log(`[Backtest][SM-Cache] ${leagueKey}/${season}: incremental ${fromYmd} → ${toYmd}`)
+  } else {
+    fromYmd = `${season}-01-01`
+    console.log(`[Backtest][SM-Cache] MISS ${leagueKey}/${season}: full scan ${fromYmd} → ${toYmd}`)
+  }
 
-  const fixtures: any[] = []
+  // 3) Buscar via /fixtures/between/{from}/{to} paginado
+  const fetched: any[] = []
   let page = 1
   const MAX_PAGES = 50
   while (page <= MAX_PAGES) {
@@ -1021,7 +1041,7 @@ async function fetchHistoricalFromSportmonksCached(
         }
       }
       if (gh === null || ga === null) continue
-      fixtures.push({
+      fetched.push({
         fixture: { id: f.id, date: f.starting_at || `${fromYmd}T00:00:00Z` },
         teams: { home: { name: home.name }, away: { name: away.name } },
         goals: { home: gh, away: ga },
@@ -1034,24 +1054,38 @@ async function fetchHistoricalFromSportmonksCached(
     page++
   }
 
+  // 4) Merge dedup por fixture.id
+  const merged = cachedFixtures.slice()
+  const seen = new Set(merged.map((f: any) => Number(f?.fixture?.id)).filter(Number.isFinite))
+  let added = 0
+  for (const nf of fetched) {
+    const id = Number(nf?.fixture?.id)
+    if (!Number.isFinite(id) || seen.has(id)) continue
+    seen.add(id)
+    merged.push(nf)
+    added++
+  }
+  console.log(`[Backtest][SM-Cache] ${leagueKey}/${season}: +${added} novos (total ${merged.length})`)
 
-  // 2) Persist to cache (mark complete only if scan reached today / end of season)
-  try {
-    await dbClient.from('sportmonks_fixtures_cache').upsert({
-      league_key: leagueKey,
-      season,
-      league_name: leagueName,
-      fixtures,
-      fixture_count: fixtures.length,
-      is_complete: true,
-      fetched_at: new Date().toISOString(),
-    }, { onConflict: 'league_key,season' })
-    console.log(`[Backtest][SM-Cache] SAVED ${leagueKey}/${season}: ${fixtures.length} fixtures`)
-  } catch (e) {
-    console.warn('[Backtest][SM-Cache] save failed:', (e as Error).message)
+  // 5) Persistir somente se houver mudança ou era miss
+  if (added > 0 || !hadCache) {
+    try {
+      await dbClient.from('sportmonks_fixtures_cache').upsert({
+        league_key: leagueKey,
+        season,
+        league_name: leagueName,
+        fixtures: merged,
+        fixture_count: merged.length,
+        is_complete: true,
+        fetched_at: new Date().toISOString(),
+      }, { onConflict: 'league_key,season' })
+      console.log(`[Backtest][SM-Cache] SAVED ${leagueKey}/${season}: ${merged.length} fixtures`)
+    } catch (e) {
+      console.warn('[Backtest][SM-Cache] save failed:', (e as Error).message)
+    }
   }
 
-  return { fixtures, fromCache: false }
+  return { fixtures: merged, fromCache: hadCache && added === 0 }
 }
 
 // ═══════════════════════════════════════════════
