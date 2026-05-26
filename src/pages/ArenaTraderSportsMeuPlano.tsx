@@ -375,7 +375,7 @@ export default function ArenaTraderSportsMeuPlano() {
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
           <TabsList className="grid grid-cols-3 w-full">
-            <TabsTrigger value="list">Meus planos ({plans.length})</TabsTrigger>
+            <TabsTrigger value="list">Meus métodos ({plans.length})</TabsTrigger>
             <TabsTrigger value="results">Resultados</TabsTrigger>
             <TabsTrigger value="editor" disabled={!editing}>
               {editing ? (editing.name || 'Editor') : 'Editor'}
@@ -387,7 +387,7 @@ export default function ArenaTraderSportsMeuPlano() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" onClick={() => openNew()}>
-                  <Plus className="w-3.5 h-3.5 mr-1.5" /> Novo plano
+                  <Plus className="w-3.5 h-3.5 mr-1.5" /> Novo método
                 </Button>
                 {Object.entries(PLAN_TEMPLATES).map(([key, t]) => (
                   <Button key={key} size="sm" variant="outline" onClick={() => openNew(key as keyof typeof PLAN_TEMPLATES)}>
@@ -399,13 +399,13 @@ export default function ArenaTraderSportsMeuPlano() {
 
             {loading ? (
               <div className="flex items-center justify-center py-10 text-muted-foreground">
-                <Loader2 className="w-5 h-5 animate-spin mr-2" /> Carregando seus planos…
+                <Loader2 className="w-5 h-5 animate-spin mr-2" /> Carregando seus métodos…
               </div>
             ) : plans.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border bg-card/30 p-8 text-center space-y-2">
                 <Target className="w-8 h-8 mx-auto text-muted-foreground" />
-                <p className="text-sm text-foreground font-medium">Você ainda não tem planos salvos.</p>
-                <p className="text-[12px] text-muted-foreground">Use um dos templates acima ou clique em "Novo plano" para começar do zero.</p>
+                <p className="text-sm text-foreground font-medium">Você ainda não tem métodos salvos.</p>
+                <p className="text-[12px] text-muted-foreground">Use um dos templates acima ou clique em "Novo método" para começar do zero.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -468,13 +468,13 @@ export default function ArenaTraderSportsMeuPlano() {
                     Cancelar
                   </Button>
                   <Button size="sm" onClick={handleSave}>
-                    <Save className="w-3.5 h-3.5 mr-1.5" /> Salvar plano
+                    <Save className="w-3.5 h-3.5 mr-1.5" /> Salvar método
                   </Button>
                 </div>
               </div>
             ) : (
               <div className="text-center py-10 text-muted-foreground text-sm">
-                Selecione um plano para editar ou crie um novo.
+                Selecione um método para editar ou crie um novo.
               </div>
             )}
           </TabsContent>
@@ -484,9 +484,9 @@ export default function ArenaTraderSportsMeuPlano() {
       <AlertDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir este plano?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir este método?</AlertDialogTitle>
             <AlertDialogDescription>
-              Os entradas já gerados ficam no histórico, mas o plano para de filtrar jogos ao vivo. Esta ação não pode ser desfeita.
+              Os entradas já gerados ficam no histórico, mas o método para de filtrar jogos ao vivo. Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
