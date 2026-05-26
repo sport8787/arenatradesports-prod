@@ -10,9 +10,6 @@ Allow: /privacidade
 Allow: /termos
 Disallow: /landing.html
 Disallow: /lp/plataforma-analise-estatistica.html
-Disallow: /blog/edge-gain-apostas-esportivas.html
-Disallow: /blog/ferramenta-analise-apostas-esportivas-ia.html
-Disallow: /blog/previsao-jogos-futebol-ia.html
 Disallow: /blog/index.html
 Disallow: /oferta-especial
 Disallow: /paywall
