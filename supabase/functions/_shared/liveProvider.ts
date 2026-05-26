@@ -72,13 +72,23 @@ async function trySportmonks(): Promise<LiveResult> {
 
 const MODE = (Deno.env.get("LIVE_PROVIDER_MODE") || "merge").toLowerCase(); // merge | fallback
 
+function normTeam(s: any): string {
+  return String(s ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "")
+    .slice(0, 12);
+}
+
 function fixtureKey(f: any): string {
   const lid = f?.league?.id ?? "";
-  const h = String(f?.teams?.home?.name ?? "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 12);
-  const a = String(f?.teams?.away?.name ?? "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 12);
+  const h = normTeam(f?.teams?.home?.name);
+  const a = normTeam(f?.teams?.away?.name);
   const d = String(f?.fixture?.date ?? "").slice(0, 10);
   return `${lid}|${h}|${a}|${d}`;
 }
+
 
 async function mergeProviders(): Promise<LiveResult> {
   const [smR, fdR] = await Promise.allSettled([trySportmonks(), tryFutodds()]);
