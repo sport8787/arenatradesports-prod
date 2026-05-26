@@ -191,8 +191,8 @@ export default function PlanResultsTab() {
       )}
 
       <p className="text-[11px] text-muted-foreground leading-relaxed">
-        Stake fixo de <span className="font-mono">1u</span> por entrada · P/L = (odd − 1) em GREEN, −1 em RED · A reconciliação cruza o placar final de cada jogo (em <span className="font-mono">live_matches</span>) com o entrada aprovado.
-        Mercados de <span className="font-mono">Escanteios</span> ficam como "pendentes" porque o total de escanteios finais ainda não é armazenado no histórico — vamos liberar em breve.
+        Stake fixo de <span className="font-mono">1u</span> por entrada · P/L = (odd − 1) em GREEN, −1 em RED · A reconciliação cruza o placar final em <span className="font-mono">live_matches</span> com a entrada aprovada.
+        Para <span className="font-mono">Escanteios</span>, o total final é buscado nos provedores Futodds → Sportmonks no momento da reconciliação; entradas em jogos sem total de cantos disponível ficam como pendentes até a próxima tentativa.
       </p>
     </div>
   );
