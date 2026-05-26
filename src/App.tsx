@@ -110,6 +110,7 @@ const AdminLeagueROI = React.lazy(() => import("./pages/AdminLeagueROI"));
 const AdminBorderlineAI = React.lazy(() => import("./pages/AdminBorderlineAI"));
 const AdminChatAnalytics = React.lazy(() => import("./pages/AdminChatAnalytics"));
 const AdminPushTest = React.lazy(() => import("./pages/AdminPushTest"));
+const AdminApiKeyExpirations = React.lazy(() => import("./pages/AdminApiKeyExpirations"));
 const AdminSettlementLog = React.lazy(() => import("./pages/AdminSettlementLog"));
 const AdminEdgeFunctionsStatus = React.lazy(() => import("./pages/AdminEdgeFunctionsStatus"));
 const AdminEdgeFunctionErrors = React.lazy(() => import("./pages/AdminEdgeFunctionErrors"));
