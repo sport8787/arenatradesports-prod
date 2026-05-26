@@ -7,14 +7,14 @@ export type H1Variant = "A" | "B";
 
 export const H1_VARIANTS: Record<H1Variant, { line1: string; highlight: string; line3: string }> = {
   A: {
-    line1: "A IA QUE ENCONTRA",
-    highlight: "APOSTAS LUCRATIVAS",
-    line3: "ANTES DAS CASAS AJUSTAREM AS ODDS",
+    line1: "INTELIGÊNCIA ESTATÍSTICA",
+    highlight: "PARA ANÁLISE ESPORTIVA",
+    line3: "EM TEMPO REAL",
   },
   B: {
-    line1: "AUMENTE SEU",
-    highlight: "ROI EM APOSTAS",
-    line3: "COM ANÁLISE DE IA EM TEMPO REAL",
+    line1: "ANÁLISE QUANTITATIVA",
+    highlight: "DE EVENTOS ESPORTIVOS",
+    line3: "COM IA E GESTÃO DE RISCO",
   },
 };
 

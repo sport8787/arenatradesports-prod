@@ -40,7 +40,7 @@ const sideArenas = [
   },
   {
     title: 'Arena Blackjack',
-    description: 'Contagem Hi-Lo + Kelly Híbrido. Único jogo de cassino com vantagem do jogador.',
+    description: 'Contagem Hi-Lo + Kelly Híbrido. Estudo de probabilidade e gestão de risco aplicado ao Blackjack.',
     href: '/arena-blackjack',
     icon: Spade,
     badge: 'BÔNUS',

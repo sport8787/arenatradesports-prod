@@ -22,15 +22,15 @@ const PLANS = [
     icon: TrendingUp,
     description: 'Para quem quer seguir os métodos globais prontos do Mycroft',
     includes: [
-      'Arena Punter (entradas pré-jogo prontos)',
+      'Arena Punter (análises pré-jogo prontas)',
       'Métodos globais do Mycroft já calibrados',
       'Asset Score + Edge calculado',
-      'Telegram VIP de entradas',
-      'Push de novos entradas aprovados',
+      'Canal VIP de novas análises',
+      'Notificações push de novas análises aprovadas',
       'Suporte por WhatsApp',
     ],
     bonus: [
-      'Arena Blackjack — estratégia básica + contagem Hi-Lo',
+      'Módulo educacional de Blackjack — estratégia básica + Hi-Lo',
     ],
     waText: 'Olá! Tenho interesse no Plano Iniciante (R$ 49,90). Pode me explicar?',
     popular: false,
@@ -40,19 +40,19 @@ const PLANS = [
     planKey: 'profissional' as const,
     price: '149,90',
     icon: Trophy,
-    description: 'Crie seus próprios métodos e alavanque a banca com o Hórus.',
+    description: 'Crie seus próprios métodos com gestão de banca em ciclos.',
     includes: [
       'Tudo do Iniciante',
       'Arena Trader Sports (ao vivo)',
-      '🚀 Método Hórus de Alavancagem — banca pilotada em 5 ciclos',
-      '🛠️ Crie seus próprios métodos personalizados (Meu Método)',
-      'LABAREDA, APROVADO e cash-out em tempo real',
+      '🚀 Método dos Ciclos — gestão de banca em estágios definidos',
+      '🛠️ Criação de métodos personalizados (Meu Método)',
+      'Status dinâmicos: LABAREDA, APROVADO e cash-out em tempo real',
       'Hórus coach IA anti-tilt',
       'Eventos Raros (LAY Goleada, 2x2…)',
       'Suporte prioritário WhatsApp',
     ],
     bonus: [
-      'Arena Blackjack com Kelly Híbrido + Modo Ao Vivo',
+      'Módulo Blackjack com Kelly Híbrido + Modo Ao Vivo',
     ],
     waText: 'Olá! Tenho interesse no Plano Profissional do Esporte (R$ 149,90). Pode me explicar?',
     popular: true,
@@ -66,13 +66,13 @@ const PLANS = [
     includes: [
       'Tudo do Profissional',
       '💬 Chat Mycroft AO VIVO dentro de cada jogo (Cash Out assistido)',
-      'Banca Real Betfair Exchange integrada',
+      'Integração com Exchange para acompanhamento de banca',
       'Gerador de Múltiplas (IA + Kelly)',
       'Sherlock estatístico ilimitado',
       'Mentoria via WhatsApp',
     ],
     bonus: [
-      'Arena Blackjack completa (todas as features)',
+      'Módulo Blackjack completo (todas as features)',
       'Arena Trader Financeiro — Beta (WIN / WDO / BTC, em calibração)',
     ],
     waText: 'Olá! Tenho interesse no Plano Trading de Elite (R$ 249,90). Pode me explicar?',
@@ -292,16 +292,16 @@ export default function OfertaEspecial() {
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Spade className="w-5 h-5 text-violet-400" />
-                  Arena Blackjack
+                  Módulo Blackjack
                 </CardTitle>
-                <CardDescription>Único jogo de cassino com vantagem matemática do jogador</CardDescription>
+                <CardDescription>Estudo de probabilidade e gestão de risco aplicado ao Blackjack</CardDescription>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground space-y-2">
                 <p>
-                  Não é tigrinho. Não é roleta. Combina <strong className="text-foreground">contagem Hi-Lo</strong>, estratégia básica perfeita (Illustrious 18) e gestão Kelly Híbrido. A casa fica abaixo de 0,5%.
+                  Módulo educacional baseado em <strong className="text-foreground">contagem Hi-Lo</strong>, estratégia básica (Illustrious 18) e gestão Kelly Híbrido. Foco em probabilidade, não em entretenimento.
                 </p>
                 <p className="text-xs italic border-l-2 border-yellow-500/40 pl-3 mt-3">
-                  ⚠️ <strong className="text-foreground">Gestão obrigatória:</strong> meta diária R$ 50–R$ 100, stop loss definido, sessões de até 20 minutos. Sessões longas favorecem a casa.
+                  ⚠️ <strong className="text-foreground">Gestão obrigatória:</strong> meta diária R$ 50–R$ 100, stop loss definido, sessões de até 20 minutos. Sessões longas favorecem a banca da mesa.
                 </p>
               </CardContent>
             </Card>

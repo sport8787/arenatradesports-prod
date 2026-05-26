@@ -148,7 +148,7 @@ export default function LandingPage() {
             <motion.div initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8 }}>
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-500/10 border border-blue-500/30 rounded-full text-sm text-blue-400 mb-6">
                 <Zap className="w-4 h-4" />
-                <span>1.200+ apostadores profissionais usando agora</span>
+                <span>Plataforma de análise estatística com IA</span>
               </div>
 
               <h2 className="text-4xl lg:text-6xl font-bold mb-6 leading-tight">
@@ -159,57 +159,43 @@ export default function LandingPage() {
                 {h1Variant.line3}
               </h2>
 
-              {/* Dor explícita do usuário */}
-              <div className="mb-6 p-4 bg-red-500/5 border-l-4 border-red-500/60 rounded-r-lg">
+              <div className="mb-6 p-4 bg-blue-500/5 border-l-4 border-blue-500/60 rounded-r-lg">
                 <p className="text-base lg:text-lg text-gray-200 leading-relaxed">
-                  Se você já ganhou entradas mas <span className="text-red-400 font-semibold">nunca conseguiu consistência</span>,
-                  o problema não é sorte. É <span className="text-yellow-400 font-semibold">falta de leitura de mercado</span>.
+                  Modelos estatísticos, leitura de mercado e gestão de risco aplicados a eventos esportivos —
+                  <span className="text-yellow-400 font-semibold"> sem promessas, sem palpite</span>.
                 </p>
               </div>
 
               <p className="text-lg text-gray-300 mb-8 leading-relaxed">
-                Descubra entradas com vantagem real enquanto a maioria ainda perde dinheiro.
-                <span className="text-green-400 font-semibold"> +R$ 7.100 de lucro</span> e
-                <span className="text-blue-400 font-semibold"> +71% de ROI</span> em entradas auditadas.
+                O Mycroft calcula edge, probabilidade e contexto de cada partida e disponibiliza essas análises
+                em um painel auditável. <span className="text-blue-400 font-semibold">Resultados passados não garantem resultados futuros.</span>
               </p>
 
               {pitchUnlocked ? (
                 <>
-                  <div className="mb-6">
-                    <Suspense fallback={<div className="h-10" />}>
-                      <PromoSlotsCounter variant="inline" />
-                    </Suspense>
-                  </div>
-
                   <div className="flex flex-col sm:flex-row gap-4 mb-6">
                     <a
-                      href="#planos"
-                      onClick={() => track.funnelCtaClicked('hero', 'criar_conta_planos')}
+                      href="/lp/day-pass.html"
+                      onClick={() => track.funnelCtaClicked('hero', 'conhecer_day_pass')}
                       className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/25 flex items-center justify-center gap-2 group"
                     >
-                      CRIAR MINHA CONTA AGORA
+                      CONHECER A PLATAFORMA
                       <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition" />
                     </a>
                   </div>
 
-                  <p className="text-sm text-gray-400 mb-8">⚡ Acesso imediato após pagamento • 🔒 Suporte humano por WhatsApp</p>
-
-                  <div className="flex items-center gap-8 flex-wrap">
-                    <div><p className="text-3xl font-bold text-yellow-500">+73%</p><p className="text-sm text-gray-400">ROI Auditado</p></div>
-                    <div><p className="text-3xl font-bold text-green-500">59.5%</p><p className="text-sm text-gray-400">Win Rate</p></div>
-                    <div><p className="text-3xl font-bold text-blue-500">1.658</p><p className="text-sm text-gray-400">Posições</p></div>
-                  </div>
+                  <p className="text-sm text-gray-400 mb-8">⚡ Teste de 24h disponível • 🔒 Suporte humano por WhatsApp</p>
                 </>
               ) : (
                 <div className="mb-8 p-5 bg-gradient-to-br from-yellow-500/5 to-transparent border border-yellow-500/20 rounded-xl">
                   <div className="flex items-center gap-3 mb-2">
                     <span className="text-2xl">🎬</span>
                     <p className="text-sm sm:text-base font-bold text-yellow-300">
-                      Assista o vídeo para liberar sua oferta
+                      Assista o vídeo para conhecer a plataforma
                     </p>
                   </div>
                   <p className="text-xs sm:text-sm text-gray-400 leading-relaxed">
-                    No final da apresentação você terá acesso a uma condição exclusiva de teste grátis por 7 dias — com <span className="text-yellow-300 font-semibold">todas as funções liberadas</span>, sem cartão e sem letras miúdas.
+                    No final da apresentação você terá acesso a uma condição de teste de 24h — para conhecer todas as funções, sem cartão.
                   </p>
                 </div>
               )}
@@ -224,15 +210,15 @@ export default function LandingPage() {
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                       <p className="text-xs sm:text-sm font-bold text-yellow-300 uppercase tracking-wide">
-                        Veja como o Mycroft identifica entradas com valor em tempo real
+                        Painel ao vivo do Mycroft — análise estatística por partida
                       </p>
                     </div>
                     <div className="flex items-center gap-3 mt-1 text-[11px] text-gray-300">
-                      <span>📈 +71% ROI</span>
+                      <span>📊 Edge calculado</span>
                       <span className="text-gray-600">•</span>
-                      <span>💰 +R$ 7.100</span>
+                      <span>🎯 Probabilidade implícita</span>
                       <span className="text-gray-600">•</span>
-                      <span>🎯 138 entradas</span>
+                      <span>🛡️ Gestão de risco</span>
                     </div>
                   </div>
                   <div className="bg-[#1a1f36] px-4 py-3 flex items-center gap-2 border-b border-gray-700">
@@ -246,7 +232,7 @@ export default function LandingPage() {
                   <div ref={videoRef} className="bg-black">
                     <img
                       src={new URL('@/assets/prints-reais/resultado-punter-7d.png', import.meta.url).href}
-                      alt="Performance real do Arena Punter em 7 dias: ROI +25,6%, Win Rate 67,9%, 115 entradas"
+                      alt="Painel do Arena Punter — análise estatística de jogos"
                       className="w-full h-auto block"
                       loading="eager"
                     />
@@ -346,21 +332,21 @@ export default function LandingPage() {
               Acesso liberado em segundos
             </p>
             <h2 className="text-2xl sm:text-4xl font-black text-white leading-tight mb-3">
-              O Mycroft <span className="text-yellow-400">trabalha por você 24h por dia</span>
+              O Mycroft <span className="text-yellow-400">analisa o mercado 24h por dia</span>
             </h2>
             <p className="text-sm sm:text-base text-gray-300 mb-6 max-w-xl mx-auto">
-              Ele não entrada com emoção — busca jogos onde <strong className="text-white">você tem a vantagem matemática</strong>. Escolha seu plano e tenha acesso imediato.
+              Modelos estatísticos rodando em segundo plano — você vê apenas as oportunidades com <strong className="text-white">edge mensurável</strong>. Conheça a plataforma com um teste de 24h.
             </p>
             <a
-              href="#planos"
-              onClick={() => track.funnelCtaClicked('post_vsl_cta', 'criar_minha_conta_agora')}
+              href="/lp/day-pass.html"
+              onClick={() => track.funnelCtaClicked('post_vsl_cta', 'conhecer_day_pass')}
               className="px-8 sm:px-10 py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-black text-base sm:text-lg rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/40 inline-flex items-center justify-center gap-2 group"
             >
-              CRIAR MINHA CONTA AGORA
+              CONHECER A PLATAFORMA
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition" />
             </a>
             <p className="text-[11px] text-gray-500 mt-3">
-              ⚡ Acesso imediato após pagamento • 🔒 Suporte humano por WhatsApp
+              ⚡ Teste de 24h disponível • 🔒 Suporte humano por WhatsApp
             </p>
           </div>
         </div>
@@ -424,9 +410,9 @@ export default function LandingPage() {
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold mb-4">
               POR QUE ORÁCULO MYCROFT
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600"> NÃO É MAIS UMA SALA?</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600"> É DIFERENTE</span>
             </h2>
-            <p className="text-xl text-gray-400">Comparação brutal entre Oráculo e salas de entradas tradicionais</p>
+            <p className="text-xl text-gray-400">Plataforma técnica vs. canais tradicionais de palpite</p>
           </div>
           <div className="bg-[#1a1f36] rounded-2xl overflow-hidden border border-gray-700">
             <div className="grid md:grid-cols-3">
@@ -438,7 +424,7 @@ export default function LandingPage() {
                   <Award className="w-5 h-5 text-yellow-500" />ORÁCULO MYCROFT
                 </h3>
               </div>
-              <div className="bg-[#0f1729] p-6"><h3 className="text-lg font-semibold text-gray-400">SALAS TRADICIONAIS</h3></div>
+              <div className="bg-[#0f1729] p-6"><h3 className="text-lg font-semibold text-gray-400">CANAIS TRADICIONAIS</h3></div>
               {COMPARISONS.map((comp, index) => (
                 <div key={index} className="contents">
                   <div className="p-6 border-t border-gray-700 md:border-r"><p className="font-medium text-gray-300">{comp.criteria}</p></div>
@@ -456,41 +442,32 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Resultados */}
+      {/* Transparência da plataforma — sem promessas numéricas */}
       <section id="resultados" className="py-20 bg-[#0f1729]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">RESULTADOS<span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600"> 100% AUDITÁVEIS</span></h2>
-            <p className="text-xl text-gray-400">Track record verificável. Cada entrada registrada. Zero bullshit.</p>
+            <h2 className="text-4xl font-bold mb-4">PAINEL<span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600"> 100% AUDITÁVEL</span></h2>
+            <p className="text-xl text-gray-400">Cada análise registrada. Cada operação documentada. Sem screenshots editáveis.</p>
+            <p className="text-xs text-gray-500 mt-2">Resultados passados não garantem resultados futuros. Métricas variam por usuário, banca e disciplina.</p>
           </div>
           <div className="grid lg:grid-cols-3 gap-8 mb-12">
-            <div className="bg-gradient-to-br from-green-500/10 to-green-500/5 border border-green-500/30 rounded-2xl p-8 text-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-green-600 to-green-700 rounded-full flex items-center justify-center mx-auto mb-4"><TrendingUp className="w-8 h-8 text-white" /></div>
-              <p className="text-5xl font-bold text-white mb-2">+73.56%</p>
-              <p className="text-green-400 font-semibold mb-1">ROI Médio</p>
-              <p className="text-sm text-gray-400">Baseado em 1.658 posições auditadas</p>
-            </div>
             <div className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border border-blue-500/30 rounded-2xl p-8 text-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center mx-auto mb-4"><Target className="w-8 h-8 text-white" /></div>
-              <p className="text-5xl font-bold text-white mb-2">59.5%</p>
-              <p className="text-blue-400 font-semibold mb-1">Win Rate</p>
-              <p className="text-sm text-gray-400">66 greens / 43 reds comprovados</p>
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center mx-auto mb-4"><BarChart3 className="w-8 h-8 text-white" /></div>
+              <p className="text-2xl font-bold text-white mb-2">Painel de Auditoria</p>
+              <p className="text-blue-400 font-semibold mb-1">Histórico aberto</p>
+              <p className="text-sm text-gray-400">Cada análise registrada com timestamp, odd, edge e resultado</p>
             </div>
             <div className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border border-purple-500/30 rounded-2xl p-8 text-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-purple-700 rounded-full flex items-center justify-center mx-auto mb-4"><Shield className="w-8 h-8 text-white" /></div>
-              <p className="text-5xl font-bold text-white mb-2">95%+</p>
-              <p className="text-purple-400 font-semibold mb-1">Compliance</p>
-              <p className="text-sm text-gray-400">Usuários seguem recomendações</p>
+              <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-purple-700 rounded-full flex items-center justify-center mx-auto mb-4"><Target className="w-8 h-8 text-white" /></div>
+              <p className="text-2xl font-bold text-white mb-2">Edge Mensurável</p>
+              <p className="text-purple-400 font-semibold mb-1">Critério técnico</p>
+              <p className="text-sm text-gray-400">Edge mínimo, probabilidade implícita e CLV monitorados por operação</p>
             </div>
-          </div>
-          <div className="bg-gradient-to-r from-yellow-500/10 to-yellow-600/10 border-2 border-yellow-500/30 rounded-2xl p-8">
-            <div className="flex flex-col md:flex-row items-center gap-6">
-              <div className="w-20 h-20 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-full flex items-center justify-center flex-shrink-0"><Lock className="w-10 h-10 text-black" /></div>
-              <div className="flex-1 text-center md:text-left">
-                <h3 className="text-2xl font-bold text-white mb-2">GARANTIA DOBRO OU SEU DINHEIRO DE VOLTA</h3>
-                <p className="text-gray-300 leading-relaxed">Se você seguir 95%+ das recomendações e não tiver ROI positivo em 3 meses, devolvemos em dobro sua assinatura. Sem letrinhas miúdas.</p>
-              </div>
-              <a href="#planos" onClick={() => track.funnelCtaClicked('resultados', 'quero_vencer_a_casa')} className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-lg whitespace-nowrap">QUERO VENCER A CASA</a>
+            <div className="bg-gradient-to-br from-yellow-500/10 to-yellow-500/5 border border-yellow-500/30 rounded-2xl p-8 text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-yellow-600 to-yellow-700 rounded-full flex items-center justify-center mx-auto mb-4"><Shield className="w-8 h-8 text-white" /></div>
+              <p className="text-2xl font-bold text-white mb-2">Gestão de Risco</p>
+              <p className="text-yellow-400 font-semibold mb-1">Stake controlado</p>
+              <p className="text-sm text-gray-400">Recomendações com stake calibrado e limites de exposição</p>
             </div>
           </div>
         </div>
@@ -500,8 +477,8 @@ export default function LandingPage() {
       <section ref={pricingRef} id="planos" className="py-20 bg-[#0a0f1e]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">PLANOS QUE CABEM NO SEU<span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600"> BOLSO</span></h2>
-            <p className="text-xl text-gray-400">4x mais barato que salas de entradas. Infinitamente mais valor.</p>
+            <h2 className="text-4xl font-bold mb-4">PLANOS<span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600"> FLEXÍVEIS</span></h2>
+            <p className="text-xl text-gray-400">Comece com um teste de 24h. Sem fidelidade.</p>
           </div>
           <div className="grid lg:grid-cols-3 gap-8">
             {PRICING_PLANS.map((plan, index) => (
@@ -547,17 +524,15 @@ export default function LandingPage() {
               </div>
             </div>
             <a
-              href="https://pay.kiwify.com.br/uoPvQjZ"
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => { track.checkoutInitiated('Day Pass 24h', 9.9, 'oferta_especial'); fireAdsConversion(9.9); }}
+              href="/lp/day-pass.html"
+              onClick={() => { track.checkoutInitiated('Day Pass 24h', 9.9, 'paywall'); fireAdsConversion(9.9); }}
               className="shrink-0 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg font-bold text-black bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 transition shadow-lg shadow-yellow-500/30"
             >
-              QUERO O DAY PASS R$ 9,90
+              CONHECER O DAY PASS
             </a>
           </div>
 
-          <p className="text-center text-gray-400 mt-8">💳 Aceita PIX, cartão e boleto • 🔒 Seguro e criptografado • 🔄 Cancele quando quiser</p>
+          <p className="text-center text-gray-400 mt-8">💳 Pix · Cartão (via Asaas) • 🔒 Pagamento seguro • 🔄 Cancele quando quiser</p>
         </div>
       </section>
 
@@ -600,10 +575,10 @@ export default function LandingPage() {
       <section ref={ctaFinalRef} className="py-20 bg-gradient-to-r from-blue-900/20 to-purple-900/20 border-y border-gray-700">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl lg:text-5xl font-bold mb-6">
-            PRONTO PARA INVESTIR COMO
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600"> PROFISSIONAL?</span>
+            PRONTO PARA ANALISAR
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-yellow-600"> COMO PROFISSIONAL?</span>
           </h2>
-          <p className="text-xl text-gray-300 mb-8">Junte-se a 1.200+ investidores que já transformaram entradas em investimento sistemático.</p>
+          <p className="text-xl text-gray-300 mb-8">Conheça a plataforma com um teste de 24h e veja o painel funcionando na prática.</p>
           <a
             href="https://wa.me/5534991290648?text=Ol%C3%A1!%20Quero%20falar%20com%20um%20consultor%20do%20Or%C3%A1culo%20Mycroft."
             target="_blank"
@@ -709,8 +684,8 @@ export default function LandingPage() {
             </div>
 
             <div className="mt-4 text-center">
-              <a href="#planos" onClick={() => { setShowDemo(false); track.funnelCtaClicked('demo_modal', 'quero_vencer_a_casa'); }} className="inline-block px-8 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/25">
-                QUERO VENCER A CASA
+              <a href="/lp/day-pass.html" onClick={() => { setShowDemo(false); track.funnelCtaClicked('demo_modal', 'conhecer_day_pass'); }} className="inline-block px-8 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black font-bold rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition shadow-xl shadow-yellow-500/25">
+                CONHECER A PLATAFORMA
               </a>
             </div>
           </div>
@@ -740,21 +715,21 @@ export default function LandingPage() {
 // Data
 
 const FEATURES = [
-  { icon: <Brain className="w-6 h-6 text-white" />, title: "Mycroft IA Analista", description: "Cérebro quantitativo que processa 1.000+ jogos/dia e calcula Asset Score 0-100 para cada oportunidade." },
-  { icon: <Shield className="w-6 h-6 text-white" />, title: "Hórus Protetor", description: "Coach emocional que detecta tilt em tempo real e bloqueia entradas quando você está fora do seu estado ideal." },
-  { icon: <TrendingUp className="w-6 h-6 text-white" />, title: "Dual Bankroll", description: "Compare sua performance vs Hórus em tempo real. Veja exatamente quanto você perde ao não seguir recomendações." },
-  { icon: <Target className="w-6 h-6 text-white" />, title: "Asset Score 0-100", description: "Cada jogo vira um ativo financeiro com score baseado em edge, probabilidade, sharp money e market inefficiency." },
-  { icon: <BarChart3 className="w-6 h-6 text-white" />, title: "Track Record Auditável", description: "1.658 posições registradas. ROI +73%. Win rate 59.5%. Tudo verificável. Zero mentira." },
-  { icon: <Lock className="w-6 h-6 text-white" />, title: "Garantia Dobro", description: "Compliance ≥95% sem ROI positivo em 3 meses? Devolvemos em dobro. Sem letrinhas miúdas." },
+  { icon: <Brain className="w-6 h-6 text-white" />, title: "Mycroft IA Analista", description: "Cérebro quantitativo que processa milhares de jogos por dia e calcula Asset Score 0-100 para cada oportunidade." },
+  { icon: <Shield className="w-6 h-6 text-white" />, title: "Hórus Protetor", description: "Coach emocional que detecta tilt em tempo real e bloqueia operações quando você está fora do seu estado ideal." },
+  { icon: <TrendingUp className="w-6 h-6 text-white" />, title: "Dual Bankroll", description: "Compare sua performance vs. recomendações do Hórus em tempo real, dentro do painel auditável." },
+  { icon: <Target className="w-6 h-6 text-white" />, title: "Asset Score 0-100", description: "Cada jogo recebe um score com base em edge, probabilidade, sharp money e ineficiência de mercado." },
+  { icon: <BarChart3 className="w-6 h-6 text-white" />, title: "Painel Auditável", description: "Cada análise registrada com timestamp, odd, edge e resultado. Histórico aberto, sem screenshots editáveis." },
+  { icon: <Lock className="w-6 h-6 text-white" />, title: "Reembolso em 7 dias", description: "Se a plataforma não atender o esperado nos primeiros 7 dias, devolvemos a assinatura. Sem letrinhas miúdas." },
 ];
 
 const COMPARISONS = [
-  { criteria: "Track Record", oraculo: "1.658 posições auditadas publicamente. ROI +73% verificável.", salas: "Screenshots editáveis. 'Confie em mim bro'." },
-  { criteria: "Transparência", oraculo: "Cada posição registrada com timestamp, odd, stake e resultado.", salas: "Apagam loses. Mostram só wins." },
-  { criteria: "Preço", oraculo: "A partir de R$ 99,90/mês. 4x mais barato.", salas: "R$ 497-997/mês. Exploração." },
-  { criteria: "Tecnologia", oraculo: "IA que calcula edge, detecta tilt, otimiza stakes.", salas: "'Feeling' do tipster. Zero IA." },
-  { criteria: "Proteção", oraculo: "Hórus bloqueia operações quando detecta emoção.", salas: "Te incentivam a apostar mais (afiliados)." },
-  { criteria: "Garantia", oraculo: "Dobro do valor se não funcionar (95% compliance).", salas: "Nenhuma. 'Não garantimos resultados'." },
+  { criteria: "Histórico", oraculo: "Painel de auditoria aberto: cada operação registrada com timestamp, odd e resultado.", salas: "Screenshots manuais, sem verificação independente." },
+  { criteria: "Transparência", oraculo: "Edge, probabilidade e stake exibidos antes de cada operação.", salas: "Apenas o palpite final, sem o critério técnico por trás." },
+  { criteria: "Preço", oraculo: "A partir de R$ 49,90/mês ou Day Pass de R$ 9,90 por 24h.", salas: "R$ 497-997/mês, sem teste curto." },
+  { criteria: "Tecnologia", oraculo: "Modelos estatísticos + IA calculando edge e ineficiência.", salas: "Leitura subjetiva do tipster, sem modelo." },
+  { criteria: "Proteção emocional", oraculo: "Hórus detecta tilt e recomenda pausar operações.", salas: "Estímulo constante a operar mais." },
+  { criteria: "Política de reembolso", oraculo: "Reembolso integral em 7 dias se a plataforma não atender o esperado.", salas: "Sem reembolso." },
 ];
 
 const PRICING_PLANS = [
@@ -763,35 +738,35 @@ const PRICING_PLANS = [
     price: "49,90",
     description: "Para quem quer seguir os métodos prontos do Mycroft",
     features: [
-      "Arena Punter (entradas pré-jogo prontos)",
+      "Arena Punter (análises pré-jogo prontas)",
       "Métodos globais do Mycroft já calibrados",
       "Asset Score + Edge calculado",
-      "Telegram VIP de entradas",
-      "Push de novos entradas aprovados",
-      "Bônus: Arena Blackjack (Hi-Lo + estratégia básica)",
+      "Canal VIP de novas análises",
+      "Notificações push de novas análises aprovadas",
+      "Bônus: Módulo educacional de Blackjack (estratégia básica + Hi-Lo)",
       "Suporte por WhatsApp",
     ],
-    cta: "ASSINAR INICIANTE",
+    cta: "FALAR COM CONSULTOR",
     popular: false,
-    url: "https://pay.kiwify.com.br/v30QXM1",
+    url: "https://wa.me/5534991290648?text=Ol%C3%A1!%20Tenho%20interesse%20no%20Plano%20Iniciante.",
   },
   {
     name: "Plano Profissional",
     price: "149,90",
-    description: "Crie seus próprios métodos e alavanque com o Hórus",
+    description: "Crie seus próprios métodos e use o Método dos Ciclos",
     features: [
       "Tudo do Iniciante +",
-      "Arena Trader Sports (ao vivo)",
-      "🚀 Método Hórus de Alavancagem — Hórus pilota a banca em ciclos",
-      "🛠️ Crie seus próprios métodos (Meu Método)",
-      "LABAREDA, APROVADO e cash-out em tempo real",
+      "Arena Trader Sports (análise ao vivo)",
+      "🚀 Método dos Ciclos — gestão de banca em estágios definidos",
+      "🛠️ Criação de métodos personalizados (Meu Método)",
+      "Status dinâmicos: APROVADO, LABAREDA e cash-out em tempo real",
       "Eventos Raros (LAY Goleada, 2x2…)",
-      "Bônus: Blackjack com Kelly Híbrido + Modo Ao Vivo",
+      "Bônus: Módulo Blackjack com Kelly Híbrido + Modo Ao Vivo",
       "Suporte prioritário WhatsApp",
     ],
-    cta: "ASSINAR PROFISSIONAL",
+    cta: "FALAR COM CONSULTOR",
     popular: true,
-    url: "https://pay.kiwify.com.br/LB1G2nE",
+    url: "https://wa.me/5534991290648?text=Ol%C3%A1!%20Tenho%20interesse%20no%20Plano%20Profissional.",
   },
   {
     name: "Plano Elite",
@@ -800,26 +775,26 @@ const PRICING_PLANS = [
     features: [
       "Tudo do Profissional +",
       "💬 Chat Mycroft AO VIVO dentro de cada jogo (Cash Out assistido)",
-      "Banca Real Betfair Exchange integrada",
+      "Integração com Exchange para acompanhamento de banca",
       "Gerador de Múltiplas (IA + Kelly)",
       "Sherlock estatístico ilimitado",
-      "Bônus: Blackjack completa + Arena Trader Financeiro Beta (WIN/WDO/BTC — em calibração)",
+      "Bônus: Módulo Blackjack completo + Trader Financeiro Beta (WIN/WDO/BTC — em calibração)",
       "Mentoria via WhatsApp",
     ],
-    cta: "ASSINAR ELITE",
+    cta: "FALAR COM CONSULTOR",
     popular: false,
-    url: "https://pay.kiwify.com.br/on6ZUQp",
+    url: "https://wa.me/5534991290648?text=Ol%C3%A1!%20Tenho%20interesse%20no%20Plano%20Elite.",
   },
 ];
 
 const FAQ = [
-  { question: "Como funciona o acesso após o pagamento?", answer: "Acesso liberado em segundos após a confirmação do pagamento na Kiwify. Você recebe e-mail com os dados de login e já pode entrar nas arenas Punter, Trader Sports (Profissional+) e Elite (Chat AO VIVO + Betfair Exchange)." },
-  { question: "Posso testar antes de assinar um plano mensal?", answer: "Sim. Oferecemos um Day Pass de 24h por R$ 9,90 que libera tudo (Punter + Trader Sports + Hórus). É a forma mais barata de conhecer a plataforma na prática antes de escolher seu plano." },
-  { question: "Qual a diferença entre Iniciante, Profissional e Elite?", answer: "Iniciante (R$ 49,90): entradas prontos do Mycroft no Arena Punter + Blackjack básico. Profissional (R$ 149,90): destrava o Trader Sports ao vivo, a criação de métodos personalizados (Meu Método) e o Método Hórus de Alavancagem. Elite (R$ 249,90): destrava o Chat AO VIVO com o Mycroft dentro de cada jogo e a integração com a Betfair Exchange. O Trader Financeiro (WIN/WDO/BTC) também acompanha o Elite, mas está em Beta — resultados não auditados enquanto refinamos o motor." },
-  { question: "Vocês são mais uma sala de entradas?", answer: "Não. Salas vendem 'dicas' sem comprovação. Nós somos uma plataforma de investimento esportivo com IA, track record auditável de 1.658 posições e ROI +73% verificável. A diferença é transparência total vs bullshit total." },
-  { question: "Como funciona a Garantia Dobro?", answer: "Se você seguir ≥95% das recomendações Mycroft (compliance) por 3 meses consecutivos e não tiver ROI positivo, devolvemos em dobro sua assinatura. Sem letrinhas miúdas. Monitoramos tudo automaticamente." },
-  { question: "Preciso entender de entradas esportivas?", answer: "Não. Mycroft faz a análise quantitativa. Hórus te protege de decisões emocionais. Você só precisa: (1) seguir as recomendações, (2) respeitar o stake sugerido, (3) não operar em tilt. O resto é automático." },
-  { question: "Quanto preciso investir para começar?", answer: "Recomendamos R$ 1.000 como banca inicial para stake adequado (2-5% por posição). Mas você pode começar com R$ 500 e ir aumentando conforme os resultados. O importante é gestão de banca, não valor absoluto." },
-  { question: "Posso cancelar quando quiser?", answer: "Sim. Sem fidelidade, sem multa, sem enrolação. Cancela direto na Kiwify a qualquer momento. Se cancelar no meio do mês, continuamos te atendendo até o fim do período pago." },
-  { question: "Como é o suporte?", answer: "Iniciante: WhatsApp em horário comercial. Profissional: WhatsApp prioritário. Elite: mentoria direta via WhatsApp com o time. Nada de bot — pessoas reais que entendem do produto." },
+  { question: "Como funciona o acesso após o pagamento?", answer: "Acesso liberado em segundos após a confirmação do pagamento. Você recebe os dados de login por e-mail e já pode entrar nas arenas Punter, Trader Sports (Profissional+) e Elite (Chat AO VIVO + integração com Exchange)." },
+  { question: "Posso testar antes de assinar um plano mensal?", answer: "Sim. Oferecemos um Day Pass de 24h por R$ 9,90 que libera todas as áreas (Punter + Trader Sports + Hórus). É a forma mais barata de conhecer a plataforma na prática antes de escolher um plano." },
+  { question: "Qual a diferença entre Iniciante, Profissional e Elite?", answer: "Iniciante (R$ 49,90): análises prontas no Arena Punter + módulo educacional de Blackjack. Profissional (R$ 149,90): destrava o Trader Sports ao vivo, a criação de métodos personalizados (Meu Método) e o Método dos Ciclos. Elite (R$ 249,90): destrava o Chat AO VIVO com o Mycroft dentro de cada jogo e a integração com Exchange. O Trader Financeiro (WIN/WDO/BTC) também acompanha o Elite, mas está em Beta — resultados não auditados enquanto refinamos o motor." },
+  { question: "Vocês são mais um canal de palpites?", answer: "Não. Somos uma plataforma técnica de análise estatística com IA. Cada operação fica registrada no painel de auditoria com timestamp, odd, edge e resultado. A diferença é o método, não a promessa." },
+  { question: "Vocês garantem retorno financeiro?", answer: "Não. Nenhuma plataforma séria pode garantir resultado em apostas esportivas. O que oferecemos é método, modelo estatístico e painel auditável. Resultados passados não garantem resultados futuros. Em caso de insatisfação nos primeiros 7 dias, devolvemos integralmente o valor da assinatura." },
+  { question: "Preciso entender de apostas esportivas?", answer: "Não. Mycroft faz a análise quantitativa. Hórus alerta sobre decisões emocionais. Você só precisa: (1) seguir as recomendações, (2) respeitar o stake sugerido, (3) não operar fora do estado ideal." },
+  { question: "Quanto preciso para começar?", answer: "Recomendamos R$ 1.000 como banca inicial para stake adequado (2-5% por operação). Mas você pode começar com R$ 500 e ir ajustando. O importante é gestão de banca, não valor absoluto." },
+  { question: "Posso cancelar quando quiser?", answer: "Sim. Sem fidelidade, sem multa. Cancela direto na sua área da plataforma a qualquer momento." },
+  { question: "Como é o suporte?", answer: "Iniciante: WhatsApp em horário comercial. Profissional: WhatsApp prioritário. Elite: mentoria direta via WhatsApp com o time. Atendimento humano." },
 ];
