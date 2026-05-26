@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Wallet, TrendingUp, Dumbbell, Bell, BarChart3, Loader2, Brain, FlaskConical, CheckCircle2, CornerDownRight, LayoutGrid, TableProperties, Target, Trophy, RefreshCw, Sparkles } from 'lucide-react';
 import PunterBackButton from '@/components/punter/PunterBackButton';
 import WhatsAppSupportButton from '@/components/WhatsAppSupportButton';
+import HorusModeQuickButton from '@/components/punter/HorusModeQuickButton';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
@@ -483,6 +484,7 @@ export default function ArenaTraderSports() {
                 </div>
               </div>
             )}
+            <HorusModeQuickButton />
             <WhatsAppSupportButton />
             <TraderViewModeToggle />
             {isAdvanced && isAdmin && <LiveCronToggle />}
