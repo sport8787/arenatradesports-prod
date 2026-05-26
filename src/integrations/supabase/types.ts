@@ -484,6 +484,72 @@ export type Database = {
         }
         Relationships: []
       }
+      api_key_expirations: {
+        Row: {
+          api_name: string
+          created_at: string
+          display_name: string
+          enabled: boolean
+          expires_at: string
+          id: string
+          notes: string | null
+          plan_label: string | null
+          updated_at: string
+        }
+        Insert: {
+          api_name: string
+          created_at?: string
+          display_name: string
+          enabled?: boolean
+          expires_at: string
+          id?: string
+          notes?: string | null
+          plan_label?: string | null
+          updated_at?: string
+        }
+        Update: {
+          api_name?: string
+          created_at?: string
+          display_name?: string
+          enabled?: boolean
+          expires_at?: string
+          id?: string
+          notes?: string | null
+          plan_label?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      api_key_expiry_notification_log: {
+        Row: {
+          api_name: string
+          channel: string
+          days_left: number
+          expires_at: string
+          id: string
+          sent_at: string
+          user_id: string | null
+        }
+        Insert: {
+          api_name: string
+          channel: string
+          days_left: number
+          expires_at: string
+          id?: string
+          sent_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          api_name?: string
+          channel?: string
+          days_left?: number
+          expires_at?: string
+          id?: string
+          sent_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       approval_snapshot_violations: {
         Row: {
           analysis_id: string
