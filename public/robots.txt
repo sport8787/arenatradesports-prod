@@ -9,7 +9,7 @@ Allow: /blog/brasileirao-2026/
 Allow: /privacidade
 Allow: /termos
 Disallow: /landing.html
-Disallow: /lp/plataforma-analise-estatistica.html
+
 Disallow: /blog/index.html
 Disallow: /oferta-especial
 Disallow: /paywall
