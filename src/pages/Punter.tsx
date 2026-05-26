@@ -212,10 +212,11 @@ export default function PunterPage() {
     }
   };
 
-  // Set de jogo+mercado com entrada já realizada (Hórus OU manual).
-  // Chaveado por `home_away|market` normalizado — assim sinais de mercados
-  // diferentes do mesmo jogo NÃO são marcados como "já apostado" indevidamente.
-  const placedBetMatchKeys = useMemo(() => {
+  // Sets de jogo+mercado com entrada já realizada — SEPARADOS por origem.
+  // `manualBetMatchKeys`: apenas entradas MANUAIS do usuário (bloqueiam o botão APOSTAR e mostram "Entrada já registrada").
+  // `horusBetMatchKeys`: entradas auto-colocadas pelo Hórus (apenas informativo via `horusEntered`).
+  // Chaveado por `home_away|market` normalizado.
+  const buildKeySet = (bets: any[]) => {
     const keys = new Set<string>();
     const norm = (s: string) => (s || '').toLowerCase().replace(/\s+/g, '_').replace(/\+00:00/g, 'z');
     const normMarket = (m: string) => (m || '').toLowerCase().replace(/\s+/g, '_');
@@ -232,13 +233,19 @@ export default function PunterPage() {
         if (m.length === 2) keys.add(`${norm(`${m[0]}_${m[1]}`)}|${mk}`);
       }
     };
-    for (const bet of pendingBets) addKey(bet.match_id, bet.match_name, bet.market);
-    for (const bet of manualPendingBets) addKey(bet.match_id, bet.match_name, bet.market);
+    for (const bet of bets) addKey(bet.match_id, bet.match_name, bet.market);
     return keys;
-  }, [pendingBets, manualPendingBets]);
+  };
 
-  // Compatibilidade: mantém referência antiga (mesma estrutura)
-  const pendingMatchKeys = placedBetMatchKeys;
+  const manualBetMatchKeys = useMemo(() => buildKeySet(manualPendingBets), [manualPendingBets]);
+  const horusBetMatchKeys = useMemo(() => buildKeySet(pendingBets), [pendingBets]);
+
+  // Compatibilidade: usado em outros pontos como conjunto agregado (somente leitura)
+  const pendingMatchKeys = useMemo(() => {
+    const all = new Set<string>(manualBetMatchKeys);
+    horusBetMatchKeys.forEach((k) => all.add(k));
+    return all;
+  }, [manualBetMatchKeys, horusBetMatchKeys]);
 
   // Entradas NOVOS = aprovados após a última visita (persistido em localStorage)
   const SEEN_KEY = 'punter_seen_signal_ids_v1';
@@ -1724,8 +1731,11 @@ export default function PunterPage() {
                   {visibleSignals.map((signal, index) => {
               const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_').toLowerCase();
               const marketKey = (signal.recommendation.market || '').toLowerCase().replace(/\s+/g, '_');
-              const hasPendingBet = pendingMatchKeys.has(`${matchId}|${marketKey}`);
-              const wasAutoPlaced = autoPlacedMatchIds.has(`${matchId}|${marketKey}`) || autoPlacedMatchIds.has(matchId);
+              const manualKey = `${matchId}|${marketKey}`;
+              const hasManualBet = manualBetMatchKeys.has(manualKey);
+              const hasHorusBet = horusBetMatchKeys.has(manualKey) || autoPlacedMatchIds.has(manualKey);
+              const hasPendingBet = hasManualBet; // só entrada MANUAL trava o botão / mostra "já registrada"
+              const wasAutoPlaced = hasHorusBet;
               const kellyProb = signal.recommendation.estimated_probability
                 ?? (signal.recommendation.fair_odd > 0 ? (1 / signal.recommendation.fair_odd) * 100 : (signal.recommendation.confidence || 55));
               const kelly = bankroll ? calculateKellyStake({
@@ -1753,8 +1763,8 @@ export default function PunterPage() {
                     bankroll={bankroll}
                     manualBankroll={manualBankroll}
                     isNew={!seenSignalIds.has(signalKey(signal))}
-                    userAlreadyBet={hasPendingBet || wasAutoPlaced}
-                    horusEntered={hasPendingBet || wasAutoPlaced}
+                    userAlreadyBet={hasManualBet}
+                    horusEntered={hasHorusBet}
                     horusStake={realHorusStake}
                     horusBetDate={realBetDate}
                     kellyPercent={kellyPercent}
