@@ -1763,8 +1763,8 @@ export default function PunterPage() {
                     bankroll={bankroll}
                     manualBankroll={manualBankroll}
                     isNew={!seenSignalIds.has(signalKey(signal))}
-                    userAlreadyBet={hasPendingBet || wasAutoPlaced}
-                    horusEntered={hasPendingBet || wasAutoPlaced}
+                    userAlreadyBet={hasManualBet}
+                    horusEntered={hasHorusBet}
                     horusStake={realHorusStake}
                     horusBetDate={realBetDate}
                     kellyPercent={kellyPercent}
