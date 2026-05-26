@@ -172,6 +172,8 @@ export async function getUpcomingFixturesSM(
         goals: { home: null, away: null },
       });
     }
+    const topLeagues = Object.entries(debugLeagueCounts).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([k,v])=>`${k}:${v}`).join(",");
+    console.log(`[SM-Adapter] upcoming DEBUG total_sm=${fixtures.length} states=${JSON.stringify(debugStateCounts)} in_window_mapped=${debugInWindow} allowed_af_count=${afLeagueIds.length} top_sm_leagues=${topLeagues}`);
   } catch (e) {
     console.warn(`[SM-Adapter] upcoming err`, (e as Error).message);
   }
@@ -179,8 +181,6 @@ export async function getUpcomingFixturesSM(
   return out;
 }
 
-  return out;
-}
 
 // =============================================================================
 // 2) BUSCAR TIME POR NOME — usado quando a edge tem só home_team_name
