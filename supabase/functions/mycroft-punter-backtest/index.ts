@@ -928,6 +928,7 @@ async function fetchHistoricalFromSportmonksCached(
   leagueKey: string,
   season: number,
   leagueName: string,
+  afId: number,
   dbClient: any,
 ): Promise<{ fixtures: any[]; fromCache: boolean }> {
   const TOKEN = Deno.env.get('SPORTMONKS_API_KEY')
@@ -950,57 +951,89 @@ async function fetchHistoricalFromSportmonksCached(
   }
 
   console.log(`[Backtest][SM-Cache] MISS ${leagueKey}/${season}: buscando da API Sportmonks...`)
-  const allowedSet = new Set([leagueName])
-  const fixtures: any[] = []
-  let dayCount = 0
-  const MAX_DAYS = 400
 
-  for (const ymd of dateRangeOfSeason(season)) {
-    if (dayCount++ >= MAX_DAYS) break
-    const url = `https://api.sportmonks.com/v3/football/fixtures/date/${ymd}?api_token=${TOKEN}&include=scores;participants;state;league&per_page=100`
+  // 1b) Resolver sportmonks_id via league_id_map (af_id → sm_id)
+  let smId: number | null = null
+  try {
+    const { data: mapRow } = await dbClient
+      .from('league_id_map')
+      .select('sportmonks_id')
+      .eq('api_football_id', afId)
+      .maybeSingle()
+    if (mapRow?.sportmonks_id) smId = Number(mapRow.sportmonks_id)
+  } catch (e) {
+    console.warn('[Backtest][SM-Cache] league_id_map lookup failed:', (e as Error).message)
+  }
+  if (!smId) {
+    console.warn(`[Backtest][SM-Cache] sem sportmonks_id para ${leagueName} (af=${afId}) — pulando`)
+    return { fixtures: [], fromCache: false }
+  }
+
+  // 2) Buscar via /fixtures/between/{from}/{to} com filtro de liga e paginação.
+  // Cobre janela ampla: Jan(season) → min(Dec(season+1), hoje). Faz 1 req por
+  // página (até 100 fixtures cada) em vez de 1 req por dia → ~10-30 chamadas
+  // por liga em vez de 700.
+  const fromYmd = `${season}-01-01`
+  const endDate = new Date(Math.min(new Date(`${season + 1}-12-31T00:00:00Z`).getTime(), Date.now()))
+  const toYmd = endDate.toISOString().slice(0, 10)
+
+  const fixtures: any[] = []
+  let page = 1
+  const MAX_PAGES = 50
+  while (page <= MAX_PAGES) {
+    const url = `https://api.sportmonks.com/v3/football/fixtures/between/${fromYmd}/${toYmd}` +
+      `?api_token=${TOKEN}&include=scores;participants;state;league` +
+      `&filters=fixtureLeagues:${smId}&per_page=100&page=${page}`
+    let json: any
     try {
       const res = await fetch(url)
-      if (!res.ok) continue
-      const json = await res.json()
-      const data: any[] = json.data || []
-      for (const f of data) {
-        const stateName = f.state?.short_name || f.state?.name || ''
-        if (!/FT|AET|PEN_LIVE|FT_PEN/i.test(stateName)) continue
-        const lname = f.league?.name || ''
-        const matched = leagueMatches(lname, allowedSet)
-        if (!matched) continue
-        const participants = f.participants || []
-        const home = participants.find((p: any) => p.meta?.location === 'home') || participants[0]
-        const away = participants.find((p: any) => p.meta?.location === 'away') || participants[1]
-        if (!home || !away) continue
-        const scores = f.scores || []
-        let gh: number | null = null, ga: number | null = null
+      if (!res.ok) {
+        console.warn(`[Backtest][SM-Cache] HTTP ${res.status} page=${page} league=${smId}`)
+        break
+      }
+      json = await res.json()
+    } catch (e) {
+      console.warn(`[Backtest][SM-Cache] fetch fail page=${page}:`, (e as Error).message)
+      break
+    }
+    const data: any[] = json?.data || []
+    for (const f of data) {
+      const stateName = f.state?.short_name || f.state?.name || ''
+      if (!/FT|AET|PEN_LIVE|FT_PEN/i.test(stateName)) continue
+      const participants = f.participants || []
+      const home = participants.find((p: any) => p.meta?.location === 'home') || participants[0]
+      const away = participants.find((p: any) => p.meta?.location === 'away') || participants[1]
+      if (!home || !away) continue
+      const scores = f.scores || []
+      let gh: number | null = null, ga: number | null = null
+      for (const s of scores) {
+        const desc = String(s.description || '').toUpperCase()
+        if (desc !== 'CURRENT') continue
+        if (s.score?.participant === 'home') gh = s.score.goals
+        if (s.score?.participant === 'away') ga = s.score.goals
+      }
+      if (gh === null || ga === null) {
         for (const s of scores) {
           const desc = String(s.description || '').toUpperCase()
-          if (desc !== 'CURRENT') continue
-          if (s.score?.participant === 'home') gh = s.score.goals
-          if (s.score?.participant === 'away') ga = s.score.goals
+          if (desc !== 'FT') continue
+          if (s.score?.participant === 'home' && gh === null) gh = s.score.goals
+          if (s.score?.participant === 'away' && ga === null) ga = s.score.goals
         }
-        if (gh === null || ga === null) {
-          for (const s of scores) {
-            const desc = String(s.description || '').toUpperCase()
-            if (desc !== 'FT') continue
-            if (s.score?.participant === 'home' && gh === null) gh = s.score.goals
-            if (s.score?.participant === 'away' && ga === null) ga = s.score.goals
-          }
-        }
-        if (gh === null || ga === null) continue
-        fixtures.push({
-          fixture: { id: f.id, date: f.starting_at || `${ymd}T00:00:00Z` },
-          teams: { home: { name: home.name }, away: { name: away.name } },
-          goals: { home: gh, away: ga },
-          league: { round: '' },
-          _leagueName: matched,
-        })
       }
-    } catch { /* skip date */ }
-    if (dayCount % 5 === 0) await new Promise(r => setTimeout(r, 100))
+      if (gh === null || ga === null) continue
+      fixtures.push({
+        fixture: { id: f.id, date: f.starting_at || `${fromYmd}T00:00:00Z` },
+        teams: { home: { name: home.name }, away: { name: away.name } },
+        goals: { home: gh, away: ga },
+        league: { round: '' },
+        _leagueName: leagueName,
+      })
+    }
+    const hasMore = json?.pagination?.has_more ?? (data.length === 100)
+    if (!hasMore) break
+    page++
   }
+
 
   // 2) Persist to cache (mark complete only if scan reached today / end of season)
   try {
