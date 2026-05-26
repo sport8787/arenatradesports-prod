@@ -6,7 +6,7 @@ import analisePunter1 from '@/assets/prints-reais/analise-punter-1.png';
 import analisePunter2 from '@/assets/prints-reais/analise-punter-2.png';
 import aprovadoMancity from '@/assets/prints-reais/aprovado-mancity.png';
 import aprovadoGoias from '@/assets/prints-reais/aprovado-goias.png';
-import sinalAprovadoLive from '@/assets/prints-reais/entrada-aprovado-live.png';
+import sinalAprovadoLive from '@/assets/prints-reais/sinal-aprovado-live.png';
 
 interface PrintItem {
   src: string;
