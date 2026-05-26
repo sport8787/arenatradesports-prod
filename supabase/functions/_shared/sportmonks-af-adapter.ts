@@ -117,16 +117,26 @@ export async function getUpcomingFixturesSM(
   const limit = new Date(horizon).toISOString().slice(0, 10);
 
   // Sportmonks: /football/fixtures/between/{from}/{to}
+  // Filtra explicitamente pelas ligas SM que mapeamos — sem o filtro, o endpoint
+  // devolve só uma amostra (~25) majoritariamente em ligas exóticas que não usamos.
   try {
-    const url = smUrl(`/football/fixtures/between/${today}/${limit}`, {
+    const smLeagueIds = afLeagueIds
+      .map((af) => LEAGUE_AF_TO_SM[af])
+      .filter((id): id is number => typeof id === "number");
+    const params: Record<string, string> = {
       include: "scores;participants;state;league",
       per_page: "200",
-    });
+    };
+    if (smLeagueIds.length) {
+      params["filters"] = `fixtureLeagues:${smLeagueIds.join(",")}`;
+    }
+    const url = smUrl(`/football/fixtures/between/${today}/${limit}`, params);
     const r = await fetch(url);
     if (!r.ok) {
       console.warn(`[SM-Adapter] upcoming HTTP ${r.status}`);
       return [];
     }
+
     const j = await r.json();
     const fixtures = j.data || [];
     for (const f of fixtures) {
@@ -164,12 +174,14 @@ export async function getUpcomingFixturesSM(
         goals: { home: null, away: null },
       });
     }
+    console.log(`[SM-Adapter] upcoming raw=${fixtures.length} → mapeados=${out.length} (alvo=${afLeagueIds.length} ligas AF)`);
   } catch (e) {
     console.warn(`[SM-Adapter] upcoming err`, (e as Error).message);
   }
-  console.log(`[SM-Adapter] upcoming SM: ${out.length} jogos retornados`);
   return out;
 }
+
+
 
 // =============================================================================
 // 2) BUSCAR TIME POR NOME — usado quando a edge tem só home_team_name
