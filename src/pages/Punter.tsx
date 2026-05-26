@@ -212,26 +212,28 @@ export default function PunterPage() {
     }
   };
 
-  // Set de jogos com entrada já realizada (Hórus OU manual) — chaveado por home_away normalizado.
-  // Usado para impedir nova entrada no mesmo entrada e exibir etiqueta "JÁ APOSTADO".
+  // Set de jogo+mercado com entrada já realizada (Hórus OU manual).
+  // Chaveado por `home_away|market` normalizado — assim sinais de mercados
+  // diferentes do mesmo jogo NÃO são marcados como "já apostado" indevidamente.
   const placedBetMatchKeys = useMemo(() => {
     const keys = new Set<string>();
     const norm = (s: string) => (s || '').toLowerCase().replace(/\s+/g, '_').replace(/\+00:00/g, 'z');
-    const addKey = (matchId?: string, matchName?: string) => {
+    const normMarket = (m: string) => (m || '').toLowerCase().replace(/\s+/g, '_');
+    const addKey = (matchId?: string, matchName?: string, market?: string) => {
+      const mk = normMarket(market || '');
+      if (!mk) return;
       if (matchId) {
-        keys.add(norm(matchId));
-        // Variante sem commence_time (último underscore + ISO)
+        keys.add(`${norm(matchId)}|${mk}`);
         const withoutTime = String(matchId).split('_').slice(0, 2).join('_');
-        if (withoutTime) keys.add(norm(withoutTime));
+        if (withoutTime) keys.add(`${norm(withoutTime)}|${mk}`);
       }
       if (matchName) {
-        // "Home vs Away" -> home_away
         const m = matchName.split(/\s+vs\s+/i);
-        if (m.length === 2) keys.add(norm(`${m[0]}_${m[1]}`));
+        if (m.length === 2) keys.add(`${norm(`${m[0]}_${m[1]}`)}|${mk}`);
       }
     };
-    for (const bet of pendingBets) addKey(bet.match_id, bet.match_name);
-    for (const bet of manualPendingBets) addKey(bet.match_id, bet.match_name);
+    for (const bet of pendingBets) addKey(bet.match_id, bet.match_name, bet.market);
+    for (const bet of manualPendingBets) addKey(bet.match_id, bet.match_name, bet.market);
     return keys;
   }, [pendingBets, manualPendingBets]);
 
