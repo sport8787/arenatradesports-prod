@@ -384,17 +384,30 @@ export interface EvalResult {
   missing_stats: string[];
 }
 
+// Odds-live (Futodds/Betfair) por mercado. Para corners não há odd live integrada
+// na pipeline atual; usamos o valor médio histórico do mercado Over 8.5 como
+// proxy (~1.85) para que o cálculo de ROI não fique zerado em GREEN.
+const CORNERS_OVER_FALLBACK_ODD = 1.85;
+const BTTS_FALLBACK_ODD = 1.82;
 function pickOdd(lm: LiveMatch, plan: UserPlanCriteria): number | null {
   const od: any = (lm as any).odds_live ?? null;
-  if (!od) return null;
   if (plan.market === '1x2') {
+    if (!od) return null;
     if (plan.outcome === 'home') return od.home ?? null;
     if (plan.outcome === 'away') return od.away ?? null;
     if (plan.outcome === 'draw') return od.draw ?? null;
   }
   if (plan.market === 'over_under') {
+    if (!od) return null;
     if (plan.outcome === 'over') return od.over25 ?? null;
     if (plan.outcome === 'under') return od.under25 ?? null;
+  }
+  if (plan.market === 'btts') {
+    const live = od ? (plan.outcome === 'yes' ? od.btts_yes : od.btts_no) : null;
+    return (live != null && Number(live) > 1) ? Number(live) : BTTS_FALLBACK_ODD;
+  }
+  if (plan.market === 'corners') {
+    return CORNERS_OVER_FALLBACK_ODD;
   }
   return null;
 }

@@ -155,7 +155,11 @@ serve(async (req) => {
       if (outcome.includes("over"))  won = tot >  line;
       else if (outcome.includes("under")) won = tot <  line;
       if (won == null) { skipped++; continue; }
-      const odd = Number(s.selected_odd ?? 1);
+      // Corners não tem odd live integrada na pipeline → usa fallback 1.85 (média
+      // histórica do mercado Over 8.5) para que PnL/ROI não fiquem zerados.
+      const CORNERS_FALLBACK_ODD = 1.85;
+      const oddRaw = Number(s.selected_odd);
+      const odd = (isFinite(oddRaw) && oddRaw > 1) ? oddRaw : CORNERS_FALLBACK_ODD;
       const pnl = won ? Number((odd - 1).toFixed(4)) : -1;
       const { error: uErr } = await svc
         .from("user_trader_plan_signals")
