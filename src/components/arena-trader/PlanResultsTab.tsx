@@ -58,14 +58,26 @@ export default function PlanResultsTab() {
 
   const handleSettle = async () => {
     setSettling(true);
-    const { data, error } = await (supabase as any).rpc('settle_user_plan_signals');
+    const [rpcRes, fnRes] = await Promise.all([
+      (supabase as any).rpc('settle_user_plan_signals'),
+      supabase.functions.invoke('settle-user-plan-corners'),
+    ]);
     setSettling(false);
-    if (error) {
-      toast({ title: 'Falha ao reconciliar', description: error.message, variant: 'destructive' });
+    if (rpcRes.error) {
+      toast({ title: 'Falha ao reconciliar', description: rpcRes.error.message, variant: 'destructive' });
       return;
     }
-    const n = Array.isArray(data) && data[0] ? (data[0].settled ?? 0) : 0;
-    toast({ title: 'Reconciliação concluída', description: `${n} entrada(is) liquidado(s) com o placar final.` });
+    const n = Array.isArray(rpcRes.data) && rpcRes.data[0] ? (rpcRes.data[0].settled ?? 0) : 0;
+    const cornersBody = (fnRes.data ?? {}) as { settled?: number; no_data?: number };
+    const cornersSettled = cornersBody.settled ?? 0;
+    const cornersNoData = cornersBody.no_data ?? 0;
+    const cornersMsg = fnRes.error
+      ? ' · escanteios: falha ao consultar provedores'
+      : ` · escanteios: ${cornersSettled} liquidado(s)${cornersNoData ? `, ${cornersNoData} sem dados de canto disponíveis` : ''}`;
+    toast({
+      title: 'Reconciliação concluída',
+      description: `${n} entrada(s) 1X2/OU/BTTS liquidado(s)${cornersMsg}.`,
+    });
     void load();
   };
 
