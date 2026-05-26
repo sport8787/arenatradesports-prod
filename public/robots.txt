@@ -9,7 +9,7 @@ Allow: /blog/brasileirao-2026/
 Allow: /privacidade
 Allow: /termos
 Disallow: /landing.html
-Disallow: /lp/ia-apostas-esportivas.html
+Disallow: /lp/plataforma-analise-estatistica.html
 Disallow: /blog/edge-gain-apostas-esportivas.html
 Disallow: /blog/ferramenta-analise-apostas-esportivas-ia.html
 Disallow: /blog/previsao-jogos-futebol-ia.html
