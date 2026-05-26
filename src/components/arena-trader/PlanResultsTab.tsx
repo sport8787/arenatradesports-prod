@@ -58,8 +58,9 @@ export default function PlanResultsTab() {
 
   const handleSettle = async () => {
     setSettling(true);
-    const [rpcRes, fnRes] = await Promise.all([
+    const [rpcRes, fbRes, fnRes] = await Promise.all([
       (supabase as any).rpc('settle_user_plan_signals'),
+      supabase.functions.invoke('settle-user-plan-fallback'),
       supabase.functions.invoke('settle-user-plan-corners'),
     ]);
     setSettling(false);
@@ -68,15 +69,21 @@ export default function PlanResultsTab() {
       return;
     }
     const n = Array.isArray(rpcRes.data) && rpcRes.data[0] ? (rpcRes.data[0].settled ?? 0) : 0;
+    const fbBody = (fbRes.data ?? {}) as { settled?: number; no_data?: number };
+    const fbSettled = fbBody.settled ?? 0;
+    const fbNoData = fbBody.no_data ?? 0;
     const cornersBody = (fnRes.data ?? {}) as { settled?: number; no_data?: number };
     const cornersSettled = cornersBody.settled ?? 0;
     const cornersNoData = cornersBody.no_data ?? 0;
+    const fbMsg = fbRes.error
+      ? ' · fallback: falha'
+      : ` · fallback Futodds/SM: ${fbSettled} liquidado(s)${fbNoData ? `, ${fbNoData} sem placar` : ''}`;
     const cornersMsg = fnRes.error
       ? ' · escanteios: falha ao consultar provedores'
-      : ` · escanteios: ${cornersSettled} liquidado(s)${cornersNoData ? `, ${cornersNoData} sem dados de canto disponíveis` : ''}`;
+      : ` · escanteios: ${cornersSettled} liquidado(s)${cornersNoData ? `, ${cornersNoData} sem dados` : ''}`;
     toast({
       title: 'Reconciliação concluída',
-      description: `${n} entrada(s) 1X2/OU/BTTS liquidado(s)${cornersMsg}.`,
+      description: `${n} entrada(s) live_matches${fbMsg}${cornersMsg}.`,
     });
     void load();
   };
