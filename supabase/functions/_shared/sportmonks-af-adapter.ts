@@ -129,16 +129,24 @@ export async function getUpcomingFixturesSM(
     }
     const j = await r.json();
     const fixtures = j.data || [];
+    const debugLeagueCounts: Record<string, number> = {};
+    const debugStateCounts: Record<string, number> = {};
+    let debugInWindow = 0;
     for (const f of fixtures) {
       const smLeagueId = f.league?.id ?? f.league_id;
       const afLeagueId = LEAGUE_SM_TO_AF[smLeagueId];
+      const stateShortDbg = (f.state?.short_name || "").toUpperCase() || "EMPTY";
+      debugStateCounts[stateShortDbg] = (debugStateCounts[stateShortDbg] ?? 0) + 1;
+      debugLeagueCounts[String(smLeagueId)] = (debugLeagueCounts[String(smLeagueId)] ?? 0) + 1;
       if (!afLeagueId || !afLeagueIds.includes(afLeagueId)) continue;
 
       const t = new Date(f.starting_at || f.starting_at_timestamp * 1000).getTime();
       if (t < now || t > horizon) continue;
+      debugInWindow++;
       if (isFinished(f)) continue;
       const stateShort = (f.state?.short_name || "").toUpperCase();
       if (stateShort && !["NS", "TBD"].includes(stateShort)) continue;
+
 
       const parts = f.participants || [];
       const home = parts.find((p: any) => p.meta?.location === "home") || parts[0];
