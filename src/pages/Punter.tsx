@@ -1721,8 +1721,9 @@ export default function PunterPage() {
                   )}
                   {visibleSignals.map((signal, index) => {
               const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_').toLowerCase();
-              const hasPendingBet = pendingMatchKeys.has(matchId);
-              const wasAutoPlaced = autoPlacedMatchIds.has(matchId);
+              const marketKey = (signal.recommendation.market || '').toLowerCase().replace(/\s+/g, '_');
+              const hasPendingBet = pendingMatchKeys.has(`${matchId}|${marketKey}`);
+              const wasAutoPlaced = autoPlacedMatchIds.has(`${matchId}|${marketKey}`) || autoPlacedMatchIds.has(matchId);
               const kellyProb = signal.recommendation.estimated_probability
                 ?? (signal.recommendation.fair_odd > 0 ? (1 / signal.recommendation.fair_odd) * 100 : (signal.recommendation.confidence || 55));
               const kelly = bankroll ? calculateKellyStake({
@@ -1734,8 +1735,11 @@ export default function PunterPage() {
               const kellyStake = kelly?.stakeAmount || 0;
               const kellyPercent = kelly?.stakePercent || 3;
 
-              // Get real bet stake from pending bets if Hórus already entered
-              const realBet = pendingBets.find((b: any) => (b.match_id || '').toLowerCase() === matchId);
+              // Get real bet stake from pending bets if Hórus already entered (match + market)
+              const realBet = pendingBets.find((b: any) =>
+                (b.match_id || '').toLowerCase() === matchId
+                && (b.market || '').toLowerCase().replace(/\s+/g, '_') === marketKey
+              );
               const realHorusStake = realBet ? parseFloat(realBet.stake) : kellyStake;
               const realBetDate = realBet ? new Date(realBet.created_at) : null;
 
