@@ -18,8 +18,8 @@ export interface HorusTrigger {
 export const HORUS_TRIGGERS_FALLBACK: HorusTrigger[] = [
   // Onboarding (primeiro acesso a páginas avançadas)
   { trigger_key: 'ciclos_first_visit',           texto: 'Esta é sua banca de ciclos. Separada da banca principal. Cada ciclo possui regra operacional própria.', categoria: 'onboarding', min_mode: 'mentor', enabled: true },
-  { trigger_key: 'punter_meu_plano_first_visit', texto: 'Aqui você cria seu plano determinístico. O Mycroft global continua rodando em paralelo.',                categoria: 'onboarding', min_mode: 'mentor', enabled: true },
-  { trigger_key: 'trader_meu_plano_first_visit', texto: 'Seu plano filtra apenas o que importa para você. Mycroft segue ativo no fundo.',                         categoria: 'onboarding', min_mode: 'mentor', enabled: true },
+  { trigger_key: 'punter_meu_plano_first_visit', texto: 'Aqui você cria seu método determinístico. O Mycroft global continua rodando em paralelo.',                categoria: 'onboarding', min_mode: 'mentor', enabled: true },
+  { trigger_key: 'trader_meu_plano_first_visit', texto: 'Seu método filtra apenas o que importa para você. Mycroft segue ativo no fundo.',                         categoria: 'onboarding', min_mode: 'mentor', enabled: true },
   { trigger_key: 'punter_first_visit',           texto: 'Pré-live. Mantenha sua Betfair logada. Oportunidades podem ser aprovadas a qualquer momento.',          categoria: 'onboarding', min_mode: 'mentor', enabled: true },
   { trigger_key: 'punter_config_first_visit',    texto: 'Aqui você ajusta meu comportamento. Se preferir silêncio, é só escolher.',                               categoria: 'onboarding', min_mode: 'mentor', enabled: true },
   { trigger_key: 'eventos_raros_first_visit',    texto: 'Mercados raros, alto valor. Sempre com banca isolada.',                                                  categoria: 'onboarding', min_mode: 'mentor', enabled: true },
