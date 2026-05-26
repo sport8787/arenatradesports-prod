@@ -507,7 +507,7 @@ serve(async (req) => {
       for (const l of validLeagues) {
         try {
           const { fixtures: smFixtures, fromCache } = await fetchHistoricalFromSportmonksCached(
-            l.key, season, l.info.name, dbClient
+            l.key, season, l.info.name, l.info.id, dbClient
           )
           if (smFixtures.length > 0) {
             usedSource = 'sportmonks'
