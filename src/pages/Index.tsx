@@ -39,14 +39,6 @@ const sideArenas = [
     badgeClass: 'bg-amber-500 text-black',
   },
   {
-    title: 'Arena Blackjack',
-    description: 'Contagem Hi-Lo + Kelly Híbrido. Estudo de probabilidade e gestão de risco aplicado ao Blackjack.',
-    href: '/arena-blackjack',
-    icon: Spade,
-    badge: 'BÔNUS',
-    accent: 'from-violet-500/15 to-violet-700/5 border-violet-500/30',
-  },
-  {
     title: 'Liga Mycroft',
     description: 'Ranking de ROI e recompensas BC.',
     href: '/loja-bc',
