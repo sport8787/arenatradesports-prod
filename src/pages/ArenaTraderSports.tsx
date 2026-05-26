@@ -484,6 +484,7 @@ export default function ArenaTraderSports() {
                 </div>
               </div>
             )}
+            <HorusModeQuickButton />
             <WhatsAppSupportButton />
             <TraderViewModeToggle />
             {isAdvanced && isAdmin && <LiveCronToggle />}
