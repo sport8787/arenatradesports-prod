@@ -179,6 +179,9 @@ export async function getUpcomingFixturesSM(
   return out;
 }
 
+  return out;
+}
+
 // =============================================================================
 // 2) BUSCAR TIME POR NOME — usado quando a edge tem só home_team_name
 // =============================================================================
