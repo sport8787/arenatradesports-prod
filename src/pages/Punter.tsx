@@ -1731,8 +1731,11 @@ export default function PunterPage() {
                   {visibleSignals.map((signal, index) => {
               const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_').toLowerCase();
               const marketKey = (signal.recommendation.market || '').toLowerCase().replace(/\s+/g, '_');
-              const hasPendingBet = pendingMatchKeys.has(`${matchId}|${marketKey}`);
-              const wasAutoPlaced = autoPlacedMatchIds.has(`${matchId}|${marketKey}`) || autoPlacedMatchIds.has(matchId);
+              const manualKey = `${matchId}|${marketKey}`;
+              const hasManualBet = manualBetMatchKeys.has(manualKey);
+              const hasHorusBet = horusBetMatchKeys.has(manualKey) || autoPlacedMatchIds.has(manualKey);
+              const hasPendingBet = hasManualBet; // só entrada MANUAL trava o botão / mostra "já registrada"
+              const wasAutoPlaced = hasHorusBet;
               const kellyProb = signal.recommendation.estimated_probability
                 ?? (signal.recommendation.fair_odd > 0 ? (1 / signal.recommendation.fair_odd) * 100 : (signal.recommendation.confidence || 55));
               const kelly = bankroll ? calculateKellyStake({
