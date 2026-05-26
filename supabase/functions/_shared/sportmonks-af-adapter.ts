@@ -114,7 +114,7 @@ function isFinished(f: any): boolean {
 // =============================================================================
 export async function getUpcomingFixturesSM(
   afLeagueIds: number[],
-  hoursAhead = 96,
+  hoursAhead = 120,
 ): Promise<AFShapeFixture[]> {
   if (!TOKEN) return [];
   const out: AFShapeFixture[] = [];
