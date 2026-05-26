@@ -110,6 +110,7 @@ const AdminLeagueROI = React.lazy(() => import("./pages/AdminLeagueROI"));
 const AdminBorderlineAI = React.lazy(() => import("./pages/AdminBorderlineAI"));
 const AdminChatAnalytics = React.lazy(() => import("./pages/AdminChatAnalytics"));
 const AdminPushTest = React.lazy(() => import("./pages/AdminPushTest"));
+const AdminApiKeyExpirations = React.lazy(() => import("./pages/AdminApiKeyExpirations"));
 const AdminSettlementLog = React.lazy(() => import("./pages/AdminSettlementLog"));
 const AdminEdgeFunctionsStatus = React.lazy(() => import("./pages/AdminEdgeFunctionsStatus"));
 const AdminEdgeFunctionErrors = React.lazy(() => import("./pages/AdminEdgeFunctionErrors"));
@@ -243,6 +244,7 @@ const App = () => {
                 <Route path="/admin/futodds-health" element={<AdminFutoddsHealth />} />
                 <Route path="/admin/chat-analytics" element={<AdminChatAnalytics />} />
                 <Route path="/admin/push-test" element={<AdminPushTest />} />
+                <Route path="/admin/api-key-expirations" element={<AdminApiKeyExpirations />} />
                 <Route path="/admin/settlement-log" element={<AdminSettlementLog />} />
                 <Route path="/admin/edge-status" element={<AdminEdgeFunctionsStatus />} />
                 <Route path="/admin/edge-errors" element={<AdminEdgeFunctionErrors />} />
