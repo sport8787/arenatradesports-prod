@@ -109,11 +109,12 @@ async function mergeProviders(): Promise<LiveResult> {
   // distintos para o MESMO jogo, então dedup só por league_id deixa passar duplicata.
   // xG vive na Sportmonks → SM SEMPRE vence; Futodds só entra se o jogo não existe no SM.
   function teamDayKey(f: any): string {
-    const h = String(f?.teams?.home?.name ?? "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 12);
-    const a = String(f?.teams?.away?.name ?? "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 12);
+    const h = normTeam(f?.teams?.home?.name);
+    const a = normTeam(f?.teams?.away?.name);
     const d = String(f?.fixture?.date ?? "").slice(0, 10);
     return `${h}|${a}|${d}`;
   }
+
 
   const seen = new Set<string>();
   const smTeamDay = new Set<string>();
