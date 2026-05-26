@@ -85,6 +85,13 @@ const LINKS: AdminLink[] = [
     icon: <Bell className="h-4 w-4" />,
     group: 'Operação',
   },
+  {
+    to: '/admin/api-key-expirations',
+    label: 'Vencimentos APIs',
+    description: 'Cadastrar e acompanhar vencimentos das chaves API (Futodds, Sportmonks, etc). Push avisa em 7/3/1 dia.',
+    icon: <Bell className="h-4 w-4" />,
+    group: 'Operação',
+  },
   // Análise
   {
     to: '/admin/ab-lab',
