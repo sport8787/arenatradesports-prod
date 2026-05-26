@@ -12,27 +12,27 @@ export default function HouseEdgeEducation() {
             Se você quer investir em futebol de forma profissional, precisa entender como tudo funciona
           </h2>
           <p className="text-lg text-center text-slate-300 mb-6">
-            Você já se perguntou por que a casa de entradas quase sempre vence?
+            Você já se perguntou por que a exchange esportiva quase sempre vence?
           </p>
           <p className="leading-relaxed mb-4">
             A resposta está na <b>própria estrutura do mercado</b>: cada partida tem odds precificadas
             com uma <b>margem matemática embutida a favor da casa</b> (a famosa <i>overround</i> ou{' '}
             <i>juice</i>). Se você somar as probabilidades implícitas das odds de um jogo, o total
-            ultrapassa 100% — esse excesso é o lucro garantido da casa no longo prazo,
+            ultrapassa 100% — esse excesso é o margem garantida da casa no longo prazo,
             independentemente de quem ganhe a partida.
           </p>
           <p className="leading-relaxed mb-4">
-            Por isso as casas <b>induzem o apostador a montar múltiplas</b> com 4, 6, 10 seleções:
+            Por isso as casas <b>induzem o operador a montar múltiplas</b> com 4, 6, 10 seleções:
             a cada perninha adicionada, a margem da casa se acumula exponencialmente. Uma múltipla
             de 8 jogos pode ter <b>mais de 40% de vantagem matemática para a casa</b>. É o produto
-            mais lucrativo da operação delas — e o mais destrutivo para a banca do apostador.
+            mais rentável da operação delas — e o mais destrutivo para a banca do operador.
           </p>
           <p className="leading-relaxed">
-            Se seu objetivo é parar de perder, você precisa <b>deixar de ser apostador impulsivo</b>,
+            Se seu objetivo é parar de perder, você precisa <b>deixar de ser operador impulsivo</b>,
             abandonar "estratégias infalíveis" e palpites de tipster, e passar a operar com{' '}
             <b>análise de dados reais + probabilidade + gestão de risco</b>. Isso não muda o
             resultado de uma partida específica, mas permite identificar quando a odd está{' '}
-            <b>mal precificada a seu favor</b> (edge positivo) — e é nesse ponto que o lucro
+            <b>mal precificada a seu favor</b> (edge positivo) — e é nesse ponto que o retorno
             consistente acontece.
           </p>
         </div>
@@ -43,7 +43,7 @@ export default function HouseEdgeEducation() {
         <div className="container mx-auto max-w-5xl">
           <h2 className="text-2xl md:text-3xl font-bold text-center text-white mb-10">
             A Realidade Sobre a Consistência:{' '}
-            <span className="text-yellow-400">Onde o Amador Erra e o Profissional Lucra</span>
+            <span className="text-yellow-400">Onde o Amador Erra e o Profissional Performa</span>
           </h2>
           <div className="grid md:grid-cols-3 gap-5">
             <div className="bg-[#0a0f1e] border border-red-500/30 rounded-2xl p-6">
@@ -62,7 +62,7 @@ export default function HouseEdgeEducation() {
                 Opera 1 entrada por vez, com stake calculado por Kelly, em odds onde a IA
                 identificou <b className="text-white">edge ≥3%</b>. Anota tudo, mede CLV (Closing
                 Line Value) e aceita que <b className="text-white">perder 45% das vezes ainda é
-                lucro</b> se o edge for real.
+                retorno</b> se o edge for real.
               </p>
             </div>
             <div className="bg-[#0a0f1e] border border-yellow-500/30 rounded-2xl p-6">
@@ -86,7 +86,7 @@ export default function HouseEdgeEducation() {
             <span className="text-yellow-400">em qual lado você quer estar?</span>
           </h2>
           <p className="text-slate-300 text-lg leading-relaxed">
-            Apostador comum entrada na sorte e culpa o juiz quando perde. <b>Trader esportivo</b>{' '}
+            Operador comum entrada na sorte e culpa o juiz quando perde. <b>Trader esportivo</b>{' '}
             opera estratégia, mede o resultado e ajusta o processo. Os dois apertam o mesmo botão
             — mas só um deles fecha o mês no positivo.
           </p>
@@ -115,7 +115,7 @@ export function ComunicadoImportante() {
           Este site tem caráter educativo.
         </p>
         <p className="text-center text-slate-300 mb-6">
-          Nenhuma ferramenta pode garantir vitórias ou lucros constantes.
+          Nenhuma ferramenta pode garantir vitórias ou resultados constantes.
           <br />
           Use estas informações para melhorar seu desempenho e aumentar suas chances.
         </p>
@@ -124,8 +124,8 @@ export function ComunicadoImportante() {
           estatística, probabilística e de gestão de risco aplicado a entradas esportivas —{' '}
           <b className="text-white">não é uma promessa nem uma garantia de ganhos</b>. A união do
           seu <b>bom-senso</b> com a <b>experiência de saber interpretar os dados</b> fornecidos
-          pelos nossos sistemas é o que definirá o seu sucesso. Aposte com responsabilidade.
-          Proibido para menores de 18 anos.
+          pelos nossos sistemas é o que definirá o seu sucesso. Opere com responsabilidade.
+          Conteúdo educacional para maiores de 18 anos.
         </p>
       </div>
     </section>

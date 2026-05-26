@@ -36,7 +36,7 @@ export default function BeforeAfterSection() {
               ORÁCULO MYCROFT
             </span>
           </h2>
-          <p className="text-lg text-gray-400">A diferença entre apostar e investir</p>
+          <p className="text-lg text-gray-400">A diferença entre operar e investir</p>
         </motion.div>
 
         <div className="grid md:grid-cols-2 gap-6">
@@ -54,7 +54,7 @@ export default function BeforeAfterSection() {
               </div>
               <div>
                 <p className="text-xs text-red-400 font-bold tracking-wider">ANTES</p>
-                <h3 className="text-xl font-bold text-white">Apostador comum</h3>
+                <h3 className="text-xl font-bold text-white">Operador comum</h3>
               </div>
             </div>
             <ul className="space-y-3">
@@ -69,7 +69,7 @@ export default function BeforeAfterSection() {
             </ul>
             <div className="mt-6 pt-6 border-t border-red-500/20">
               <p className="text-3xl font-bold text-red-400">-R$ 8.450</p>
-              <p className="text-xs text-gray-500">Prejuízo médio anual</p>
+              <p className="text-xs text-gray-500">Perda média anual (simulada)</p>
             </div>
           </motion.div>
 
@@ -105,7 +105,7 @@ export default function BeforeAfterSection() {
             </ul>
             <div className="mt-6 pt-6 border-t border-green-500/20">
               <p className="text-3xl font-bold text-green-400">+R$ 14.700</p>
-              <p className="text-xs text-gray-500">Lucro médio anual (banca R$ 5k)</p>
+              <p className="text-xs text-gray-500">Retorno médio anual (simulado) (banca R$ 5k)</p>
             </div>
           </motion.div>
         </div>

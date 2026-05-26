@@ -85,7 +85,7 @@ export default function SocialProofBetsSection({ onCTA }: SocialProofBetsSection
             <p className={`text-3xl font-bold ${totalProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
               {totalProfit >= 0 ? '+' : ''}{totalProfit.toFixed(0)}
             </p>
-            <p className="text-xs text-gray-400 mt-1">Lucro (R$)</p>
+            <p className="text-xs text-gray-400 mt-1">Retorno (R$)</p>
           </div>
         </motion.div>
 

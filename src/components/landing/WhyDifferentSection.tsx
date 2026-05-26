@@ -133,7 +133,7 @@ export default function WhyDifferentSection({ onCTA }: WhyDifferentSectionProps)
             </div>
             <p className="text-xl lg:text-2xl text-white font-semibold leading-relaxed mb-3">
               O Hórus faz a leitura por você —
-              <span className="text-yellow-400"> e ainda te ensina</span> a não cometer os erros mais comuns dos apostadores.
+              <span className="text-yellow-400"> e ainda te ensina</span> a não cometer os erros mais comuns dos operadores.
             </p>
             <p className="text-gray-400 mb-6">
               Sem matemática complexa. Sem planilhas. Sem precisar entender de odds.
