@@ -91,7 +91,7 @@ export default function HouseEdgeEducation() {
             — mas só um deles fecha o mês no positivo.
           </p>
           <a
-            href="https://wa.me/5534991290648?text=Ol%C3%A1!%20Quero%20parar%20de%20apostar%20na%20sorte%20e%20come%C3%A7ar%20a%20operar%20com%20estrat%C3%A9gia."
+            href="https://wa.me/5534991290648?text=Ol%C3%A1!%20Quero%20come%C3%A7ar%20a%20operar%20com%20estrat%C3%A9gia%20baseada%20em%20dados."
             target="_blank"
             rel="noopener noreferrer"
             className="inline-block mt-6 bg-[#25D366] hover:bg-[#1ebe57] text-white font-bold px-7 py-4 rounded-xl shadow-lg shadow-green-500/30 transition"
