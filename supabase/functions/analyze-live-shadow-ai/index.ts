@@ -138,7 +138,7 @@ async function callGemini(prompt: string, timeoutMs = 20_000): Promise<{ json: a
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+        "Authorization": `Bearer ${GROQ_API_KEY}`,
       },
       signal: ctrl.signal,
       body: JSON.stringify({
@@ -148,7 +148,7 @@ async function callGemini(prompt: string, timeoutMs = 20_000): Promise<{ json: a
           { role: "user", content: prompt },
         ],
         temperature: 0.2,
-        max_tokens: 700,
+        max_completion_tokens: 700,
         response_format: { type: "json_object" },
       }),
     });
