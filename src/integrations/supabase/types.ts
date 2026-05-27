@@ -6008,6 +6008,27 @@ export type Database = {
         }
         Relationships: []
       }
+      sportmonks_inplay_cache: {
+        Row: {
+          cache_key: string
+          fetched_at: string
+          fixture_count: number
+          payload: Json
+        }
+        Insert: {
+          cache_key: string
+          fetched_at?: string
+          fixture_count?: number
+          payload: Json
+        }
+        Update: {
+          cache_key?: string
+          fetched_at?: string
+          fixture_count?: number
+          payload?: Json
+        }
+        Relationships: []
+      }
       sportmonks_odds_cache: {
         Row: {
           fetched_at: string

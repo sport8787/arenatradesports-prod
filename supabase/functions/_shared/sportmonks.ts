@@ -2,9 +2,26 @@
 // Normaliza saída para o mesmo shape consumido hoje pelas edges (compatível com API-Football).
 
 import { resilientFetch } from "./resilientFetch.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const TOKEN = Deno.env.get("SPORTMONKS_API_KEY") ?? "";
 const BASE = "https://api.sportmonks.com/v3";
+
+// TTL do cache compartilhado de /livescores/inplay (em segundos).
+// Quando o último resultado teve ≥1 jogos, TTL curto para não perder eventos;
+// quando estava vazio, estendemos para economizar cota.
+const INPLAY_CACHE_TTL_HOT = 75;
+const INPLAY_CACHE_TTL_COLD = 180;
+
+let _sbInplay: any = null;
+function getInplaySb() {
+  if (_sbInplay) return _sbInplay;
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !key) return null;
+  _sbInplay = createClient(url, key);
+  return _sbInplay;
+}
 
 export interface NormalizedFixture {
   fixture: {
@@ -147,8 +164,37 @@ function mapStateToShort(stateName: string): { short: string; long: string } {
   return { short: s.toUpperCase().slice(0, 4) || "LIVE", long: stateName };
 }
 
-export async function fetchInplay(): Promise<{ fixtures: any[]; raw: number }> {
+export async function fetchInplay(
+  opts: { forceRefresh?: boolean } = {},
+): Promise<{ fixtures: any[]; raw: number; cached?: boolean }> {
   if (!TOKEN) throw new Error("SPORTMONKS_API_KEY missing");
+
+  // 1) Tenta cache compartilhado (DB) — evita múltiplas edges (cron-live-matches Round1/Round2,
+  //    update-live-scores, fetch-live-matches, sinais-alavanca-live etc.) baterem no mesmo
+  //    endpoint dentro da mesma janela curta.
+  const sb = getInplaySb();
+  if (sb && !opts.forceRefresh) {
+    try {
+      const { data: cached } = await sb
+        .from("sportmonks_inplay_cache")
+        .select("payload, fixture_count, fetched_at")
+        .eq("cache_key", "global")
+        .maybeSingle();
+      if (cached) {
+        const ageMs = Date.now() - new Date(cached.fetched_at).getTime();
+        const ttl = (cached.fixture_count > 0 ? INPLAY_CACHE_TTL_HOT : INPLAY_CACHE_TTL_COLD) * 1000;
+        if (ageMs < ttl) {
+          const fixtures = Array.isArray(cached.payload) ? cached.payload : [];
+          console.log(`[sportmonks] inplay CACHE hit age=${Math.round(ageMs / 1000)}s count=${fixtures.length} ttl=${ttl / 1000}s`);
+          return { fixtures, raw: fixtures.length, cached: true };
+        }
+      }
+    } catch (e) {
+      console.warn(`[sportmonks] inplay cache read fail: ${(e as Error).message}`);
+    }
+  }
+
+  // 2) Cache miss → bate na Sportmonks
   const url = smUrl("/football/livescores/inplay", {
     include: "scores;participants;state;league;statistics;xgfixture;periods;inplayodds",
     per_page: "100",
@@ -160,7 +206,27 @@ export async function fetchInplay(): Promise<{ fixtures: any[]; raw: number }> {
   });
   if (!res.ok) throw new Error(`sportmonks_inplay_${res.status}`);
   const json = await res.json();
-  return { fixtures: json.data || [], raw: (json.data || []).length };
+  const fixtures = json.data || [];
+
+  // 3) Grava cache (fire-and-forget) — falhas não devem quebrar o fluxo
+  if (sb) {
+    sb.from("sportmonks_inplay_cache")
+      .upsert(
+        {
+          cache_key: "global",
+          payload: fixtures,
+          fixture_count: fixtures.length,
+          fetched_at: new Date().toISOString(),
+        },
+        { onConflict: "cache_key" },
+      )
+      .then((r: any) => {
+        if (r?.error) console.warn(`[sportmonks] inplay cache write fail: ${r.error.message}`);
+      });
+  }
+
+  console.log(`[sportmonks] inplay LIVE fetch count=${fixtures.length}`);
+  return { fixtures, raw: fixtures.length };
 }
 
 export async function fetchFixtureById(smId: number): Promise<any | null> {
