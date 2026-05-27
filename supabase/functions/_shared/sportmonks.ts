@@ -106,6 +106,7 @@ function extractStats(fixture: any): NormalizedStats {
     shots_total_home: 0, shots_total_away: 0,
     shots_on_target_home: 0, shots_on_target_away: 0,
     attacks_home: 0, attacks_away: 0,
+    dangerous_attacks_home: 0, dangerous_attacks_away: 0,
     corners_home: 0, corners_away: 0,
     fouls_home: 0, fouls_away: 0,
     cards_home: 0, cards_away: 0,
@@ -114,11 +115,17 @@ function extractStats(fixture: any): NormalizedStats {
     xG_home: null, xG_away: null,
   };
 
+  // Tetos plausíveis para 90' — descarta outliers corrompidos (ex.: 310 chutes).
+  const CLAMP: Record<string, number> = {
+    shots_total: 40, shots_on_target: 25, possession: 100,
+    corners: 20, fouls: 50, attacks: 300, dangerous_attacks: 250,
+    passes: 1200, passes_accurate: 1200,
+  };
+
   const participants = fixture.participants || [];
   const homeId = participants.find((p: any) => p.meta?.location === "home")?.id;
   const awayId = participants.find((p: any) => p.meta?.location === "away")?.id;
 
-  // Junta statistics + xgfixture (xG mora num include separado em planos Pro+)
   const sList = [
     ...((fixture.statistics as any[]) || []),
     ...((fixture.xgfixture as any[]) || []),
@@ -126,26 +133,33 @@ function extractStats(fixture: any): NormalizedStats {
   for (const s of sList) {
     const key = SM_STAT_MAP[s.type_id];
     if (!key) continue;
-    // location explícito do payload tem prioridade; fallback por participant_id
     const loc = (s.location || "").toLowerCase();
     const isHome = loc === "home" || (!loc && s.participant_id === homeId);
     const isAway = loc === "away" || (!loc && s.participant_id === awayId);
     if (!isHome && !isAway) continue;
     const suffix = isHome ? "_home" : "_away";
-    const val = Number(s.data?.value ?? 0);
+    let val = Number(s.data?.value ?? 0);
+    if (!Number.isFinite(val) || val < 0) continue;
+    const cap = CLAMP[key];
+    if (cap != null && val > cap) {
+      console.warn(`[sportmonks] outlier descartado key=${key} tid=${s.type_id} val=${val} cap=${cap}`);
+      continue;
+    }
 
     switch (key) {
-      case "shots_total":     stats[`shots_total${suffix}`] = val; break;
-      case "shots_on_target": stats[`shots_on_target${suffix}`] = val; break;
-      case "possession":      stats[`possession${suffix}`] = val; break;
-      case "corners":         stats[`corners${suffix}`] = val; break;
-      case "fouls":           stats[`fouls${suffix}`] = val; break;
-      case "passes":          stats[`passes${suffix}`] = val; break;
-      case "passes_accurate": stats[`passes_accurate${suffix}`] = val; break;
-      case "attacks":         stats[`attacks${suffix}`] = val; break;
-      case "yellow":          stats[`cards${suffix}`] += val; break;
-      case "red":             stats[`cards${suffix}`] += val; break;
-      case "xg":              stats[isHome ? "xG_home" : "xG_away"] = val; break;
+      case "shots_total":      stats[`shots_total${suffix}`] = val; break;
+      case "shots_on_target":  stats[`shots_on_target${suffix}`] = val; break;
+      case "shots_off_target": /* informativo, não usado */ break;
+      case "possession":       stats[`possession${suffix}`] = val; break;
+      case "corners":          stats[`corners${suffix}`] = val; break;
+      case "fouls":            stats[`fouls${suffix}`] = val; break;
+      case "passes":           stats[`passes${suffix}`] = val; break;
+      case "passes_accurate":  stats[`passes_accurate${suffix}`] = val; break;
+      case "attacks":          stats[`attacks${suffix}`] = val; break;
+      case "dangerous_attacks": stats[`dangerous_attacks${suffix}`] = val; break;
+      case "yellow":           stats[`cards${suffix}`] += val; break;
+      case "red":              stats[`cards${suffix}`] += val; break;
+      case "xg":               stats[isHome ? "xG_home" : "xG_away"] = val; break;
     }
   }
   stats.source = "sportmonks";
