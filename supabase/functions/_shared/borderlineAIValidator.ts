@@ -90,17 +90,22 @@ Responda APENAS em JSON válido:
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 15_000);
-    const resp = await fetch(URL, {
+    const resp = await fetch(GROQ_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${GROQ_KEY}`,
+      },
       signal: ctrl.signal,
       body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.2,
-          maxOutputTokens: 200,
-          responseMimeType: "application/json",
-        },
+        model: MODEL,
+        temperature: 0.2,
+        max_completion_tokens: 200,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: "Você é um validador frio de sinais esportivos. Responda APENAS em JSON válido." },
+          { role: "user", content: prompt },
+        ],
       }),
     });
     clearTimeout(timer);
@@ -117,12 +122,12 @@ Responda APENAS em JSON válido:
     }
 
     const data = await resp.json();
-    const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const raw = data?.choices?.[0]?.message?.content ?? "";
     let parsed: any = null;
     try {
       parsed = JSON.parse(raw);
     } catch {
-      const m = raw.match(/\{[\s\S]*\}/);
+      const m = String(raw).match(/\{[\s\S]*\}/);
       if (m) {
         try { parsed = JSON.parse(m[0]); } catch { /* ignore */ }
       }
