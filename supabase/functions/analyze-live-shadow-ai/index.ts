@@ -230,8 +230,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ ok: false, error: "LOVABLE_API_KEY ausente" }), {
+    if (!GROQ_API_KEY) {
+      return new Response(JSON.stringify({ ok: false, error: "GROQ_API_KEY ausente" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
