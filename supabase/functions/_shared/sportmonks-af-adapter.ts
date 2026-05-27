@@ -448,12 +448,45 @@ function _normName(s: string): string {
     .trim();
 }
 
-function _readStat(stats: any[], typeId: number, participantId: number): number {
+function _readStat(stats: any[], typeId: number, participantId: number, opts?: { max?: number }): number {
   const row = stats.find(
     (s: any) => Number(s.type_id) === typeId && Number(s.participant_id) === participantId
   );
   const v = Number(row?.data?.value ?? 0);
-  return Number.isFinite(v) ? v : 0;
+  if (!Number.isFinite(v) || v < 0) return 0;
+  // Sanitização: Sportmonks ocasionalmente devolve valores corrompidos (ex.: 310 chutes).
+  // Aplica teto por tipo de estatística para descartar outliers absurdos.
+  const max = opts?.max ?? null;
+  if (max != null && v > max) {
+    console.warn(`[sportmonks-af] stat outlier descartado tid=${typeId} pid=${participantId} value=${v} (max=${max})`);
+    return 0;
+  }
+  return v;
+}
+
+// xG real da Sportmonks vive no include "xgfixture" (não em "statistics").
+// type_ids 5304/5305 representam expected goals (um por participante).
+// Fallback para 5321 (legacy) caso o plano antigo ainda devolva.
+function _readXg(fix: any, participantId: number): number {
+  const rows = Array.isArray(fix?.xgfixture) ? fix.xgfixture : [];
+  let total = 0;
+  let found = false;
+  for (const r of rows) {
+    const tid = Number(r.type_id);
+    if (tid !== 5304 && tid !== 5305 && tid !== 5321) continue;
+    const loc = String(r.location || "").toLowerCase();
+    const pid = Number(r.participant_id);
+    const matchByPid = pid === participantId;
+    // Quando não vier participant_id, decide pelo location vs id do participante
+    if (matchByPid || (!pid && loc)) {
+      const v = Number(r.data?.value ?? 0);
+      if (Number.isFinite(v) && v >= 0 && v <= 10) {
+        total += v;
+        found = true;
+      }
+    }
+  }
+  return found ? Number(total.toFixed(2)) : 0;
 }
 
 export async function getLiveStatsSM(homeName: string, awayName: string): Promise<SMLiveStats | null> {
@@ -486,23 +519,30 @@ export async function getLiveStatsSM(homeName: string, awayName: string): Promis
     if (!home || !away) return null;
     const stats = fix.statistics || [];
 
+    // Tetos plausíveis por estatística para 90' de futebol:
+    //   shots_total: 40, shots_on_target: 25, possession: 100, corners: 20,
+    //   dangerous_attacks: 200, big_chances: 15.
     return {
       found: true,
       source: "sportmonks",
-      xg_home: _readStat(stats, 5118, home.id),
-      xg_away: _readStat(stats, 5118, away.id),
-      shots_total_home: _readStat(stats, 41, home.id),
-      shots_total_away: _readStat(stats, 41, away.id),
-      shots_on_target_home: _readStat(stats, 42, home.id),
-      shots_on_target_away: _readStat(stats, 42, away.id),
-      possession_home: _readStat(stats, 45, home.id),
-      possession_away: _readStat(stats, 45, away.id),
-      corners_home: _readStat(stats, 34, home.id),
-      corners_away: _readStat(stats, 34, away.id),
-      dangerous_attacks_home: _readStat(stats, 59, home.id),
-      dangerous_attacks_away: _readStat(stats, 59, away.id),
-      big_chances_home: _readStat(stats, 86, home.id),
-      big_chances_away: _readStat(stats, 86, away.id),
+      xg_home: _readXg(fix, home.id),
+      xg_away: _readXg(fix, away.id),
+      shots_total_home: _readStat(stats, 41, home.id, { max: 40 }),
+      shots_total_away: _readStat(stats, 41, away.id, { max: 40 }),
+      // tid 86 = Shots On Goal real (valores pequenos 1-4). tid 42 é off-target/outro
+      // na maioria das ligas — usar 86 como primário, com fallback para 42 clampado.
+      shots_on_target_home: _readStat(stats, 86, home.id, { max: 25 }) || _readStat(stats, 42, home.id, { max: 25 }),
+      shots_on_target_away: _readStat(stats, 86, away.id, { max: 25 }) || _readStat(stats, 42, away.id, { max: 25 }),
+      possession_home: _readStat(stats, 45, home.id, { max: 100 }),
+      possession_away: _readStat(stats, 45, away.id, { max: 100 }),
+      corners_home: _readStat(stats, 34, home.id, { max: 20 }),
+      corners_away: _readStat(stats, 34, away.id, { max: 20 }),
+      // tid 44 = Dangerous Attacks (valores 12-200). tid 59 não existe nesse plano.
+      dangerous_attacks_home: _readStat(stats, 44, home.id, { max: 250 }),
+      dangerous_attacks_away: _readStat(stats, 44, away.id, { max: 250 }),
+      // big_chances: a Sportmonks raramente expõe; deixa zerado até confirmar tid correto.
+      big_chances_home: 0,
+      big_chances_away: 0,
     };
   } catch {
     return null;
