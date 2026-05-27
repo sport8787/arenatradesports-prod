@@ -12,9 +12,9 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") || "";
-const MODEL = "google/gemini-3-flash-preview";
-const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") || "";
+const MODEL = "llama-3.3-70b-versatile";
+const GATEWAY = "https://api.groq.com/openai/v1/chat/completions";
 
 // Janela de reanálise por minuto (igual ao motor primário)
 function reanalysisIntervalMs(minute: number): number {
