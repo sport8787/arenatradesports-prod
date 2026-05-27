@@ -263,6 +263,17 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json().catch(() => ({}));
     const mode = body.mode === 'prelive' ? 'prelive' : 'live';
+    // Kill switch global: LIVE OFF pausa o modo live (prelive segue).
+    if (mode === 'live') {
+      const { data: setting } = await sb
+        .from('cron_settings').select('is_enabled')
+        .eq('setting_key', 'live_matches_cron').maybeSingle();
+      if (setting && setting.is_enabled === false) {
+        return new Response(JSON.stringify({ skipped: true, reason: 'live_globally_off' }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
     const result = mode === 'prelive' ? await runPrelive() : await runLive();
     return new Response(JSON.stringify({ success: true, ...result }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

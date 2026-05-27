@@ -36,7 +36,9 @@ export default function LiveCronToggle() {
       toast.error('Erro ao alterar configuração');
     } else {
       setEnabled(newValue);
-      toast.success(newValue ? '▶️ Mercado ao vivo ATIVADO — atualização a cada 1 min' : '⏸️ Mercado ao vivo DESATIVADO');
+      toast.success(newValue
+        ? '▶️ Pipeline AO VIVO ATIVADO — Trader + Alavanca + Eventos Raros + Steam'
+        : '⏸️ Pipeline AO VIVO DESATIVADO — todos os consumidores live pausados');
     }
     setToggling(false);
   };
@@ -48,6 +50,9 @@ export default function LiveCronToggle() {
       <button
         onClick={toggle}
         disabled={toggling}
+        title={enabled
+          ? "Kill switch GLOBAL ligado: Trader live + Alavanca live + Eventos Raros live + Punter Steam ativos. Clique para pausar tudo."
+          : "Kill switch GLOBAL desligado: todos os crons live estão pausados. Clique para ativar."}
         className={cn(
           "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono font-semibold border transition-all",
           enabled

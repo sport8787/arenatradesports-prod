@@ -151,6 +151,17 @@ function resultadoFinal(alvo: string, sh: number, sa: number): "GREEN" | "RED" {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
+    // Kill switch global: LIVE OFF pausa este monitor live.
+    {
+      const { data: setting } = await sb
+        .from('cron_settings').select('is_enabled')
+        .eq('setting_key', 'live_matches_cron').maybeSingle();
+      if (setting && setting.is_enabled === false) {
+        return new Response(JSON.stringify({ skipped: true, reason: 'live_globally_off' }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
     // Candidatos APROVADOS com jogo nas últimas 4h
     const limite = new Date(Date.now() - 4 * 3600_000).toISOString();
     const futuro = new Date(Date.now() + 30 * 60_000).toISOString();
