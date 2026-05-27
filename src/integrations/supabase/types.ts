@@ -7415,6 +7415,7 @@ export type Database = {
           stake: number
           status: string | null
           user_id: string
+          via_horus_ciclos: boolean
         }
         Insert: {
           auto_cashout_enabled?: boolean | null
@@ -7446,6 +7447,7 @@ export type Database = {
           stake: number
           status?: string | null
           user_id: string
+          via_horus_ciclos?: boolean
         }
         Update: {
           auto_cashout_enabled?: boolean | null
@@ -7477,6 +7479,7 @@ export type Database = {
           stake?: number
           status?: string | null
           user_id?: string
+          via_horus_ciclos?: boolean
         }
         Relationships: [
           {
