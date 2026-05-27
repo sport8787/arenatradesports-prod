@@ -197,21 +197,23 @@ serve(async (req) => {
       async (f: any) => {
         const r = await getFixtureStats({ sm_id: f.fixture.sm_id, raw: f._raw, _source: f._source });
         if (!r.stats) return null;
+        const s: any = r.stats;
         return {
-          attacks_home: r.stats.attacks_home,
-          attacks_away: r.stats.attacks_away,
-          dangerous_attacks_home: r.stats.attacks_home,
-          dangerous_attacks_away: r.stats.attacks_away,
-          possession_home: r.stats.possession_home,
-          possession_away: r.stats.possession_away,
-          shots_home: r.stats.shots_on_target_home,
-          shots_away: r.stats.shots_on_target_away,
-          shots_total_home: r.stats.shots_total_home,
-          shots_total_away: r.stats.shots_total_away,
-          shots_on_target_home: r.stats.shots_on_target_home,
-          shots_on_target_away: r.stats.shots_on_target_away,
-          xG_home: r.stats.xG_home ?? 0,
-          xG_away: r.stats.xG_away ?? 0,
+          attacks_home: s.attacks_home,
+          attacks_away: s.attacks_away,
+          // Usar dangerous_attacks reais do adapter; só cair em attacks se realmente faltar
+          dangerous_attacks_home: (s.dangerous_attacks_home ?? 0) > 0 ? s.dangerous_attacks_home : (s.attacks_home ?? 0),
+          dangerous_attacks_away: (s.dangerous_attacks_away ?? 0) > 0 ? s.dangerous_attacks_away : (s.attacks_away ?? 0),
+          possession_home: s.possession_home,
+          possession_away: s.possession_away,
+          shots_home: s.shots_on_target_home,
+          shots_away: s.shots_on_target_away,
+          shots_total_home: s.shots_total_home,
+          shots_total_away: s.shots_total_away,
+          shots_on_target_home: s.shots_on_target_home,
+          shots_on_target_away: s.shots_on_target_away,
+          xG_home: s.xG_home ?? 0,
+          xG_away: s.xG_away ?? 0,
           _source: r.source,
         } as any;
       },
