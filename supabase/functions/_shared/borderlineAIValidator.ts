@@ -1,11 +1,12 @@
-// Camada 2 — Validador IA Gemini para sinais ao vivo BORDERLINE.
+// Camada 2 — Validador IA Groq (Llama 3.3 70B) para sinais ao vivo BORDERLINE.
+// Migrado de Gemini → Groq em 27/05/2026 por exaustão de créditos.
 // Acionado SOMENTE quando o motor matemático produz APROVADO/APROVADO_SITUACIONAL/LABAREDA
 // com confidence entre BORDERLINE_MIN..BORDERLINE_MAX. Decisão da IA pode CONFIRMAR
 // (mantém), VETAR (rebaixa para AGUARDAR) ou ERROR/SKIP (mantém — fail-open).
 
-const GEMINI_KEY = Deno.env.get("GEMINI_API_KEY") || "";
-const MODEL = "gemini-2.5-flash-lite"; // barato e rápido — bom para validação binária
-const URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_KEY}`;
+const GROQ_KEY = Deno.env.get("GROQ_API_KEY") || "";
+const MODEL = "llama-3.3-70b-versatile";
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 export const BORDERLINE_MIN = 55;
 export const BORDERLINE_MAX = 65;
@@ -45,8 +46,8 @@ export async function validateBorderline(
   input: BorderlineInput,
 ): Promise<BorderlineDecision> {
   const t0 = Date.now();
-  if (!GEMINI_KEY) {
-    return { decision: "ERROR", reason: "GEMINI_API_KEY ausente", confidence_adjustment: 0, latency_ms: 0, model: MODEL };
+  if (!GROQ_KEY) {
+    return { decision: "ERROR", reason: "GROQ_API_KEY ausente", confidence_adjustment: 0, latency_ms: 0, model: MODEL };
   }
 
   const s = input.stats || {};
@@ -89,17 +90,22 @@ Responda APENAS em JSON válido:
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 15_000);
-    const resp = await fetch(URL, {
+    const resp = await fetch(GROQ_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${GROQ_KEY}`,
+      },
       signal: ctrl.signal,
       body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.2,
-          maxOutputTokens: 200,
-          responseMimeType: "application/json",
-        },
+        model: MODEL,
+        temperature: 0.2,
+        max_completion_tokens: 200,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: "Você é um validador frio de sinais esportivos. Responda APENAS em JSON válido." },
+          { role: "user", content: prompt },
+        ],
       }),
     });
     clearTimeout(timer);
@@ -116,12 +122,12 @@ Responda APENAS em JSON válido:
     }
 
     const data = await resp.json();
-    const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const raw = data?.choices?.[0]?.message?.content ?? "";
     let parsed: any = null;
     try {
       parsed = JSON.parse(raw);
     } catch {
-      const m = raw.match(/\{[\s\S]*\}/);
+      const m = String(raw).match(/\{[\s\S]*\}/);
       if (m) {
         try { parsed = JSON.parse(m[0]); } catch { /* ignore */ }
       }

@@ -12,9 +12,9 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY") || "";
-const MODEL = "google/gemini-3-flash-preview";
-const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") || "";
+const MODEL = "llama-3.3-70b-versatile";
+const GATEWAY = "https://api.groq.com/openai/v1/chat/completions";
 
 // Janela de reanálise por minuto (igual ao motor primário)
 function reanalysisIntervalMs(minute: number): number {
@@ -138,7 +138,7 @@ async function callGemini(prompt: string, timeoutMs = 20_000): Promise<{ json: a
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+        "Authorization": `Bearer ${GROQ_API_KEY}`,
       },
       signal: ctrl.signal,
       body: JSON.stringify({
@@ -148,7 +148,7 @@ async function callGemini(prompt: string, timeoutMs = 20_000): Promise<{ json: a
           { role: "user", content: prompt },
         ],
         temperature: 0.2,
-        max_tokens: 700,
+        max_completion_tokens: 700,
         response_format: { type: "json_object" },
       }),
     });
@@ -230,8 +230,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ ok: false, error: "LOVABLE_API_KEY ausente" }), {
+    if (!GROQ_API_KEY) {
+      return new Response(JSON.stringify({ ok: false, error: "GROQ_API_KEY ausente" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
