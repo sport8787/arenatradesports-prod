@@ -2,9 +2,26 @@
 // Normaliza saída para o mesmo shape consumido hoje pelas edges (compatível com API-Football).
 
 import { resilientFetch } from "./resilientFetch.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const TOKEN = Deno.env.get("SPORTMONKS_API_KEY") ?? "";
 const BASE = "https://api.sportmonks.com/v3";
+
+// TTL do cache compartilhado de /livescores/inplay (em segundos).
+// Quando o último resultado teve ≥1 jogos, TTL curto para não perder eventos;
+// quando estava vazio, estendemos para economizar cota.
+const INPLAY_CACHE_TTL_HOT = 75;
+const INPLAY_CACHE_TTL_COLD = 180;
+
+let _sbInplay: any = null;
+function getInplaySb() {
+  if (_sbInplay) return _sbInplay;
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !key) return null;
+  _sbInplay = createClient(url, key);
+  return _sbInplay;
+}
 
 export interface NormalizedFixture {
   fixture: {
