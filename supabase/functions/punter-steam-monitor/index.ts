@@ -15,6 +15,19 @@ const corsHeaders = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+  // Kill switch global: LIVE OFF pausa o monitor de steam (depende de odds em tempo real).
+  {
+    const { data: setting } = await sb
+      .from('cron_settings').select('is_enabled')
+      .eq('setting_key', 'live_matches_cron').maybeSingle();
+    if (setting && setting.is_enabled === false) {
+      return new Response(JSON.stringify({ skipped: true, reason: 'live_globally_off' }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
+
   const now = Date.now();
   const fromIso = new Date(now - 15 * 60_000).toISOString();
   const toIso = new Date(now + 6 * 60 * 60_000).toISOString();
