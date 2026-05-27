@@ -1,11 +1,12 @@
-// Camada 2 — Validador IA Gemini para sinais ao vivo BORDERLINE.
+// Camada 2 — Validador IA Groq (Llama 3.3 70B) para sinais ao vivo BORDERLINE.
+// Migrado de Gemini → Groq em 27/05/2026 por exaustão de créditos.
 // Acionado SOMENTE quando o motor matemático produz APROVADO/APROVADO_SITUACIONAL/LABAREDA
 // com confidence entre BORDERLINE_MIN..BORDERLINE_MAX. Decisão da IA pode CONFIRMAR
 // (mantém), VETAR (rebaixa para AGUARDAR) ou ERROR/SKIP (mantém — fail-open).
 
-const GEMINI_KEY = Deno.env.get("GEMINI_API_KEY") || "";
-const MODEL = "gemini-2.5-flash-lite"; // barato e rápido — bom para validação binária
-const URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_KEY}`;
+const GROQ_KEY = Deno.env.get("GROQ_API_KEY") || "";
+const MODEL = "llama-3.3-70b-versatile";
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 export const BORDERLINE_MIN = 55;
 export const BORDERLINE_MAX = 65;
