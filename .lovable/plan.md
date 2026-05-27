@@ -1,87 +1,107 @@
-## Objetivo
+# Correção do Método dos Ciclos — Metodologia Original
 
-Higienizar todo o conteúdo público do domínio `oraculo-mycroft.com` (Home + páginas estáticas + blog) para alinhar com a estética e linguagem fria/SaaS da `/lp/day-pass.html`, eliminando termos que disparam veto do Google Ads e TikTok Ads no escopo "jogos de azar / promessa de lucro".
+## Diagnóstico do que está errado hoje
 
-## Findings da auditoria
+A implementação atual de `horus-pilot-ciclos-live` trata o método como "entrada cheia a favor da odd alta (≥2.00)" buscando dobrar a banca em 1 green. Isso **viola a essência do método**, que é o oposto:
 
-Termos/elementos de alto risco encontrados nas rotas/HTMLs públicos:
+- ❌ Hoje: stake = banca inteira (R$200), odd ≥ 2.00, busca 1 green dobrar.
+- ✅ Correto: stake ~5% da banca corrente, odd 1.15–1.40, lucro-alvo 5% (decrescente 2,5% por green), 20+ entradas pra dobrar.
 
-| # | Local | Trecho ofensor | Por que é risco |
-|---|---|---|---|
-| 1 | `src/pages/LandingPage.tsx` (Home `/`) | "ROI +73% verificável", "ROI +71%", "ROI +25,6%", "1.658 posições auditadas" | Promessa numérica de retorno |
-| 2 | `src/pages/LandingPage.tsx` (FAQ + tabela comparativa) | "Garantia Dobro", "devolvemos em dobro sua assinatura" | Garantia financeira com multiplicador = bloqueio quase certo |
-| 3 | `src/pages/LandingPage.tsx` | "Único jogo de cassino com vantagem do jogador" (Blackjack) | Palavra-chave "cassino" |
-| 4 | `src/pages/LandingPage.tsx` + `OfertaEspecial.tsx` + `/lp/ia-apostas-esportivas.html` | "Método Hórus de Alavancagem — pilota a banca" | "Alavancagem" + "pilota a banca" = promessa de retorno |
-| 5 | `src/pages/OfertaEspecial.tsx` | "Não é tigrinho. Não é roleta." | Mesmo negando, crawler indexa as keywords |
-| 6 | `src/pages/LandingPage.tsx` | `PromoSlotsCounter` ("restam X vagas") | Falsa escassez = red flag |
-| 7 | `/lp/ia-apostas-esportivas.html` | "estratégias infalíveis", "lucro consistente acontece", "lucro garantido da casa" | Vocabulário sensível mesmo no contexto educativo |
-| 8 | `public/blog/edge-gain-apostas-esportivas.html` + `previsao-jogos-futebol-ia.html` + `ferramenta-analise-apostas-esportivas-ia.html` + `blog/index.html` | Posts antigos com copy de venda | Crawler escaneia via sitemap |
-| 9 | `public/landing.html` | Página legada redundante | Confunde crawler — remover ou desindexar |
+Além disso falta: gate de qualificação (mercado, momento, indicadores ao vivo, odd), monitoramento de fechamento no lucro-alvo, RED trigger, estrutura de 5 ciclos com saques, logs dedicados.
 
-## Escopo da higienização (Opção A)
+## Escopo da correção
 
-### 1. Home `/` — refazer `src/pages/LandingPage.tsx` com linguagem fria
+### 1. Banco de dados
 
-Mantém estrutura (Hero, VSL, What is, Why Different, Bonus, Pricing, FAQ, Footer) mas troca **toda copy** seguindo o padrão da `/lp/day-pass.html`:
+**Tabela nova `user_cycle_logs`** (logs por entrada do método):
+- user_id, cycle_number (1–5), entry_number, stake, entry_odd, target_odd, exit_odd, result (green/red/cancel), profit_loss, signal_id, match_id, timestamp.
+- RLS: user vê o próprio; service_role full.
 
-- **Remover** todas as menções a "ROI +73%", "+71%", números absolutos de retorno. Substituir por linguagem de processo: "Edge calculado em cada operação", "ROI rastreável publicamente no painel de auditoria", sem afirmar percentual.
-- **Remover Garantia Dobro** por completo (FAQ + tabela comparativa). Substituir por "Reembolso integral em 7 dias se a plataforma não atender o esperado" (padrão SaaS, sem multiplicador).
-- **Remover `PromoSlotsCounter`** (falsa escassez).
-- **Trocar "Método Hórus de Alavancagem — pilota a banca"** por "Método dos Ciclos — gestão de banca em estágios definidos" (descritivo, sem promessa).
-- **Remover "Único jogo de cassino com vantagem do jogador"** (Blackjack como bônus). Reposicionar como "Módulo Blackjack educacional — estratégia básica + contagem de cartas" (sem "cassino").
-- **Remover comparativos agressivos** ("Confie em mim bro", "bullshit total") — tom técnico.
-- **Tabela comparativa**: manter critérios, trocar números por descritivos ("Histórico auditável", "Sem garantia financeira de resultado").
-- **FAQ**: reescrever 100% das perguntas no tom da day-pass.
-- **CTA principal**: passa a apontar para `/lp/day-pass.html` (oferta de teste) em vez do `/oferta-especial`.
+**Ajustes em `user_cycles_bankroll`**:
+- Garantir colunas: `entry_number_in_cycle` (int, default 1), `green_streak_in_cycle` (int, default 0), `withdrawn_total` (numeric).
+- Tabela de ciclos fixa (1→200, 2→200, 3→150, 4→200, 5→300) com saques após meta.
 
-### 2. `src/pages/OfertaEspecial.tsx` — limpar copy
+**RPCs**:
+- `cycle_method_register_entry(user_id, entry_data)` — grava log + atualiza estado.
+- `cycle_method_on_green(user_id, profit)` — incrementa green_streak, recalcula target%, checa se bateu meta do ciclo → saque + avança ciclo.
+- `cycle_method_on_red(user_id, loss)` — reinicia entry_number=1, zera green_streak, mantém ciclo (banca restante vira nova base).
 
-- Tirar bloco "Não é tigrinho. Não é roleta." inteiro.
-- Tirar palavra "cassino" do card Blackjack — reescrever como "Módulo educacional de Blackjack".
-- Tirar "alavanca a banca", trocar por "gestão em ciclos".
-- Substituir "Betfair Exchange" por "Exchange" no bullet do Elite (alinhar com day-pass).
+### 2. Edge `horus-pilot-ciclos-live` (reescrever)
 
-### 3. `public/lp/ia-apostas-esportivas.html` — limpar ou redirecionar
+**Gate de 4 etapas** antes de aceitar sinal vindo de `mycroft_analyses`:
+1. **Mercado**: somente Match Odds (Back/Lay). Rejeita Over/Under, BTTS, Corners, Under Limite.
+2. **Momento**: jogo `LIVE` (status 1H/HT/2H/ET), e `minute >= 1`, com pelo menos 1 gol marcado OU mudança de favoritismo (drift de odd ≥ 5% últimos 5min). Lê `live_matches.score` + `pressure_indices`.
+3. **Indicadores ao vivo** (via `live_matches.stats` + `pressure_indices`):
+   - Pressão ≥ 2 do lado escolhido (dangerous_attacks dominância 2x+).
+   - Aceleração gráfica: odd movendo a favor (drift negativo na odd back nos últimos 3min) — usar `live_odds_history` se disponível, senão `mycroft_analyses.odds_trend`.
+   - xG do lado ≥ 0.4 nos últimos 10min (proxy: `stats.xG_home/away` >= 0.4 cumulativo OU shots_on_target >= 2 últimos 10min).
+4. **Odd**: 1.15 ≤ odd ≤ 1.40 (ideal 1.20–1.35; logar fora-ideal).
 
-Opções:
-- **Preferida**: Reescrever copy retirando "estratégias infalíveis", "lucro consistente", "alavancagem", "cassino", "tigrinho".
-- **Alternativa rápida**: adicionar `<meta name="robots" content="noindex,nofollow">` + remover do sitemap, manter URL viva mas invisível.
+**Stake & target dinâmicos** (não mais banca inteira):
+- `entry_number = user_cycles_bankroll.entry_number_in_cycle`
+- `stake_pct = 5% * (1 - 0.025)^green_streak` → `stake = bankroll_atual * stake_pct / 5%` (na verdade tabela: stake cresce composto pelo lucro acumulado, target% decresce).
+- Implementar via helpers em `_shared/ciclosMath.ts` espelhando `src/lib/ciclosMath.ts` (criar `nextTargetPct`, `nextStake`, `targetExitOdd(entryOdd, targetPct)`).
+- `target_exit_odd = entry_odd / (1 + target_pct)` (para back: lucro = stake*(odd_entry/odd_exit - 1) ).
 
-### 4. Páginas legadas — desindexar
+**Concorrência**: 1 entrada por vez por usuário (mantém).
 
-`public/landing.html`, `public/blog/edge-gain-apostas-esportivas.html`, `public/blog/ferramenta-analise-apostas-esportivas-ia.html`, `public/blog/previsao-jogos-futebol-ia.html`, `public/blog/index.html`:
+### 3. Edge nova `horus-pilot-ciclos-monitor` (cron 1min)
 
-- Adicionar `<meta name="robots" content="noindex,nofollow">` no `<head>` de cada uma.
-- Remover do `public/sitemap.xml` (manter apenas day-pass + rodadas Brasileirão dinâmicas + Home limpa).
-- `public/robots.txt`: liberar só `/`, `/lp/day-pass.html`, `/blog/brasileirao-2026/*`. Bloquear o resto explicitamente.
+Para cada `virtual_bets` com `via_horus_ciclos=true` e `status='pending'`:
+- Buscar odd ao vivo do match (Futodds/Sportmonks/The Odds via `_shared/sportmonks-af-adapter`).
+- Se `current_odd <= target_exit_odd` → fecha GREEN PARCIAL: marca `status='green'`, `exit_odd=current_odd`, `profit = stake*(entry_odd/current_odd - 1)`.
+- Se cenário RED (gol contra, virada de favoritismo, pressão invertida, ou odd subiu >15% acima da entry_odd) → fecha RED imediato: `status='red'`, `loss = stake*(current_odd/entry_odd)*(stake_factor)` (cash-out parcial; simplificação: registra `loss = stake * loss_pct` calculado pela razão de odds).
+- Se FT sem trigger → liquida pelo placar normal (trigger existente já faz isso, mas precisa respeitar exit_odd).
 
-### 5. Footer global
+### 4. Trigger `trg_horus_pilot_autobind_trader`
 
-Garantir que o footer da Home não exponha links para `/oferta-especial`, `/paywall`, `/landing.html` ou blog antigo. Apenas: WhatsApp suporte, Termos, Privacidade, Day Pass.
+Ajustar pra usar **profit_loss real do log** (`exit_odd` vs `entry_odd`) em vez de `stake*(odd-1)` cheio. Chamar `cycle_method_on_green/on_red` que já gravam em `user_cycle_logs` e tratam saque/avanço/reinício de ciclo.
 
-## Detalhes técnicos
+### 5. Notificações
 
-- **Arquivos editados**:
-  - `src/pages/LandingPage.tsx` (reescrita parcial — copy/sections)
-  - `src/pages/OfertaEspecial.tsx` (limpeza pontual)
-  - `public/lp/ia-apostas-esportivas.html` (decisão: limpar ou noindex)
-  - `public/landing.html`, `public/blog/*.html` (adicionar noindex)
-  - `public/sitemap.xml`
-  - `public/robots.txt`
-- **Componentes possivelmente afetados** (somente uso, não estrutura): `BonusInclusos.tsx`, `WhatIsOracleSection.tsx`, `WhyDifferentSection.tsx`, `BeforeAfterSection.tsx` — vou ler antes de editar e ajustar copy onde houver termo sensível.
-- **A/B test do H1** (`landingAbTest.ts`): vou auditar as variantes e remover qualquer uma que contenha "lucro", "ROI %", "ganho".
-- **Sem mexer em**: rotas autenticadas (`/punter`, `/arena-trader-sports`, etc.) — crawler do Google Ads não chega lá, ficam protegidas por `RequireSubscription`.
-- **Tracking**: manter `fireAdsConversion`, PostHog, Meta Pixel intactos.
+Edge `notify-cycle-event` (ou ampliar `notify-trader-event`) para enviar push + Telegram:
+- "🟢 Ciclo N concluído! Saque R$ X. Acumulado R$ Y."
+- "🔴 Ciclo N reiniciado após RED. Banca restante R$ Z."
+- "⚠️ Entrada rejeitada: gate falhou em <etapa>."
 
-## Validação pós-implementação
+### 6. UI (`src/pages/Ciclos.tsx` + `src/components/punter/` cycles)
 
-Antes de soltar tráfego:
-1. `curl -s https://oraculo-mycroft.com/ | grep -iE "garantia dobro|cassino|tigrinho|ROI \+|alavancagem"` deve retornar vazio.
-2. Conferir `view-source:` de cada página pública.
-3. Rodar uma simulação manual no Google Ads Policy Manager (você submete um anúncio de teste apontando para `/` e vê o veredito).
+Painel dedicado **dentro do Arena Trader Sports** (mover/duplicar link, remover do Punter):
+- Card "Ciclo Atual: N/5" + barra de progresso (banca / meta).
+- Tabela "Histórico de Entradas do ciclo": data, mercado, odd entrada, odd saída, target%, lucro/prejuízo, resultado.
+- Resumo de saques: total sacado + banca disponível pro ciclo atual.
+- Indicador do gate ao vivo (próxima entrada elegível? mostra quais etapas passaram).
 
-## Fora de escopo
+### 7. Remoção do vínculo com Punter
 
-- Renomear arquivos de imagem `proof-betfair-*.jpeg` (são paths, não aparecem no DOM como texto — opcional, deixo para depois).
-- Mexer em copy de páginas internas autenticadas.
-- Migração para o destino (continua planejada à parte).
+- Remover botões/atalhos em `PunterMenu`, `PunterBancaVirtual` que apontam pra `/punter/ciclos`.
+- Mover rota para `/arena-trader-sports/ciclos` (manter `/punter/ciclos` como redirect pra compatibilidade).
+- Atualizar memória `mem://features/alavancagem/horus-pilota`.
+
+## Arquivos a tocar
+
+```
+supabase/migrations/<novo>.sql            (user_cycle_logs + RPCs + colunas)
+supabase/functions/horus-pilot-ciclos-live/index.ts      (reescrever gate+stake)
+supabase/functions/horus-pilot-ciclos-monitor/index.ts   (criar)
+supabase/functions/_shared/ciclosMath.ts                 (criar)
+src/lib/ciclosMath.ts                                    (adicionar nextStake/targetExitOdd)
+src/pages/Ciclos.tsx                                     (UI revisada)
+src/components/punter/* → remover atalhos de ciclos
+src/App.tsx                                              (rota nova)
+```
+
+## Validação após implementar
+
+1. Inserir bankroll teste + simular `mycroft_analyses` APROVADO match-odds com odd 1.25 num jogo com gol e pressão → confirmar entrada com stake 5%.
+2. Atualizar odd ao vivo pra 1.19 → monitor deve fechar GREEN.
+3. RPC deve registrar log, incrementar green_streak, recalcular target.
+4. Simular 22 greens consecutivos → bate meta R$400, dispara saque, avança Ciclo 2.
+5. Simular RED → reinicia entry_number, mantém ciclo.
+
+## Aprovação
+
+Confirmar antes de implementar:
+- (a) Apaga totalmente o comportamento atual de "entrada cheia odd 2.00"? **Sim** (incompatível).
+- (b) Remover link do Punter ou só duplicar no Arena Trader? Recomendo **remover do Punter** + redirect.
+- (c) Notificações por Telegram herdam config já existente do usuário (`telegram_user_settings`)? Assumindo **sim**.
