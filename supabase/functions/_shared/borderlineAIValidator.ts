@@ -46,8 +46,8 @@ export async function validateBorderline(
   input: BorderlineInput,
 ): Promise<BorderlineDecision> {
   const t0 = Date.now();
-  if (!GEMINI_KEY) {
-    return { decision: "ERROR", reason: "GEMINI_API_KEY ausente", confidence_adjustment: 0, latency_ms: 0, model: MODEL };
+  if (!GROQ_KEY) {
+    return { decision: "ERROR", reason: "GROQ_API_KEY ausente", confidence_adjustment: 0, latency_ms: 0, model: MODEL };
   }
 
   const s = input.stats || {};
