@@ -76,14 +76,16 @@ function smUrl(path: string, params: Record<string, string> = {}): string {
   return u.toString();
 }
 
-// Mapa Sportmonks "type_id" para nomes API-Football padrão (ajustar conforme probe)
-// IDs comuns: 41=Shots Total, 42=Shots On Target, 45=Possession, 34=Corners, 84=Yellow Cards,
-// 83=Red Cards, 56=Fouls, 80=Passes, 81=Accurate Passes, 44=Dangerous Attacks
-// xG real vive no include "xgfixture" com type_ids 5304 e 5305 (ambos = Expected Goals,
-// um por participante). O location ("home"/"away") indica o lado correto.
+// Mapa Sportmonks "type_id" para nomes API-Football padrão (confirmado via probe em 27/05/2026).
+// IDs decodificados a partir do payload real /livescores/inplay:
+//   41=Shots Total, 42=Shots Off Target (NÃO é on-target), 43=Attacks (55-123 em 70'),
+//   44=Dangerous Attacks (12-200), 45=Ball Possession %, 34=Corners,
+//   56=Fouls, 80=Passes, 81=Accurate Passes, 84=Yellow, 83=Red, 86=Shots On Goal real (1-5).
+// xG real vive no include "xgfixture" com type_ids 5304/5305 (Expected Goals por participante).
 const SM_STAT_MAP: Record<number, string> = {
   41: "shots_total",
-  42: "shots_on_target",
+  86: "shots_on_target",   // tid 86 = SOT real (valores pequenos)
+  42: "shots_off_target",  // tid 42 != on-target em ligas sul-americanas
   45: "possession",
   34: "corners",
   84: "yellow",
@@ -91,7 +93,8 @@ const SM_STAT_MAP: Record<number, string> = {
   56: "fouls",
   80: "passes",
   81: "passes_accurate",
-  44: "attacks",
+  43: "attacks",           // 55-123 em 70' — ataques regulares
+  44: "dangerous_attacks", // 12-200 — confirmado via valores observados
   5304: "xg",
   5305: "xg",
   5321: "xg", // legado — mantido por segurança caso o plano antigo ainda retorne
