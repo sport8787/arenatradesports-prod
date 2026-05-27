@@ -1208,16 +1208,38 @@ serve(async (req) => {
             situationalContext = `Placar ${scoreH}-${scoreA}, xG total ${(xgH + xgA).toFixed(1)}, perdedor com ${loserPoss}% posse.`;
           }
         }
-        // REGRA S3
+        // REGRA S3 (hardened 27/05/2026 — antes aprovava Over 2.5 sem checar xG/pressão)
         if (!situationalRule && isKnockout) {
           const diff = Math.abs(scoreH - scoreA);
           if (diff >= 1 && diff <= 2 && scoreH !== scoreA) {
             const teamBehind = scoreH < scoreA ? match.home : match.away;
-            situationalRule = 'S3';
-            situationalMarket = min < 60 ? 'Over 2.5 Total' : 'Over 0.5 Próximo Gol';
-            situationalConf = diff === 1 ? 72 : 66;
-            situationalStake = diff === 1 ? 3 : 2;
-            situationalContext = `Fase eliminatória, ${teamBehind} perdendo por ${diff} gol(s) — obrigação de virar.`;
+            const behindSot = scoreH < scoreA ? sotH : sotA;
+            const xgTotal = (xgH || 0) + (xgA || 0);
+            const totalGoals = scoreH + scoreA;
+            const xgUnavail = !!(s as any)?.xg_unavailable || (xgH === null && xgA === null) || (xgH === 0 && xgA === 0);
+            const hasStats = (sotH + sotA) > 0 || (possH + possA) > 0;
+            const projTotal = min > 0 ? (totalGoals + xgTotal) * (90 / Math.max(min, 20)) : 0;
+
+            // Gates obrigatórios:
+            // 1) Precisa de stats reais (snapshot não-vazio)
+            // 2) xG indisponível → não aprova Over 2.5; tenta Próximo Gol (mais conservador)
+            // 3) Pressão do perdedor (SOT >= 2) OU jogo aberto (xG total >= 1.2)
+            // 4) Projeção total >= 3.0 para Over 2.5; senão usa Próximo Gol
+            if (!hasStats) {
+              // sem dados → pula S3
+            } else if (behindSot < 2 && xgTotal < 1.2) {
+              // sem pressão e jogo travado → pula S3
+            } else {
+              const canOver25 = !xgUnavail && projTotal >= 3.0 && min < 60;
+              situationalRule = 'S3';
+              situationalMarket = canOver25 ? 'Over 2.5 Total' : 'Over 0.5 Próximo Gol';
+              situationalConf = diff === 1 ? 70 : 64;
+              situationalStake = diff === 1 ? 3 : 2;
+              const ctxExtras = xgUnavail
+                ? '(xG indisponível — fallback Próximo Gol)'
+                : `(xG total ${xgTotal.toFixed(2)}, proj ${projTotal.toFixed(1)}, SOT perdedor ${behindSot})`;
+              situationalContext = `Fase eliminatória, ${teamBehind} perdendo por ${diff} gol(s) — obrigação de virar ${ctxExtras}.`;
+            }
           }
         }
         // REGRA S4
