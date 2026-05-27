@@ -36,7 +36,9 @@ export default function LiveCronToggle() {
       toast.error('Erro ao alterar configuração');
     } else {
       setEnabled(newValue);
-      toast.success(newValue ? '▶️ Mercado ao vivo ATIVADO — atualização a cada 1 min' : '⏸️ Mercado ao vivo DESATIVADO');
+      toast.success(newValue
+        ? '▶️ Pipeline AO VIVO ATIVADO — Trader + Alavanca + Eventos Raros + Steam'
+        : '⏸️ Pipeline AO VIVO DESATIVADO — todos os consumidores live pausados');
     }
     setToggling(false);
   };
