@@ -154,12 +154,18 @@ export default function PunterBancaVirtualPage() {
           <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70 mb-2 px-1">
             Ferramentas relacionadas
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 mb-3">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-3">
             <QuickBtn icon={<FileText className="w-3.5 h-3.5" />} label="Análise Manual" onClick={() => navigate('/punter/analise-manual')} />
             <QuickBtn icon={<CheckCircle2 className="w-3.5 h-3.5" />} label="Entradas Liquidados" onClick={() => navigate('/punter')} />
             <QuickBtn icon={<ShieldCheck className="w-3.5 h-3.5" />} label="Auditoria de Entradas" onClick={() => navigate('/punter/auditoria')} />
-            <QuickBtn icon={<TrendingUp className="w-3.5 h-3.5" />} label="Método Hórus" onClick={() => navigate('/punter/ciclos')} />
             <QuickBtn icon={<Zap className="w-3.5 h-3.5" />} label="Sinais Alavanca" onClick={() => navigate('/sinais-alavanca')} />
+          </div>
+          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70 mb-2 px-1">
+            Método Hórus de Ciclos
+          </p>
+          <div className="rounded-md border border-dashed border-border bg-card/30 p-2.5 mb-3 text-[11px] text-muted-foreground">
+            O Método dos Ciclos agora opera <strong className="text-foreground">exclusivamente em Arena Trader Sports</strong> (ao vivo, Match Odds, odd 1.15–1.40, lucro-alvo 5% por entrada).{' '}
+            <button onClick={() => navigate('/ciclos')} className="underline text-primary hover:text-primary/80">Abrir painel do método</button>
           </div>
           <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70 mb-2 px-1">
             Painéis rápidos
