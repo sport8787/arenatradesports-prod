@@ -459,16 +459,13 @@ function _readStat(stats: any[], typeId: number, participantId: number): number 
 export async function getLiveStatsSM(homeName: string, awayName: string): Promise<SMLiveStats | null> {
   if (!TOKEN) return null;
   try {
-    const url = smUrl("/football/livescores/inplay", {
-      include: "participants;statistics",
-      per_page: "100",
-    });
-    const r = await fetch(url);
-    if (!r.ok) return null;
-    const j = await r.json();
-    const fixtures = j.data || [];
+    // Reusa o cache compartilhado do fetchInplay (TTL 75s/180s) — evita que cada
+    // chamada do Sinais Alavanca queime uma nova request da cota Sportmonks.
+    const { fetchInplay } = await import("./sportmonks.ts");
+    const { fixtures } = await fetchInplay();
     const nh = _normName(homeName);
     const na = _normName(awayName);
+
 
     // Match by name (both teams must align)
     const fix = fixtures.find((f: any) => {
