@@ -76,14 +76,16 @@ function smUrl(path: string, params: Record<string, string> = {}): string {
   return u.toString();
 }
 
-// Mapa Sportmonks "type_id" para nomes API-Football padrão (ajustar conforme probe)
-// IDs comuns: 41=Shots Total, 42=Shots On Target, 45=Possession, 34=Corners, 84=Yellow Cards,
-// 83=Red Cards, 56=Fouls, 80=Passes, 81=Accurate Passes, 44=Dangerous Attacks
-// xG real vive no include "xgfixture" com type_ids 5304 e 5305 (ambos = Expected Goals,
-// um por participante). O location ("home"/"away") indica o lado correto.
+// Mapa Sportmonks "type_id" para nomes API-Football padrão (confirmado via probe em 27/05/2026).
+// IDs decodificados a partir do payload real /livescores/inplay:
+//   41=Shots Total, 42=Shots Off Target (NÃO é on-target), 43=Attacks (55-123 em 70'),
+//   44=Dangerous Attacks (12-200), 45=Ball Possession %, 34=Corners,
+//   56=Fouls, 80=Passes, 81=Accurate Passes, 84=Yellow, 83=Red, 86=Shots On Goal real (1-5).
+// xG real vive no include "xgfixture" com type_ids 5304/5305 (Expected Goals por participante).
 const SM_STAT_MAP: Record<number, string> = {
   41: "shots_total",
-  42: "shots_on_target",
+  86: "shots_on_target",   // tid 86 = SOT real (valores pequenos)
+  42: "shots_off_target",  // tid 42 != on-target em ligas sul-americanas
   45: "possession",
   34: "corners",
   84: "yellow",
@@ -91,7 +93,8 @@ const SM_STAT_MAP: Record<number, string> = {
   56: "fouls",
   80: "passes",
   81: "passes_accurate",
-  44: "attacks",
+  43: "attacks",           // 55-123 em 70' — ataques regulares
+  44: "dangerous_attacks", // 12-200 — confirmado via valores observados
   5304: "xg",
   5305: "xg",
   5321: "xg", // legado — mantido por segurança caso o plano antigo ainda retorne
@@ -103,6 +106,7 @@ function extractStats(fixture: any): NormalizedStats {
     shots_total_home: 0, shots_total_away: 0,
     shots_on_target_home: 0, shots_on_target_away: 0,
     attacks_home: 0, attacks_away: 0,
+    dangerous_attacks_home: 0, dangerous_attacks_away: 0,
     corners_home: 0, corners_away: 0,
     fouls_home: 0, fouls_away: 0,
     cards_home: 0, cards_away: 0,
@@ -111,11 +115,17 @@ function extractStats(fixture: any): NormalizedStats {
     xG_home: null, xG_away: null,
   };
 
+  // Tetos plausíveis para 90' — descarta outliers corrompidos (ex.: 310 chutes).
+  const CLAMP: Record<string, number> = {
+    shots_total: 40, shots_on_target: 25, possession: 100,
+    corners: 20, fouls: 50, attacks: 300, dangerous_attacks: 250,
+    passes: 1200, passes_accurate: 1200,
+  };
+
   const participants = fixture.participants || [];
   const homeId = participants.find((p: any) => p.meta?.location === "home")?.id;
   const awayId = participants.find((p: any) => p.meta?.location === "away")?.id;
 
-  // Junta statistics + xgfixture (xG mora num include separado em planos Pro+)
   const sList = [
     ...((fixture.statistics as any[]) || []),
     ...((fixture.xgfixture as any[]) || []),
@@ -123,26 +133,33 @@ function extractStats(fixture: any): NormalizedStats {
   for (const s of sList) {
     const key = SM_STAT_MAP[s.type_id];
     if (!key) continue;
-    // location explícito do payload tem prioridade; fallback por participant_id
     const loc = (s.location || "").toLowerCase();
     const isHome = loc === "home" || (!loc && s.participant_id === homeId);
     const isAway = loc === "away" || (!loc && s.participant_id === awayId);
     if (!isHome && !isAway) continue;
     const suffix = isHome ? "_home" : "_away";
-    const val = Number(s.data?.value ?? 0);
+    let val = Number(s.data?.value ?? 0);
+    if (!Number.isFinite(val) || val < 0) continue;
+    const cap = CLAMP[key];
+    if (cap != null && val > cap) {
+      console.warn(`[sportmonks] outlier descartado key=${key} tid=${s.type_id} val=${val} cap=${cap}`);
+      continue;
+    }
 
     switch (key) {
-      case "shots_total":     stats[`shots_total${suffix}`] = val; break;
-      case "shots_on_target": stats[`shots_on_target${suffix}`] = val; break;
-      case "possession":      stats[`possession${suffix}`] = val; break;
-      case "corners":         stats[`corners${suffix}`] = val; break;
-      case "fouls":           stats[`fouls${suffix}`] = val; break;
-      case "passes":          stats[`passes${suffix}`] = val; break;
-      case "passes_accurate": stats[`passes_accurate${suffix}`] = val; break;
-      case "attacks":         stats[`attacks${suffix}`] = val; break;
-      case "yellow":          stats[`cards${suffix}`] += val; break;
-      case "red":             stats[`cards${suffix}`] += val; break;
-      case "xg":              stats[isHome ? "xG_home" : "xG_away"] = val; break;
+      case "shots_total":      stats[`shots_total${suffix}`] = val; break;
+      case "shots_on_target":  stats[`shots_on_target${suffix}`] = val; break;
+      case "shots_off_target": /* informativo, não usado */ break;
+      case "possession":       stats[`possession${suffix}`] = val; break;
+      case "corners":          stats[`corners${suffix}`] = val; break;
+      case "fouls":            stats[`fouls${suffix}`] = val; break;
+      case "passes":           stats[`passes${suffix}`] = val; break;
+      case "passes_accurate":  stats[`passes_accurate${suffix}`] = val; break;
+      case "attacks":          stats[`attacks${suffix}`] = val; break;
+      case "dangerous_attacks": stats[`dangerous_attacks${suffix}`] = val; break;
+      case "yellow":           stats[`cards${suffix}`] += val; break;
+      case "red":              stats[`cards${suffix}`] += val; break;
+      case "xg":               stats[isHome ? "xG_home" : "xG_away"] = val; break;
     }
   }
   stats.source = "sportmonks";
