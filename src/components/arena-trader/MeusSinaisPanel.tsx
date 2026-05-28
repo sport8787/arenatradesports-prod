@@ -115,6 +115,23 @@ export default function MeusSinaisPanel() {
     }
   }, [hits]);
 
+  if (dismissed) {
+    return (
+      <div className="flex justify-end">
+        <button
+          onClick={() => {
+            localStorage.setItem('traderSports:meusMetodosPanel:dismissed', '0');
+            setDismissed(false);
+          }}
+          className="text-[11px] text-muted-foreground hover:text-foreground font-mono flex items-center gap-1"
+          title="Reexibir painel Meus Métodos"
+        >
+          <Target className="w-3 h-3" /> Mostrar Meus Métodos
+        </button>
+      </div>
+    );
+  }
+
   if (activePlans.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-border bg-card/30 p-4 flex items-center justify-between">
