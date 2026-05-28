@@ -167,16 +167,32 @@ export default function MeusSinaisPanel() {
           </span>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={() => setShowDetails((v) => !v)} className="text-[11px] text-muted-foreground hover:text-foreground">
-            {showDetails ? 'Ocultar critérios' : 'Ver critérios'}
-          </button>
+          {!collapsed && (
+            <button onClick={() => setShowDetails((v) => !v)} className="text-[11px] text-muted-foreground hover:text-foreground">
+              {showDetails ? 'Ocultar critérios' : 'Ver critérios'}
+            </button>
+          )}
           <button onClick={() => navigate('/arena-trader-sports/meu-plano')} className="text-[11px] text-primary hover:underline flex items-center gap-1">
             <Settings2 className="w-3 h-3" /> Gerenciar
+          </button>
+          <button
+            onClick={toggleCollapsed}
+            className="text-muted-foreground hover:text-foreground"
+            title={collapsed ? 'Expandir' : 'Recolher'}
+          >
+            {collapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
+          </button>
+          <button
+            onClick={dismiss}
+            className="text-muted-foreground hover:text-destructive"
+            title="Fechar (já aparece na aba Meus Métodos)"
+          >
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      {hits.length === 0 ? (
+      {!collapsed && (hits.length === 0 ? (
         <div className="px-4 py-4 space-y-2">
           <p className="text-sm font-medium text-foreground">⏳ Ainda não há operações aprovadas pelos seus métodos.</p>
           <p className="text-[12px] text-muted-foreground leading-relaxed">
