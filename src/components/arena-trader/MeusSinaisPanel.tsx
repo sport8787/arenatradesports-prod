@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Target, ChevronRight, Settings2 } from 'lucide-react';
+import { Target, ChevronRight, Settings2, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { useLiveMatches } from '@/hooks/useLiveMatches';
 import { loadUserPlans, evaluatePlan, logUserPlanSignal, type UserMarket, type UserPlan } from '@/lib/userTraderPlan';
 import { onRevalidate } from '@/utils/visibilityManager';
