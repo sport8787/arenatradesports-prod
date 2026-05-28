@@ -17,6 +17,23 @@ export default function MeusSinaisPanel() {
   const { matches } = useLiveMatches();
   const [showDetails, setShowDetails] = useState(false);
   const [plans, setPlans] = useState<UserPlan[]>([]);
+  const [dismissed, setDismissed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('traderSports:meusMetodosPanel:dismissed') === '1';
+  });
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('traderSports:meusMetodosPanel:collapsed') === '1';
+  });
+  const dismiss = () => {
+    localStorage.setItem('traderSports:meusMetodosPanel:dismissed', '1');
+    setDismissed(true);
+  };
+  const toggleCollapsed = () => {
+    const next = !collapsed;
+    localStorage.setItem('traderSports:meusMetodosPanel:collapsed', next ? '1' : '0');
+    setCollapsed(next);
+  };
 
   useEffect(() => {
     let cancel = false;
