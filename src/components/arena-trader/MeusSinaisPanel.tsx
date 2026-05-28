@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Target, ChevronRight, Settings2 } from 'lucide-react';
+import { Target, ChevronRight, Settings2, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { useLiveMatches } from '@/hooks/useLiveMatches';
 import { loadUserPlans, evaluatePlan, logUserPlanSignal, type UserMarket, type UserPlan } from '@/lib/userTraderPlan';
 import { onRevalidate } from '@/utils/visibilityManager';
@@ -17,6 +17,23 @@ export default function MeusSinaisPanel() {
   const { matches } = useLiveMatches();
   const [showDetails, setShowDetails] = useState(false);
   const [plans, setPlans] = useState<UserPlan[]>([]);
+  const [dismissed, setDismissed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('traderSports:meusMetodosPanel:dismissed') === '1';
+  });
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('traderSports:meusMetodosPanel:collapsed') === '1';
+  });
+  const dismiss = () => {
+    localStorage.setItem('traderSports:meusMetodosPanel:dismissed', '1');
+    setDismissed(true);
+  };
+  const toggleCollapsed = () => {
+    const next = !collapsed;
+    localStorage.setItem('traderSports:meusMetodosPanel:collapsed', next ? '1' : '0');
+    setCollapsed(next);
+  };
 
   useEffect(() => {
     let cancel = false;
@@ -98,6 +115,23 @@ export default function MeusSinaisPanel() {
     }
   }, [hits]);
 
+  if (dismissed) {
+    return (
+      <div className="flex justify-end">
+        <button
+          onClick={() => {
+            localStorage.setItem('traderSports:meusMetodosPanel:dismissed', '0');
+            setDismissed(false);
+          }}
+          className="text-[11px] text-muted-foreground hover:text-foreground font-mono flex items-center gap-1"
+          title="Reexibir painel Meus Métodos"
+        >
+          <Target className="w-3 h-3" /> Mostrar Meus Métodos
+        </button>
+      </div>
+    );
+  }
+
   if (activePlans.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-border bg-card/30 p-4 flex items-center justify-between">
@@ -133,16 +167,32 @@ export default function MeusSinaisPanel() {
           </span>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={() => setShowDetails((v) => !v)} className="text-[11px] text-muted-foreground hover:text-foreground">
-            {showDetails ? 'Ocultar critérios' : 'Ver critérios'}
-          </button>
+          {!collapsed && (
+            <button onClick={() => setShowDetails((v) => !v)} className="text-[11px] text-muted-foreground hover:text-foreground">
+              {showDetails ? 'Ocultar critérios' : 'Ver critérios'}
+            </button>
+          )}
           <button onClick={() => navigate('/arena-trader-sports/meu-plano')} className="text-[11px] text-primary hover:underline flex items-center gap-1">
             <Settings2 className="w-3 h-3" /> Gerenciar
+          </button>
+          <button
+            onClick={toggleCollapsed}
+            className="text-muted-foreground hover:text-foreground"
+            title={collapsed ? 'Expandir' : 'Recolher'}
+          >
+            {collapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
+          </button>
+          <button
+            onClick={dismiss}
+            className="text-muted-foreground hover:text-destructive"
+            title="Fechar (já aparece na aba Meus Métodos)"
+          >
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      {hits.length === 0 ? (
+      {!collapsed && (hits.length === 0 ? (
         <div className="px-4 py-4 space-y-2">
           <p className="text-sm font-medium text-foreground">⏳ Ainda não há operações aprovadas pelos seus métodos.</p>
           <p className="text-[12px] text-muted-foreground leading-relaxed">
@@ -197,7 +247,7 @@ export default function MeusSinaisPanel() {
             </button>
           ))}
         </div>
-      )}
+      ))}
     </div>
   );
 }

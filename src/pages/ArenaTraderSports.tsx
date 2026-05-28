@@ -562,8 +562,8 @@ export default function ArenaTraderSports() {
         {/* Active Positions */}
         {isAdvanced && <ActivePositions />}
 
-        {/* Meus Métodos (método pessoal) — promo discreta. Conteúdo completo na aba "Meus Métodos". */}
-        {statusFilter !== 'meus_sinais' && <MeusMetodosPanel />}
+        {/* Meus Métodos (método pessoal) — só no modo Avançado para não poluir o Simples (conteúdo completo na aba "Meus Métodos"). */}
+        {isAdvanced && statusFilter !== 'meus_sinais' && <MeusMetodosPanel />}
 
         {/* Eventos Raros movido para /arena-trader-sports/eventos-raros */}
 
