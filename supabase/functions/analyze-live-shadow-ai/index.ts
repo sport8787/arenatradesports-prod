@@ -183,7 +183,7 @@ function buildPrompt(m: any): string {
   const dangA = Number(s.dangerous_attacks_away ?? 0);
   const corners = Number(s.corners_total ?? 0);
 
-  return `Analise este jogo AO VIVO e decida UM mercado de aposta (ou AGUARDAR).
+  return `Você é o Mycroft analisando este jogo AO VIVO. Sua missão é IDENTIFICAR VALOR e propor uma entrada sempre que houver edge técnico — não fique conservador demais.
 
 JOGO: ${m.home_team} ${m.score_home ?? 0} x ${m.score_away ?? 0} ${m.away_team}
 LIGA: ${m.championship ?? "?"}
@@ -196,19 +196,25 @@ STATS:
 - Ataques perigosos: ${dangH} x ${dangA}
 - Escanteios: ${corners}
 
-MERCADOS POSSÍVEIS: Over 0.5 HT, Over 1.5, Over 2.5, Under 2.5, BTTS Sim, BTTS Não, Próximo Gol.
+MERCADOS POSSÍVEIS: Over 0.5 HT, Over 1.5, Over 2.5, Under 2.5, BTTS Sim, BTTS Não, Próximo Gol Casa, Próximo Gol Fora.
 
-Responda em JSON (apenas isto, sem markdown):
+GATILHOS DE APROVAÇÃO (escolha o melhor mercado quando QUALQUER um bater):
+- LABAREDA (conf 70-85): minuto 60-80', xG total ≥ 1.5 sem gol, OU pressão clara (ataques perigosos ≥ 25 do lado dominante), OU 3+ escanteios recentes → Over 1.5 / Over 2.5 / Próximo Gol do lado que pressiona.
+- APROVADO (conf 65-80): xG combinado ≥ 1.8 com 0-1 gols antes do minuto 70 → Over 1.5 / Over 2.5. Ou time com 60%+ posse + 2x chutes do adversário → Próximo Gol.
+- APROVADO_SITUACIONAL (conf 55-70): contexto favorável mesmo sem dominância gritante (ex: jogo travado minuto 70+ com xG < 0.8 cada → Under 2.5; ou 1x1 minuto < 75 com xG > 1.5 cada → Over 2.5).
+- AGUARDAR: SOMENTE se stats zeradas, minuto < 15 sem nada, ou cenário contraditório real.
+
+NÃO use CUIDADO. Se há edge claro, APROVE. Quando em dúvida entre APROVAR e AGUARDAR e o jogo tem stats significativas, prefira APROVADO_SITUACIONAL.
+
+Responda em JSON puro (sem markdown):
 {
-  "verdict": "APROVADO" | "APROVADO_SITUACIONAL" | "LABAREDA" | "AGUARDAR" | "CUIDADO",
+  "verdict": "APROVADO" | "APROVADO_SITUACIONAL" | "LABAREDA" | "AGUARDAR",
   "market": "<mercado escolhido ou ''>",
   "confidence": <0-100>,
   "odd": <odd estimada ou 0>,
   "thesis": "<tese curta em pt-br, máx 280 chars>",
   "alerts": ["<alerta1>", "..."]
-}
-
-Regras: só aprove (APROVADO/SITUACIONAL/LABAREDA) com edge real. Em dúvida → AGUARDAR. Não invente stats.`;
+}`;
 }
 
 Deno.serve(async (req) => {
