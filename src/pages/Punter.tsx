@@ -164,7 +164,17 @@ export default function PunterPage() {
   const [historyFilter, setHistoryFilter] = useState<'all' | 'pending' | 'green' | 'red'>('all');
   const [manualHistoryFilter, setManualHistoryFilter] = useState<'all' | 'pending' | 'green' | 'red'>('all');
   const [settlingBets, setSettlingBets] = useState(false);
-  const [showBacktest, setShowBacktest] = useState(false);
+  // showBacktest persistido em URL (?view=backtest) — evita perder o painel
+  // se o componente Punter for remontado (auth refresh, visibility change, etc)
+  // durante uma simulação longa (~30s+).
+  const showBacktest = searchParams.get('view') === 'backtest';
+  const setShowBacktest = (v: boolean) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (v) next.set('view', 'backtest'); else next.delete('view');
+      return next;
+    }, { replace: true });
+  };
   const [showRankings, setShowRankings] = useState(false);
   const [showCertificate, setShowCertificate] = useState(false);
   const { isAdvanced } = usePunterViewMode();
