@@ -1094,8 +1094,9 @@ async function fetchHistoricalFromSportmonksCached(
   }
   console.log(`[Backtest][SM-Cache] ${leagueKey}/${season}: +${added} novos (total ${merged.length})`)
 
-  // 5) Persistir somente se houver mudança ou era miss
-  if (added > 0 || !hadCache) {
+  // 5) Persistir somente se houver mudança E o resultado não for vazio
+  // (evita travar caches em 0 para ligas fora do plano Sportmonks)
+  if ((added > 0 || !hadCache) && merged.length > 0) {
     try {
       await dbClient.from('sportmonks_fixtures_cache').upsert({
         league_key: leagueKey,
@@ -1110,6 +1111,8 @@ async function fetchHistoricalFromSportmonksCached(
     } catch (e) {
       console.warn('[Backtest][SM-Cache] save failed:', (e as Error).message)
     }
+  } else if (merged.length === 0) {
+    console.warn(`[Backtest][SM-Cache] ${leagueKey}/${season}: 0 fixtures (não salvando cache vazio — Sportmonks pode não cobrir essa liga)`)
   }
 
   return { fixtures: merged, fromCache: hadCache && added === 0 }
