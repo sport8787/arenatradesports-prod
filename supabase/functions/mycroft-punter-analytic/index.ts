@@ -180,10 +180,22 @@ serve(async (req) => {
     let homeStats: any = null;
     let awayStats: any = null;
 
-    if (home_id) homeStats = await getOrComputeAdvancedStats(Number(home_id), home_team, seasonYear);
-    if (away_id) awayStats = await getOrComputeAdvancedStats(Number(away_id), away_team, seasonYear);
+    // Resolve IDs via Sportmonks quando não vierem no payload (UI normalmente não envia)
+    let homeIdResolved: number | null = home_id ? Number(home_id) : null;
+    let awayIdResolved: number | null = away_id ? Number(away_id) : null;
+    if (!homeIdResolved) {
+      const sm = await smSearchTeam(home_team);
+      if (sm?.id) homeIdResolved = sm.id;
+    }
+    if (!awayIdResolved) {
+      const sm = await smSearchTeam(away_team);
+      if (sm?.id) awayIdResolved = sm.id;
+    }
 
-    // Fallback: se não passaram IDs, tenta achar no cache pelo nome
+    if (homeIdResolved) homeStats = await getOrComputeAdvancedStats(homeIdResolved, home_team, seasonYear);
+    if (awayIdResolved) awayStats = await getOrComputeAdvancedStats(awayIdResolved, away_team, seasonYear);
+
+    // Fallback: se ainda assim não houver stats, tenta cache pelo nome
     if (!homeStats) {
       const { data } = await sb.from("team_advanced_stats").select("*").eq("team_name", home_team).eq("season", seasonYear).maybeSingle();
       homeStats = data;
