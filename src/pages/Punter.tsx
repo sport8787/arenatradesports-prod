@@ -167,7 +167,6 @@ export default function PunterPage() {
   // showBacktest persistido em URL (?view=backtest) — evita perder o painel
   // se o componente Punter for remontado (auth refresh, visibility change, etc)
   // durante uma simulação longa (~30s+).
-  const [searchParams, setSearchParams] = useSearchParams();
   const showBacktest = searchParams.get('view') === 'backtest';
   const setShowBacktest = (v: boolean) => {
     setSearchParams(prev => {
