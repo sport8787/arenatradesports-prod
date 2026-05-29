@@ -463,8 +463,11 @@ serve(async (req) => {
     const tryFutodds = data_source === 'auto' || data_source === 'futodds'
     const tryApiFootball = data_source === 'auto' || data_source === 'api_football'
 
+    // Track which leagues already have fixtures so subsequent providers
+    // only fill the GAPS (não tudo-ou-nada baseado em contagem total).
+    const leaguesWithData = new Set<string>()
+
     if (use_historical && tryArenaMatches) {
-      // Try arena_matches first
       for (const l of validLeagues) {
         const seasonStr = `${season}/${season + 1}`
         const { data: dbMatches } = await dbClient
@@ -479,6 +482,7 @@ serve(async (req) => {
         if (dbMatches && dbMatches.length > 10) {
           console.log(`[Backtest] arena_matches: ${dbMatches.length} jogos para ${l.info.name}`)
           usedSource = 'arena_matches'
+          leaguesWithData.add(l.info.name)
           for (const m of dbMatches) {
             const fixtureId = parseInt(m.match_id.replace(/\D/g, '').slice(0, 8)) || Math.random() * 1000000
             const converted = {
@@ -500,23 +504,28 @@ serve(async (req) => {
       }
     }
 
-    // Sportmonks (real historical fixtures) — PER LEAGUE, com cache em sportmonks_fixtures_cache
+    // Sportmonks — PER LEAGUE, preenche apenas ligas SEM dados ainda
     let smCacheHits = 0
     let smCacheMisses = 0
-    if (allFixtures.length === 0 && trySportmonks && Deno.env.get('SPORTMONKS_API_KEY')) {
+    if (trySportmonks && Deno.env.get('SPORTMONKS_API_KEY')) {
       for (const l of validLeagues) {
+        if (leaguesWithData.has(l.info.name)) continue
         try {
           const { fixtures: smFixtures, fromCache } = await fetchHistoricalFromSportmonksCached(
             l.key, season, l.info.name, l.info.id, dbClient
           )
           if (smFixtures.length > 0) {
-            usedSource = 'sportmonks'
+            if (usedSource === 'none') usedSource = 'sportmonks'
+            else if (usedSource !== 'sportmonks') usedSource = 'mixed'
             if (fromCache) smCacheHits++; else smCacheMisses++
+            leaguesWithData.add(l.info.name)
             for (const f of smFixtures) {
               fixtureLeagueMap.set(f.fixture.id, f._leagueName || l.info.name)
               allFixtures.push(f)
             }
             console.log(`[Backtest] Sportmonks ${l.info.name}: ${smFixtures.length} jogos (${fromCache ? 'CACHE' : 'API'})`)
+          } else {
+            console.warn(`[Backtest] Sportmonks ${l.info.name}: 0 jogos (provável limitação de plano) — tentará Futodds`)
           }
         } catch (e) {
           console.warn(`[Backtest] Sportmonks ${l.info.name} falhou:`, (e as Error).message)
@@ -525,36 +534,54 @@ serve(async (req) => {
       console.log(`[Backtest] Sportmonks fixtures: cache hits=${smCacheHits}, API fetches=${smCacheMisses}`)
     }
 
-    // Futodds /matches-ended (real historical, agnostic to AF league IDs)
-    if (allFixtures.length === 0 && tryFutodds && Deno.env.get('FUTODDS_API_KEY')) {
-      try {
-        const fdFixtures = await fetchHistoricalFromFutodds(season, leagueNameSet)
-        if (fdFixtures.length > 0) {
-          usedSource = 'futodds'
-          for (const f of fdFixtures) {
-            fixtureLeagueMap.set(f.fixture.id, f._leagueName)
-            allFixtures.push(f)
+    // Futodds — preenche ligas que ainda não têm dados (ex.: Europeias fora do plano Sportmonks)
+    if (tryFutodds && Deno.env.get('FUTODDS_API_KEY')) {
+      const missingLeagues = validLeagues.filter(l => !leaguesWithData.has(l.info.name))
+      if (missingLeagues.length > 0) {
+        const missingNames = new Set(missingLeagues.map(l => l.info.name))
+        console.log(`[Backtest] Futodds: tentando preencher ${missingLeagues.length} ligas faltantes (${Array.from(missingNames).join(', ')})`)
+        try {
+          const fdFixtures = await fetchHistoricalFromFutodds(season, missingNames)
+          if (fdFixtures.length > 0) {
+            if (usedSource === 'none') usedSource = 'futodds'
+            else if (usedSource !== 'futodds') usedSource = 'mixed'
+            const perLeague: Record<string, number> = {}
+            for (const f of fdFixtures) {
+              fixtureLeagueMap.set(f.fixture.id, f._leagueName)
+              allFixtures.push(f)
+              leaguesWithData.add(f._leagueName)
+              perLeague[f._leagueName] = (perLeague[f._leagueName] || 0) + 1
+            }
+            console.log(`[Backtest] Futodds: ${fdFixtures.length} jogos — ${JSON.stringify(perLeague)}`)
           }
-          console.log(`[Backtest] Futodds: ${fdFixtures.length} jogos`)
+        } catch (e) {
+          console.warn('[Backtest] Futodds falhou:', (e as Error).message)
         }
-      } catch (e) {
-        console.warn('[Backtest] Futodds falhou:', (e as Error).message)
       }
     }
 
-    // Fallback to API-Football
-    if (allFixtures.length === 0 && tryApiFootball) {
-      if (!apiKey) throw new Error('Sem dados históricos e API_FOOTBALL_KEY não configurada')
-      for (const l of validLeagues) {
+    // Fallback API-Football (last resort, por liga faltante)
+    if (tryApiFootball && apiKey) {
+      const missingLeagues = validLeagues.filter(l => !leaguesWithData.has(l.info.name))
+      for (const l of missingLeagues) {
         const fixtures = await fetchSeasonFixtures(l.info.id, season, apiKey)
-        console.log(`[Backtest] API: ${l.info.name}: ${fixtures.length} jogos`)
+        console.log(`[Backtest] API-Football ${l.info.name}: ${fixtures.length} jogos`)
         for (const f of fixtures) {
           fixtureLeagueMap.set(f.fixture.id, l.info.name)
         }
         allFixtures.push(...fixtures)
-        if (validLeagues.length > 1) await new Promise(r => setTimeout(r, 300))
+        if (fixtures.length > 0) {
+          leaguesWithData.add(l.info.name)
+          if (usedSource === 'none') usedSource = 'api_football'
+          else if (usedSource !== 'api_football') usedSource = 'mixed'
+        }
+        if (missingLeagues.length > 1) await new Promise(r => setTimeout(r, 300))
       }
-      if (allFixtures.length > 0) usedSource = 'api_football'
+    }
+
+    const missingFinal = validLeagues.filter(l => !leaguesWithData.has(l.info.name)).map(l => l.info.name)
+    if (missingFinal.length > 0) {
+      console.warn(`[Backtest] ⚠️ Sem dados históricos para: ${missingFinal.join(', ')}`)
     }
 
     console.log(`[Backtest] Total: ${allFixtures.length} jogos (fonte: ${usedSource})`)
@@ -1067,8 +1094,9 @@ async function fetchHistoricalFromSportmonksCached(
   }
   console.log(`[Backtest][SM-Cache] ${leagueKey}/${season}: +${added} novos (total ${merged.length})`)
 
-  // 5) Persistir somente se houver mudança ou era miss
-  if (added > 0 || !hadCache) {
+  // 5) Persistir somente se houver mudança E o resultado não for vazio
+  // (evita travar caches em 0 para ligas fora do plano Sportmonks)
+  if ((added > 0 || !hadCache) && merged.length > 0) {
     try {
       await dbClient.from('sportmonks_fixtures_cache').upsert({
         league_key: leagueKey,
@@ -1083,6 +1111,8 @@ async function fetchHistoricalFromSportmonksCached(
     } catch (e) {
       console.warn('[Backtest][SM-Cache] save failed:', (e as Error).message)
     }
+  } else if (merged.length === 0) {
+    console.warn(`[Backtest][SM-Cache] ${leagueKey}/${season}: 0 fixtures (não salvando cache vazio — Sportmonks pode não cobrir essa liga)`)
   }
 
   return { fixtures: merged, fromCache: hadCache && added === 0 }

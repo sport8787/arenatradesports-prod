@@ -1,0 +1,1 @@
+DELETE FROM public.sportmonks_fixtures_cache WHERE jsonb_array_length(fixtures) = 0;
