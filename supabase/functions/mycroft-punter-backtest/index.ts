@@ -40,27 +40,41 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const LEAGUE_MAP: Record<string, { id: number; name: string }> = {
-  'soccer_brazil_campeonato': { id: 71, name: 'Brasileirão Série A' },
-  'soccer_brazil_serie_b': { id: 72, name: 'Brasileirão Série B' },
-  'soccer_brazil_campeonato_paulista': { id: 475, name: 'Paulistão' },
-  'soccer_brazil_campeonato_carioca': { id: 476, name: 'Carioca' },
-  'soccer_brazil_campeonato_mineiro': { id: 477, name: 'Mineiro' },
-  'soccer_brazil_campeonato_gaucho': { id: 478, name: 'Gaúcho' },
-  'soccer_brazil_campeonato_baiano': { id: 479, name: 'Baiano' },
-  'soccer_brazil_campeonato_paranaense': { id: 480, name: 'Paranaense' },
-  'soccer_brazil_campeonato_catarinense': { id: 481, name: 'Catarinense' },
-  'soccer_brazil_campeonato_pernambucano': { id: 604, name: 'Pernambucano' },
-  'soccer_epl': { id: 39, name: 'Premier League' },
-  'soccer_spain_la_liga': { id: 140, name: 'La Liga' },
-  'soccer_italy_serie_a': { id: 135, name: 'Serie A' },
-  'soccer_germany_bundesliga': { id: 78, name: 'Bundesliga' },
-  'soccer_france_ligue_one': { id: 61, name: 'Ligue 1' },
-  'soccer_argentina_primera_division': { id: 128, name: 'Argentina Primera' },
-  'soccer_conmebol_copa_libertadores': { id: 13, name: 'Copa Libertadores' },
-  'soccer_conmebol_copa_sudamericana': { id: 11, name: 'Copa Sudamericana' },
-  'soccer_uefa_champs_league': { id: 2, name: 'Champions League' },
-  'soccer_uefa_europa_league': { id: 3, name: 'Europa League' },
+interface LeagueDefinition {
+  id: number
+  name: string
+  aliases: string[]
+}
+
+const LEAGUE_MAP: Record<string, LeagueDefinition> = {
+  'soccer_brazil_campeonato': {
+    id: 71,
+    name: 'Brasileirão Série A',
+    aliases: ['brasileirão série a', 'brasileirao serie a', 'campeonato brasileiro serie a', 'brazil serie a', 'serie a brazil', 'serie a brasil']
+  },
+  'soccer_brazil_serie_b': {
+    id: 72,
+    name: 'Brasileirão Série B',
+    aliases: ['brasileirão série b', 'brasileirao serie b', 'campeonato brasileiro serie b', 'brazil serie b', 'serie b brazil', 'serie b brasil']
+  },
+  'soccer_brazil_campeonato_paulista': { id: 475, name: 'Paulistão', aliases: ['paulistão', 'paulistao', 'campeonato paulista'] },
+  'soccer_brazil_campeonato_carioca': { id: 476, name: 'Carioca', aliases: ['carioca', 'campeonato carioca'] },
+  'soccer_brazil_campeonato_mineiro': { id: 477, name: 'Mineiro', aliases: ['mineiro', 'campeonato mineiro'] },
+  'soccer_brazil_campeonato_gaucho': { id: 478, name: 'Gaúcho', aliases: ['gaúcho', 'gaucho', 'campeonato gaúcho', 'campeonato gaucho'] },
+  'soccer_brazil_campeonato_baiano': { id: 479, name: 'Baiano', aliases: ['baiano', 'campeonato baiano'] },
+  'soccer_brazil_campeonato_paranaense': { id: 480, name: 'Paranaense', aliases: ['paranaense', 'campeonato paranaense'] },
+  'soccer_brazil_campeonato_catarinense': { id: 481, name: 'Catarinense', aliases: ['catarinense', 'campeonato catarinense'] },
+  'soccer_brazil_campeonato_pernambucano': { id: 604, name: 'Pernambucano', aliases: ['pernambucano', 'campeonato pernambucano'] },
+  'soccer_epl': { id: 39, name: 'Premier League', aliases: ['premier league', 'english premier league', 'england premier league'] },
+  'soccer_spain_la_liga': { id: 140, name: 'La Liga', aliases: ['la liga', 'laliga', 'spain la liga', 'primera division'] },
+  'soccer_italy_serie_a': { id: 135, name: 'Serie A', aliases: ['serie a', 'italy serie a', 'italian serie a', 'serie a italy', 'serie a italia', 'serie a tim'] },
+  'soccer_germany_bundesliga': { id: 78, name: 'Bundesliga', aliases: ['bundesliga', 'germany bundesliga'] },
+  'soccer_france_ligue_one': { id: 61, name: 'Ligue 1', aliases: ['ligue 1', 'france ligue 1', 'ligue one'] },
+  'soccer_argentina_primera_division': { id: 128, name: 'Argentina Primera', aliases: ['argentina primera', 'liga profesional argentina', 'primera division argentina'] },
+  'soccer_conmebol_copa_libertadores': { id: 13, name: 'Copa Libertadores', aliases: ['copa libertadores', 'libertadores', 'conmebol libertadores'] },
+  'soccer_conmebol_copa_sudamericana': { id: 11, name: 'Copa Sudamericana', aliases: ['copa sudamericana', 'sudamericana', 'conmebol sudamericana'] },
+  'soccer_uefa_champs_league': { id: 2, name: 'Champions League', aliases: ['champions league', 'uefa champions league'] },
+  'soccer_uefa_europa_league': { id: 3, name: 'Europa League', aliases: ['europa league', 'uefa europa league'] },
 }
 
 interface TeamCumulativeStats {
@@ -536,12 +550,12 @@ serve(async (req) => {
 
     // Futodds — preenche ligas que ainda não têm dados (ex.: Europeias fora do plano Sportmonks)
     if (tryFutodds && Deno.env.get('FUTODDS_API_KEY')) {
-      const missingLeagues = validLeagues.filter(l => !leaguesWithData.has(l.info.name))
-      if (missingLeagues.length > 0) {
-        const missingNames = new Set(missingLeagues.map(l => l.info.name))
-        console.log(`[Backtest] Futodds: tentando preencher ${missingLeagues.length} ligas faltantes (${Array.from(missingNames).join(', ')})`)
+        const missingLeagues = validLeagues.filter(l => !leaguesWithData.has(l.info.name))
+        if (missingLeagues.length > 0) {
+          const missingKeys = new Set(missingLeagues.map(l => l.key))
+          console.log(`[Backtest] Futodds: tentando preencher ${missingLeagues.length} ligas faltantes (${missingLeagues.map(l => l.info.name).join(', ')})`)
         try {
-          const fdFixtures = await fetchHistoricalFromFutodds(season, missingNames)
+            const fdFixtures = await fetchHistoricalFromFutodds(season, missingKeys)
           if (fdFixtures.length > 0) {
             if (usedSource === 'none') usedSource = 'futodds'
             else if (usedSource !== 'futodds') usedSource = 'mixed'
@@ -927,13 +941,24 @@ function smNorm(n: string): string {
     .replace(/[^a-z0-9\s]/g, '').trim().replace(/\s+/g, ' ')
 }
 
-function leagueMatches(leagueName: string, allowed: Set<string>): string | null {
+function resolveLeagueKeyFromName(leagueName: string): string | null {
   const target = smNorm(leagueName)
-  for (const a of allowed) {
-    const an = smNorm(a)
-    if (target === an || target.includes(an) || an.includes(target)) return a
+  for (const [key, info] of Object.entries(LEAGUE_MAP)) {
+    const names = [info.name, ...info.aliases]
+    for (const candidate of names) {
+      const normalized = smNorm(candidate)
+      if (target === normalized || target.includes(normalized) || normalized.includes(target)) {
+        return key
+      }
+    }
   }
   return null
+}
+
+function leagueMatches(leagueName: string, allowedLeagueKeys: Set<string>): string | null {
+  const matchedKey = resolveLeagueKeyFromName(leagueName)
+  if (!matchedKey) return null
+  return allowedLeagueKeys.has(matchedKey) ? matchedKey : null
 }
 
 function* dateRangeOfSeason(season: number): Generator<string> {
@@ -972,7 +997,11 @@ async function fetchHistoricalFromSportmonksCached(
       .eq('season', season)
       .maybeSingle()
     if (cached && Array.isArray(cached.fixtures) && cached.fixtures.length > 0) {
-      cachedFixtures = cached.fixtures
+      cachedFixtures = cached.fixtures.filter((fixture: any) => {
+        const providerLeagueName = fixture?.league?.name
+        if (!providerLeagueName) return true
+        return resolveLeagueKeyFromName(providerLeagueName) === leagueKey
+      })
       hadCache = true
       console.log(`[Backtest][SM-Cache] HIT ${leagueKey}/${season}: ${cachedFixtures.length} fixtures (cached em ${cached.fetched_at})`)
     }
@@ -1047,6 +1076,10 @@ async function fetchHistoricalFromSportmonksCached(
     for (const f of data) {
       const stateName = f.state?.short_name || f.state?.name || ''
       if (!/FT|AET|PEN_LIVE|FT_PEN/i.test(stateName)) continue
+      const providerLeagueId = Number(f.league?.id)
+      const providerLeagueName = String(f.league?.name || '')
+      if (Number.isFinite(providerLeagueId) && providerLeagueId !== smId) continue
+      if (!Number.isFinite(providerLeagueId) && providerLeagueName && resolveLeagueKeyFromName(providerLeagueName) !== leagueKey) continue
       const participants = f.participants || []
       const home = participants.find((p: any) => p.meta?.location === 'home') || participants[0]
       const away = participants.find((p: any) => p.meta?.location === 'away') || participants[1]
@@ -1072,7 +1105,7 @@ async function fetchHistoricalFromSportmonksCached(
         fixture: { id: f.id, date: f.starting_at || `${fromYmd}T00:00:00Z` },
         teams: { home: { name: home.name }, away: { name: away.name } },
         goals: { home: gh, away: ga },
-        league: { round: '' },
+        league: { id: providerLeagueId, name: providerLeagueName, round: '' },
         _leagueName: leagueName,
       })
     }
@@ -1122,7 +1155,7 @@ async function fetchHistoricalFromSportmonksCached(
 // FUTODDS — /matches-ended by date iteration
 // ═══════════════════════════════════════════════
 
-async function fetchHistoricalFromFutodds(season: number, allowedLeagues: Set<string>): Promise<any[]> {
+async function fetchHistoricalFromFutodds(season: number, allowedLeagueKeys: Set<string>): Promise<any[]> {
   const TOKEN = Deno.env.get('FUTODDS_API_KEY')
   if (!TOKEN) return []
   const fixtures: any[] = []
@@ -1141,7 +1174,8 @@ async function fetchHistoricalFromFutodds(season: number, allowedLeagues: Set<st
       const data: any[] = Array.isArray(json) ? json : (json?.data || [])
       for (const m of data) {
         const leagueName = m.league_name || m.league || m.competition || ''
-        const matched = leagueMatches(leagueName, allowedLeagues)
+        const matchedKey = leagueMatches(leagueName, allowedLeagueKeys)
+        const matched = matchedKey ? LEAGUE_MAP[matchedKey]?.name : null
         if (!matched) continue
         const home = m.home_name || m.home_team || m.home || ''
         const away = m.away_name || m.away_team || m.away || ''
