@@ -941,13 +941,24 @@ function smNorm(n: string): string {
     .replace(/[^a-z0-9\s]/g, '').trim().replace(/\s+/g, ' ')
 }
 
-function leagueMatches(leagueName: string, allowed: Set<string>): string | null {
+function resolveLeagueKeyFromName(leagueName: string): string | null {
   const target = smNorm(leagueName)
-  for (const a of allowed) {
-    const an = smNorm(a)
-    if (target === an || target.includes(an) || an.includes(target)) return a
+  for (const [key, info] of Object.entries(LEAGUE_MAP)) {
+    const names = [info.name, ...info.aliases]
+    for (const candidate of names) {
+      const normalized = smNorm(candidate)
+      if (target === normalized || target.includes(normalized) || normalized.includes(target)) {
+        return key
+      }
+    }
   }
   return null
+}
+
+function leagueMatches(leagueName: string, allowedLeagueKeys: Set<string>): string | null {
+  const matchedKey = resolveLeagueKeyFromName(leagueName)
+  if (!matchedKey) return null
+  return allowedLeagueKeys.has(matchedKey) ? matchedKey : null
 }
 
 function* dateRangeOfSeason(season: number): Generator<string> {
@@ -986,7 +997,11 @@ async function fetchHistoricalFromSportmonksCached(
       .eq('season', season)
       .maybeSingle()
     if (cached && Array.isArray(cached.fixtures) && cached.fixtures.length > 0) {
-      cachedFixtures = cached.fixtures
+      cachedFixtures = cached.fixtures.filter((fixture: any) => {
+        const providerLeagueName = fixture?.league?.name
+        if (!providerLeagueName) return true
+        return resolveLeagueKeyFromName(providerLeagueName) === leagueKey
+      })
       hadCache = true
       console.log(`[Backtest][SM-Cache] HIT ${leagueKey}/${season}: ${cachedFixtures.length} fixtures (cached em ${cached.fetched_at})`)
     }
@@ -1061,6 +1076,10 @@ async function fetchHistoricalFromSportmonksCached(
     for (const f of data) {
       const stateName = f.state?.short_name || f.state?.name || ''
       if (!/FT|AET|PEN_LIVE|FT_PEN/i.test(stateName)) continue
+      const providerLeagueId = Number(f.league?.id)
+      const providerLeagueName = String(f.league?.name || '')
+      if (Number.isFinite(providerLeagueId) && providerLeagueId !== smId) continue
+      if (!Number.isFinite(providerLeagueId) && providerLeagueName && resolveLeagueKeyFromName(providerLeagueName) !== leagueKey) continue
       const participants = f.participants || []
       const home = participants.find((p: any) => p.meta?.location === 'home') || participants[0]
       const away = participants.find((p: any) => p.meta?.location === 'away') || participants[1]
@@ -1086,7 +1105,7 @@ async function fetchHistoricalFromSportmonksCached(
         fixture: { id: f.id, date: f.starting_at || `${fromYmd}T00:00:00Z` },
         teams: { home: { name: home.name }, away: { name: away.name } },
         goals: { home: gh, away: ga },
-        league: { round: '' },
+        league: { id: providerLeagueId, name: providerLeagueName, round: '' },
         _leagueName: leagueName,
       })
     }
@@ -1136,7 +1155,7 @@ async function fetchHistoricalFromSportmonksCached(
 // FUTODDS — /matches-ended by date iteration
 // ═══════════════════════════════════════════════
 
-async function fetchHistoricalFromFutodds(season: number, allowedLeagues: Set<string>): Promise<any[]> {
+async function fetchHistoricalFromFutodds(season: number, allowedLeagueKeys: Set<string>): Promise<any[]> {
   const TOKEN = Deno.env.get('FUTODDS_API_KEY')
   if (!TOKEN) return []
   const fixtures: any[] = []
@@ -1155,7 +1174,8 @@ async function fetchHistoricalFromFutodds(season: number, allowedLeagues: Set<st
       const data: any[] = Array.isArray(json) ? json : (json?.data || [])
       for (const m of data) {
         const leagueName = m.league_name || m.league || m.competition || ''
-        const matched = leagueMatches(leagueName, allowedLeagues)
+        const matchedKey = leagueMatches(leagueName, allowedLeagueKeys)
+        const matched = matchedKey ? LEAGUE_MAP[matchedKey]?.name : null
         if (!matched) continue
         const home = m.home_name || m.home_team || m.home || ''
         const away = m.away_name || m.away_team || m.away || ''
