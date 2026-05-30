@@ -40,27 +40,41 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const LEAGUE_MAP: Record<string, { id: number; name: string }> = {
-  'soccer_brazil_campeonato': { id: 71, name: 'Brasileirão Série A' },
-  'soccer_brazil_serie_b': { id: 72, name: 'Brasileirão Série B' },
-  'soccer_brazil_campeonato_paulista': { id: 475, name: 'Paulistão' },
-  'soccer_brazil_campeonato_carioca': { id: 476, name: 'Carioca' },
-  'soccer_brazil_campeonato_mineiro': { id: 477, name: 'Mineiro' },
-  'soccer_brazil_campeonato_gaucho': { id: 478, name: 'Gaúcho' },
-  'soccer_brazil_campeonato_baiano': { id: 479, name: 'Baiano' },
-  'soccer_brazil_campeonato_paranaense': { id: 480, name: 'Paranaense' },
-  'soccer_brazil_campeonato_catarinense': { id: 481, name: 'Catarinense' },
-  'soccer_brazil_campeonato_pernambucano': { id: 604, name: 'Pernambucano' },
-  'soccer_epl': { id: 39, name: 'Premier League' },
-  'soccer_spain_la_liga': { id: 140, name: 'La Liga' },
-  'soccer_italy_serie_a': { id: 135, name: 'Serie A' },
-  'soccer_germany_bundesliga': { id: 78, name: 'Bundesliga' },
-  'soccer_france_ligue_one': { id: 61, name: 'Ligue 1' },
-  'soccer_argentina_primera_division': { id: 128, name: 'Argentina Primera' },
-  'soccer_conmebol_copa_libertadores': { id: 13, name: 'Copa Libertadores' },
-  'soccer_conmebol_copa_sudamericana': { id: 11, name: 'Copa Sudamericana' },
-  'soccer_uefa_champs_league': { id: 2, name: 'Champions League' },
-  'soccer_uefa_europa_league': { id: 3, name: 'Europa League' },
+interface LeagueDefinition {
+  id: number
+  name: string
+  aliases: string[]
+}
+
+const LEAGUE_MAP: Record<string, LeagueDefinition> = {
+  'soccer_brazil_campeonato': {
+    id: 71,
+    name: 'Brasileirão Série A',
+    aliases: ['brasileirão série a', 'brasileirao serie a', 'campeonato brasileiro serie a', 'brazil serie a', 'serie a brazil', 'serie a brasil']
+  },
+  'soccer_brazil_serie_b': {
+    id: 72,
+    name: 'Brasileirão Série B',
+    aliases: ['brasileirão série b', 'brasileirao serie b', 'campeonato brasileiro serie b', 'brazil serie b', 'serie b brazil', 'serie b brasil']
+  },
+  'soccer_brazil_campeonato_paulista': { id: 475, name: 'Paulistão', aliases: ['paulistão', 'paulistao', 'campeonato paulista'] },
+  'soccer_brazil_campeonato_carioca': { id: 476, name: 'Carioca', aliases: ['carioca', 'campeonato carioca'] },
+  'soccer_brazil_campeonato_mineiro': { id: 477, name: 'Mineiro', aliases: ['mineiro', 'campeonato mineiro'] },
+  'soccer_brazil_campeonato_gaucho': { id: 478, name: 'Gaúcho', aliases: ['gaúcho', 'gaucho', 'campeonato gaúcho', 'campeonato gaucho'] },
+  'soccer_brazil_campeonato_baiano': { id: 479, name: 'Baiano', aliases: ['baiano', 'campeonato baiano'] },
+  'soccer_brazil_campeonato_paranaense': { id: 480, name: 'Paranaense', aliases: ['paranaense', 'campeonato paranaense'] },
+  'soccer_brazil_campeonato_catarinense': { id: 481, name: 'Catarinense', aliases: ['catarinense', 'campeonato catarinense'] },
+  'soccer_brazil_campeonato_pernambucano': { id: 604, name: 'Pernambucano', aliases: ['pernambucano', 'campeonato pernambucano'] },
+  'soccer_epl': { id: 39, name: 'Premier League', aliases: ['premier league', 'english premier league', 'england premier league'] },
+  'soccer_spain_la_liga': { id: 140, name: 'La Liga', aliases: ['la liga', 'laliga', 'spain la liga', 'primera division'] },
+  'soccer_italy_serie_a': { id: 135, name: 'Serie A', aliases: ['serie a', 'italy serie a', 'italian serie a', 'serie a italy', 'serie a italia', 'serie a tim'] },
+  'soccer_germany_bundesliga': { id: 78, name: 'Bundesliga', aliases: ['bundesliga', 'germany bundesliga'] },
+  'soccer_france_ligue_one': { id: 61, name: 'Ligue 1', aliases: ['ligue 1', 'france ligue 1', 'ligue one'] },
+  'soccer_argentina_primera_division': { id: 128, name: 'Argentina Primera', aliases: ['argentina primera', 'liga profesional argentina', 'primera division argentina'] },
+  'soccer_conmebol_copa_libertadores': { id: 13, name: 'Copa Libertadores', aliases: ['copa libertadores', 'libertadores', 'conmebol libertadores'] },
+  'soccer_conmebol_copa_sudamericana': { id: 11, name: 'Copa Sudamericana', aliases: ['copa sudamericana', 'sudamericana', 'conmebol sudamericana'] },
+  'soccer_uefa_champs_league': { id: 2, name: 'Champions League', aliases: ['champions league', 'uefa champions league'] },
+  'soccer_uefa_europa_league': { id: 3, name: 'Europa League', aliases: ['europa league', 'uefa europa league'] },
 }
 
 interface TeamCumulativeStats {
@@ -536,12 +550,12 @@ serve(async (req) => {
 
     // Futodds — preenche ligas que ainda não têm dados (ex.: Europeias fora do plano Sportmonks)
     if (tryFutodds && Deno.env.get('FUTODDS_API_KEY')) {
-      const missingLeagues = validLeagues.filter(l => !leaguesWithData.has(l.info.name))
-      if (missingLeagues.length > 0) {
-        const missingNames = new Set(missingLeagues.map(l => l.info.name))
-        console.log(`[Backtest] Futodds: tentando preencher ${missingLeagues.length} ligas faltantes (${Array.from(missingNames).join(', ')})`)
+        const missingLeagues = validLeagues.filter(l => !leaguesWithData.has(l.info.name))
+        if (missingLeagues.length > 0) {
+          const missingKeys = new Set(missingLeagues.map(l => l.key))
+          console.log(`[Backtest] Futodds: tentando preencher ${missingLeagues.length} ligas faltantes (${missingLeagues.map(l => l.info.name).join(', ')})`)
         try {
-          const fdFixtures = await fetchHistoricalFromFutodds(season, missingNames)
+            const fdFixtures = await fetchHistoricalFromFutodds(season, missingKeys)
           if (fdFixtures.length > 0) {
             if (usedSource === 'none') usedSource = 'futodds'
             else if (usedSource !== 'futodds') usedSource = 'mixed'
