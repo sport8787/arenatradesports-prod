@@ -982,9 +982,40 @@ function calculateTotalsProbabilities(totals: any) {
 // AI Provider: Groq (Direct, OpenAI-compatible, llama-3.3-70b-versatile)
 // ═══════════════════════════════════════════════
 
+async function callGeminiFallback(systemPrompt: string, userPrompt: string): Promise<string> {
+  const apiKey = Deno.env.get('GEMINI_API_KEY')
+  if (!apiKey) throw new Error('GEMINI_API_KEY not configured')
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 3000,
+          responseMimeType: 'application/json',
+        },
+      }),
+    }
+  )
+  if (!response.ok) {
+    const errText = await response.text()
+    throw new Error(`Gemini fallback error ${response.status}: ${errText}`)
+  }
+  const data = await response.json()
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+}
+
 async function callAnthropic(systemPrompt: string, userPrompt: string): Promise<string> {
   const apiKey = Deno.env.get('GROQ_API_KEY')
-  if (!apiKey) throw new Error('GROQ_API_KEY not configured')
+  if (!apiKey) {
+    console.warn('[Mycroft Punter] GROQ_API_KEY ausente → usando Gemini fallback direto')
+    return await callGeminiFallback(systemPrompt, userPrompt)
+  }
 
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
@@ -1005,8 +1036,16 @@ async function callAnthropic(systemPrompt: string, userPrompt: string): Promise<
 
   if (!response.ok) {
     const errText = await response.text()
-    if (response.status === 429) throw new Error('Rate limit excedido na Groq')
-    if (response.status === 402 || response.status === 401) throw new Error('Créditos/auth insuficientes na Groq')
+    // Fallback automático para Gemini quando Groq estoura TPM (413), quota (402/401) ou rate (429)
+    if (response.status === 413 || response.status === 429 || response.status === 402 || response.status === 401) {
+      console.warn(`[Mycroft Punter] Groq ${response.status} (${errText.slice(0, 120)}…) → fallback Gemini`)
+      try {
+        return await callGeminiFallback(systemPrompt, userPrompt)
+      } catch (gemErr) {
+        console.error('[Mycroft Punter] Fallback Gemini também falhou:', gemErr)
+        throw new Error(`Groq ${response.status} + Gemini fallback falhou: ${(gemErr as Error).message}`)
+      }
+    }
     throw new Error(`Groq error ${response.status}: ${errText}`)
   }
 
