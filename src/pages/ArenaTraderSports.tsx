@@ -521,6 +521,12 @@ export default function ArenaTraderSports() {
                 <CheckCircle2 className="w-4 h-4 mr-1" />
                 Entradas Aprovadas
               </GoldButton>
+              {isAdmin && (
+                <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/sinais-liquidados')}>
+                  <CheckCircle2 className="w-4 h-4 mr-1" />
+                  Entradas Liquidadas
+                </GoldButton>
+              )}
               <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/eventos-raros')}>
                 <Sparkles className="w-4 h-4 mr-1" />
                 Eventos Raros
