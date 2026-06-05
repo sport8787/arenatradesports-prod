@@ -104,8 +104,16 @@ function formatDate(iso: string) {
   });
 }
 
+function normalizeResult(result?: string | null): 'green' | 'red' | null {
+  if (!result) return null;
+  const r = String(result).trim().toLowerCase();
+  if (r === 'green' || r === 'half_green') return 'green';
+  if (r === 'red' || r === 'half_red') return 'red';
+  return null;
+}
+
 function isSettledResult(result?: string | null) {
-  return result === 'green' || result === 'red';
+  return normalizeResult(result) !== null;
 }
 
 function getApprovedAt(signal: Pick<ApprovedSignal, 'approved_at_timestamp' | 'created_at'>) {
@@ -185,8 +193,8 @@ function fallbackOddByMarket(market: string | null | undefined): number | null {
 }
 
 function computeStats(rows: ApprovedSignal[]): ComputedStats {
-  const greens = rows.filter((row) => row.result === 'green').length;
-  const reds = rows.filter((row) => row.result === 'red').length;
+  const greens = rows.filter((row) => normalizeResult(row.result) === 'green').length;
+  const reds = rows.filter((row) => normalizeResult(row.result) === 'red').length;
   const pendings = rows.length - greens - reds;
 
   const marketOddSum = new Map<string, { sum: number; n: number }>();
@@ -218,7 +226,7 @@ function computeStats(rows: ApprovedSignal[]): ComputedStats {
     }
     if (!Number.isFinite(odd) || odd <= 1) continue;
     stakeUnits += 1;
-    pnlUnits += row.result === 'green' ? odd - 1 : -1;
+    pnlUnits += normalizeResult(row.result) === 'green' ? odd - 1 : -1;
   }
 
   return { greens, reds, pendings, pnlUnits, stakeUnits };
@@ -365,8 +373,8 @@ export default function MycroftSinaisAprovados() {
   const filtered = useMemo(() => {
     return signals.filter((signal) => {
       if (filter === 'all') return true;
-      if (filter === 'green') return signal.result === 'green';
-      if (filter === 'red') return signal.result === 'red';
+      if (filter === 'green') return normalizeResult(signal.result) === 'green';
+      if (filter === 'red') return normalizeResult(signal.result) === 'red';
       if (filter === 'pending') return !isSettledResult(signal.result);
       return true;
     });
@@ -582,9 +590,10 @@ function SignalCard({ signal, onClick }: { signal: ApprovedSignal; onClick: () =
   const eventLabel = isSettledResult(signal.result) ? 'Liquidado' : 'Aprovado';
 
   let resultBadge: { label: string; className: string; icon: React.ReactNode } | null = null;
-  if (signal.result === 'green') {
+  const normalized = normalizeResult(signal.result);
+  if (normalized === 'green') {
     resultBadge = { label: 'GREEN', className: 'bg-success text-success-foreground border-success', icon: <CheckCircle2 className="w-3.5 h-3.5" /> };
-  } else if (signal.result === 'red') {
+  } else if (normalized === 'red') {
     resultBadge = { label: 'RED', className: 'bg-destructive text-destructive-foreground border-destructive', icon: <XCircle className="w-3.5 h-3.5" /> };
   } else if (finished) {
     resultBadge = { label: 'EXPIRADO', className: 'bg-muted text-muted-foreground border-border', icon: <Hourglass className="w-3.5 h-3.5" /> };
