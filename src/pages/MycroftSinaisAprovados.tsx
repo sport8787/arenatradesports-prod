@@ -104,8 +104,16 @@ function formatDate(iso: string) {
   });
 }
 
+function normalizeResult(result?: string | null): 'green' | 'red' | null {
+  if (!result) return null;
+  const r = String(result).trim().toLowerCase();
+  if (r === 'green' || r === 'half_green') return 'green';
+  if (r === 'red' || r === 'half_red') return 'red';
+  return null;
+}
+
 function isSettledResult(result?: string | null) {
-  return result === 'green' || result === 'red';
+  return normalizeResult(result) !== null;
 }
 
 function getApprovedAt(signal: Pick<ApprovedSignal, 'approved_at_timestamp' | 'created_at'>) {
