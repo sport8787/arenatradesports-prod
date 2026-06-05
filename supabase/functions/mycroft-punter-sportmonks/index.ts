@@ -12,6 +12,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { applyApprovalBlocks, loadGateConfig } from "../_shared/punterApprovalBlocks.ts";
 import { getUpcomingFixturesSM } from "../_shared/sportmonks-af-adapter.ts";
 import { fetchSportmonksPrematchOdds, listPrematchMarkets, normalizePrematchMarketLabel } from "../_shared/sportmonksPrematchOdds.ts";
+import { callDeepseek } from "../_shared/deepseekProvider.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -150,9 +151,10 @@ function summarizeTeam(name: string, teamId: number, fixtures: any[]): TeamSumma
 }
 
 // ──────────────────────────────────────────────
-// Groq call (OpenAI-compatible, llama-3.3-70b-versatile)
+// Provider primário: DeepSeek → fallback Groq (llama-3.3-70b-versatile)
+// Mantém o nome callGemini por compatibilidade com o resto do arquivo.
 // ──────────────────────────────────────────────
-async function callGemini(systemPrompt: string, userPrompt: string): Promise<string> {
+async function callGroq(systemPrompt: string, userPrompt: string): Promise<string> {
   if (!GROQ_KEY) throw new Error("GROQ_API_KEY missing");
   const models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "llama-3.3-70b-versatile"];
   let lastErr = "";
@@ -184,7 +186,6 @@ async function callGemini(systemPrompt: string, userPrompt: string): Promise<str
       }
       const t = await r.text();
       lastErr = `Groq ${r.status} (${model}): ${t.slice(0, 200)}`;
-      // 503/429 → retry com backoff e modelo menor
       if (r.status === 503 || r.status === 429) {
         await new Promise((res) => setTimeout(res, 1500 * (attempt + 1)));
         continue;
@@ -197,6 +198,19 @@ async function callGemini(systemPrompt: string, userPrompt: string): Promise<str
     }
   }
   throw new Error(lastErr || "Groq failed");
+}
+
+async function callGemini(systemPrompt: string, userPrompt: string): Promise<string> {
+  // 1) DeepSeek primário
+  try {
+    const out = await callDeepseek(systemPrompt, userPrompt, { max_tokens: 1500, temperature: 0.3 });
+    if (out && out.trim().length > 0) return out;
+    throw new Error("DeepSeek retornou conteúdo vazio");
+  } catch (dsErr) {
+    console.warn("[SM Punter] DeepSeek falhou → fallback Groq:", (dsErr as Error).message);
+  }
+  // 2) Groq fallback
+  return await callGroq(systemPrompt, userPrompt);
 }
 
 function parseJsonRobust(raw: string): any | null {
@@ -537,7 +551,9 @@ serve(async (req) => {
 
   try {
     if (!SM_TOKEN) throw new Error("SPORTMONKS_API_KEY missing");
-    if (!GROQ_KEY) throw new Error("GROQ_API_KEY missing");
+    if (!Deno.env.get("DEEPSEEK_API_KEY") && !GROQ_KEY) {
+      throw new Error("Nenhum provider de IA configurado (DEEPSEEK_API_KEY ou GROQ_API_KEY)");
+    }
 
     const body = await req.json().catch(() => ({}));
     const sports: string[] = body.sports || [

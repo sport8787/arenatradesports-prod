@@ -5,6 +5,7 @@ import { getCalibrationFloor, applyCalibrationFloor } from '../_shared/calibrati
 import { resolveFutoddsEventId, getExchangeQuote, computeExchangeEdgePP } from '../_shared/futoddsExchange.ts'
 import { applyApprovalBlocks, loadGateConfig } from '../_shared/punterApprovalBlocks.ts'
 import { probeSportmonksPrediction, logShadowPrediction } from '../_shared/sportmonksPredictions.ts'
+import { callDeepseek } from '../_shared/deepseekProvider.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1010,19 +1011,12 @@ async function callGeminiFallback(systemPrompt: string, userPrompt: string): Pro
   return data.candidates?.[0]?.content?.parts?.[0]?.text || ''
 }
 
-async function callAnthropic(systemPrompt: string, userPrompt: string): Promise<string> {
+async function callGroqFallback(systemPrompt: string, userPrompt: string): Promise<string> {
   const apiKey = Deno.env.get('GROQ_API_KEY')
-  if (!apiKey) {
-    console.warn('[Mycroft Punter] GROQ_API_KEY ausente → usando Gemini fallback direto')
-    return await callGeminiFallback(systemPrompt, userPrompt)
-  }
-
+  if (!apiKey) throw new Error('GROQ_API_KEY missing')
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: 'llama-3.3-70b-versatile',
       max_completion_tokens: 3000,
@@ -1033,24 +1027,33 @@ async function callAnthropic(systemPrompt: string, userPrompt: string): Promise<
       ],
     }),
   })
-
   if (!response.ok) {
     const errText = await response.text()
-    // Fallback automático para Gemini quando Groq estoura TPM (413), quota (402/401) ou rate (429)
-    if (response.status === 413 || response.status === 429 || response.status === 402 || response.status === 401) {
-      console.warn(`[Mycroft Punter] Groq ${response.status} (${errText.slice(0, 120)}…) → fallback Gemini`)
-      try {
-        return await callGeminiFallback(systemPrompt, userPrompt)
-      } catch (gemErr) {
-        console.error('[Mycroft Punter] Fallback Gemini também falhou:', gemErr)
-        throw new Error(`Groq ${response.status} + Gemini fallback falhou: ${(gemErr as Error).message}`)
-      }
-    }
-    throw new Error(`Groq error ${response.status}: ${errText}`)
+    throw new Error(`Groq error ${response.status}: ${errText.slice(0, 200)}`)
   }
-
   const data = await response.json()
   return data.choices?.[0]?.message?.content || ''
+}
+
+// Provider primário: DeepSeek → fallback Groq → fallback Gemini.
+// Mantém o nome callAnthropic por compatibilidade com o resto do arquivo.
+async function callAnthropic(systemPrompt: string, userPrompt: string): Promise<string> {
+  // 1) DeepSeek (primário)
+  try {
+    const out = await callDeepseek(systemPrompt, userPrompt, { max_tokens: 3000, temperature: 0.3 })
+    if (out && out.trim().length > 0) return out
+    throw new Error('DeepSeek retornou conteúdo vazio')
+  } catch (dsErr) {
+    console.warn('[Mycroft Punter] DeepSeek falhou → fallback Groq:', (dsErr as Error).message)
+  }
+  // 2) Groq
+  try {
+    return await callGroqFallback(systemPrompt, userPrompt)
+  } catch (groqErr) {
+    console.warn('[Mycroft Punter] Groq falhou → fallback Gemini:', (groqErr as Error).message)
+  }
+  // 3) Gemini
+  return await callGeminiFallback(systemPrompt, userPrompt)
 }
 
 /**
