@@ -18,6 +18,8 @@ const LIGAS_PERMITIDAS = new Set([
   'Copa Argentina',
   'MLS',
   'Amistosos Internacionais', 'International Friendlies', 'Friendlies',
+  'International Match', 'International Matches', 'Friendly International',
+  'Club Friendly', 'Club Friendlies',
   'Eliminatórias Copa do Mundo - Europa', 'World Cup Qualifiers - Europe', 'WC Qualification Europe',
   // Feminino
   "UEFA Women's Champions League", 'WSL', 'Frauen-Bundesliga', 'NWSL', 'Brasileirão Feminino',
