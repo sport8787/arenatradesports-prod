@@ -193,8 +193,8 @@ function fallbackOddByMarket(market: string | null | undefined): number | null {
 }
 
 function computeStats(rows: ApprovedSignal[]): ComputedStats {
-  const greens = rows.filter((row) => row.result === 'green').length;
-  const reds = rows.filter((row) => row.result === 'red').length;
+  const greens = rows.filter((row) => normalizeResult(row.result) === 'green').length;
+  const reds = rows.filter((row) => normalizeResult(row.result) === 'red').length;
   const pendings = rows.length - greens - reds;
 
   const marketOddSum = new Map<string, { sum: number; n: number }>();
