@@ -55,9 +55,8 @@ async function runWithConcurrency<T, R>(
 
 // Whitelist de ligas: agora vem da tabela public.trader_leagues
 // (gerenciada via /admin/trader-leagues). Mantemos apenas IDs sempre bloqueados.
-const LIGAS_BLOQUEADAS: number[] = [
-  667, // Amistosos clubes
-];
+// 667 (Amistosos clubes) foi REMOVIDO em 05/06/2026 — pré-Copa habilita amistosos.
+const LIGAS_BLOQUEADAS: number[] = [];
 
 function getSupabaseAdmin() {
   return createClient(
