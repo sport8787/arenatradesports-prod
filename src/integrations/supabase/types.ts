@@ -1999,6 +1999,75 @@ export type Database = {
         }
         Relationships: []
       }
+      copa_fixtures: {
+        Row: {
+          away: string
+          away_already_qualified: boolean | null
+          away_eliminated: boolean | null
+          away_fifa_pts: number | null
+          away_fifa_rank: number | null
+          commence_time: string
+          created_at: string
+          fixture_id: string
+          group_letter: string | null
+          home: string
+          home_already_qualified: boolean | null
+          home_eliminated: boolean | null
+          home_fifa_pts: number | null
+          home_fifa_rank: number | null
+          injuries: Json | null
+          phase: string
+          raw: Json | null
+          updated_at: string
+          xg_copa: Json | null
+          xg_last5: Json | null
+        }
+        Insert: {
+          away: string
+          away_already_qualified?: boolean | null
+          away_eliminated?: boolean | null
+          away_fifa_pts?: number | null
+          away_fifa_rank?: number | null
+          commence_time: string
+          created_at?: string
+          fixture_id: string
+          group_letter?: string | null
+          home: string
+          home_already_qualified?: boolean | null
+          home_eliminated?: boolean | null
+          home_fifa_pts?: number | null
+          home_fifa_rank?: number | null
+          injuries?: Json | null
+          phase: string
+          raw?: Json | null
+          updated_at?: string
+          xg_copa?: Json | null
+          xg_last5?: Json | null
+        }
+        Update: {
+          away?: string
+          away_already_qualified?: boolean | null
+          away_eliminated?: boolean | null
+          away_fifa_pts?: number | null
+          away_fifa_rank?: number | null
+          commence_time?: string
+          created_at?: string
+          fixture_id?: string
+          group_letter?: string | null
+          home?: string
+          home_already_qualified?: boolean | null
+          home_eliminated?: boolean | null
+          home_fifa_pts?: number | null
+          home_fifa_rank?: number | null
+          injuries?: Json | null
+          phase?: string
+          raw?: Json | null
+          updated_at?: string
+          xg_copa?: Json | null
+          xg_last5?: Json | null
+        }
+        Relationships: []
+      }
       cron_logs: {
         Row: {
           created_at: string | null
@@ -4572,6 +4641,98 @@ export type Database = {
         }
         Relationships: []
       }
+      punter_copa_signals: {
+        Row: {
+          ah_line: number | null
+          away: string
+          block: string
+          commence_time: string
+          confidence: number
+          copa_badge: boolean
+          created_at: string
+          edge_pct: number | null
+          fixture_id: string
+          home: string
+          id: string
+          market: string
+          odd: number
+          phase: string
+          prob: number
+          rationale: string | null
+          raw: Json | null
+          resultado: string | null
+          selection: string
+          stake_pct: number
+          status: string
+          updated_at: string
+          user_id: string | null
+          ve_pct: number
+          vetos: Json | null
+        }
+        Insert: {
+          ah_line?: number | null
+          away: string
+          block: string
+          commence_time: string
+          confidence: number
+          copa_badge?: boolean
+          created_at?: string
+          edge_pct?: number | null
+          fixture_id: string
+          home: string
+          id?: string
+          market: string
+          odd: number
+          phase: string
+          prob: number
+          rationale?: string | null
+          raw?: Json | null
+          resultado?: string | null
+          selection: string
+          stake_pct: number
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+          ve_pct: number
+          vetos?: Json | null
+        }
+        Update: {
+          ah_line?: number | null
+          away?: string
+          block?: string
+          commence_time?: string
+          confidence?: number
+          copa_badge?: boolean
+          created_at?: string
+          edge_pct?: number | null
+          fixture_id?: string
+          home?: string
+          id?: string
+          market?: string
+          odd?: number
+          phase?: string
+          prob?: number
+          rationale?: string | null
+          raw?: Json | null
+          resultado?: string | null
+          selection?: string
+          stake_pct?: number
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+          ve_pct?: number
+          vetos?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "punter_copa_signals_fixture_id_fkey"
+            columns: ["fixture_id"]
+            isOneToOne: false
+            referencedRelation: "copa_fixtures"
+            referencedColumns: ["fixture_id"]
+          },
+        ]
+      }
       punter_gate_config: {
         Row: {
           a_conf_min: number
@@ -4594,11 +4755,15 @@ export type Database = {
           c_requires_pinnacle: boolean
           c_stake_pct: number
           conf_inflation_threshold: number
+          copa_config: Json | null
+          copa_end_date: string | null
+          copa_start_date: string | null
           edge_inflation_threshold: number
           enabled: boolean
           favorite_odd_threshold: number
           favorite_requires_data_strength: string
           id: string
+          modo_copa: boolean
           notes: string | null
           odd_drop_pct_threshold: number
           odd_max_global: number
@@ -4630,11 +4795,15 @@ export type Database = {
           c_requires_pinnacle?: boolean
           c_stake_pct?: number
           conf_inflation_threshold?: number
+          copa_config?: Json | null
+          copa_end_date?: string | null
+          copa_start_date?: string | null
           edge_inflation_threshold?: number
           enabled?: boolean
           favorite_odd_threshold?: number
           favorite_requires_data_strength?: string
           id?: string
+          modo_copa?: boolean
           notes?: string | null
           odd_drop_pct_threshold?: number
           odd_max_global?: number
@@ -4666,11 +4835,15 @@ export type Database = {
           c_requires_pinnacle?: boolean
           c_stake_pct?: number
           conf_inflation_threshold?: number
+          copa_config?: Json | null
+          copa_end_date?: string | null
+          copa_start_date?: string | null
           edge_inflation_threshold?: number
           enabled?: boolean
           favorite_odd_threshold?: number
           favorite_requires_data_strength?: string
           id?: string
+          modo_copa?: boolean
           notes?: string | null
           odd_drop_pct_threshold?: number
           odd_max_global?: number
