@@ -55,9 +55,8 @@ async function runWithConcurrency<T, R>(
 
 // Whitelist de ligas: agora vem da tabela public.trader_leagues
 // (gerenciada via /admin/trader-leagues). Mantemos apenas IDs sempre bloqueados.
-const LIGAS_BLOQUEADAS: number[] = [
-  667, // Amistosos clubes
-];
+// 667 (Amistosos clubes) foi REMOVIDO em 05/06/2026 — pré-Copa habilita amistosos.
+const LIGAS_BLOQUEADAS: number[] = [];
 
 function getSupabaseAdmin() {
   return createClient(
@@ -153,32 +152,104 @@ serve(async (req) => {
       "friendlies clubs": "club friendlies",
     };
     const allowedNameSet = new Set(allowedRows.map(r => normName(r.name)));
-    const fixtures = allFixtures.filter((f: any) => {
+    // === Filtro per-fixture com tracking de motivo de rejeição ===
+    type RejectReason = "league_blocked" | "league_not_allowed" | "league_no_name";
+    const fixtures: any[] = [];
+    const rejected: Array<{ teams: string; league: string; league_id: any; source: string; status: string; reason: RejectReason }> = [];
+    const isFriendlyName = (s: string) => /friendl|amistos|international match/i.test(s || "");
+    let friendliesSeen = 0;
+    let friendliesKept = 0;
+    let friendliesBySource: Record<string, number> = {};
+
+    for (const f of allFixtures) {
       const leagueId = f.league?.id;
-      if (typeof leagueId === "number" && allowedIds.has(leagueId) && !LIGAS_BLOQUEADAS.includes(leagueId)) {
-        return true;
+      const leagueName = f.league?.name || "";
+      const src = f._source || "?";
+      const teams = `${f.teams?.home?.name ?? "?"} vs ${f.teams?.away?.name ?? "?"}`;
+      const status = f.fixture?.status?.short ?? "?";
+      const isFriendly = isFriendlyName(leagueName);
+      if (isFriendly) {
+        friendliesSeen++;
+        friendliesBySource[src] = (friendliesBySource[src] ?? 0) + 1;
       }
-      // Fallback Futodds: match por nome de liga (com alias)
-      const rawLn = normName(f.league?.name || "");
-      if (!rawLn) return false;
+
+      // 1) bloqueio explícito
+      if (typeof leagueId === "number" && LIGAS_BLOQUEADAS.includes(leagueId)) {
+        rejected.push({ teams, league: leagueName, league_id: leagueId, source: src, status, reason: "league_blocked" });
+        continue;
+      }
+      // 2) match por ID
+      if (typeof leagueId === "number" && allowedIds.has(leagueId)) {
+        fixtures.push(f); if (isFriendly) friendliesKept++; continue;
+      }
+      // 3) fallback por nome (com alias)
+      const rawLn = normName(leagueName);
+      if (!rawLn) {
+        rejected.push({ teams, league: leagueName, league_id: leagueId, source: src, status, reason: "league_no_name" });
+        continue;
+      }
       const ln = LEAGUE_ALIASES[rawLn] || rawLn;
-      if (allowedNameSet.has(ln)) return true;
-      // Match parcial (inclusão) para variações como "Brazilian Serie A" vs "Serie A"
-      for (const allowed of allowedNameSet) {
-        if (allowed.length >= 6 && (ln.includes(allowed) || allowed.includes(ln))) return true;
+      if (allowedNameSet.has(ln)) {
+        fixtures.push(f); if (isFriendly) friendliesKept++; continue;
       }
-      return false;
-    });
+      let matched = false;
+      for (const allowed of allowedNameSet) {
+        if (allowed.length >= 6 && (ln.includes(allowed) || allowed.includes(ln))) { matched = true; break; }
+      }
+      if (matched) { fixtures.push(f); if (isFriendly) friendliesKept++; continue; }
+
+      rejected.push({ teams, league: leagueName, league_id: leagueId, source: src, status, reason: "league_not_allowed" });
+    }
 
     console.log(`[FetchLive] ✅ ${fixtures.length}/${allFixtures.length} jogos passaram no filtro de ligas`);
 
-    // Log de auditoria do filtro
+    // Resumo de rejeições por motivo (compacto)
+    const rejectionByReason = rejected.reduce<Record<string, number>>((acc, r) => {
+      acc[r.reason] = (acc[r.reason] ?? 0) + 1; return acc;
+    }, {});
+    const rejectionByLeague = rejected.reduce<Record<string, number>>((acc, r) => {
+      const k = `${r.league || "(no name)"}#${r.league_id ?? "?"}`;
+      acc[k] = (acc[k] ?? 0) + 1; return acc;
+    }, {});
+    console.log(`[FetchLive] 🚫 rejeitados=${rejected.length} por_motivo=${JSON.stringify(rejectionByReason)}`);
+    if (rejected.length > 0) {
+      console.log(`[FetchLive] 🚫 ligas_rejeitadas=${JSON.stringify(rejectionByLeague)}`);
+      // Log per-fixture (limitado a 30 linhas para não inundar)
+      for (const r of rejected.slice(0, 30)) {
+        console.log(`[FetchLive]   ✗ [${r.source}/${r.status}] ${r.teams} | liga="${r.league}" id=${r.league_id} → ${r.reason}`);
+      }
+    }
+
+    // Cobertura amistosos (foco pré-Copa)
+    console.log(
+      `[FetchLive] 🤝 amistosos: vistos=${friendliesSeen} aceitos=${friendliesKept} ` +
+      `por_provider=${JSON.stringify(friendliesBySource)} provider_principal=${providerUsed}`,
+    );
+    if (friendliesSeen === 0) {
+      console.warn(`[FetchLive] ⚠️ NENHUM amistoso ao vivo retornado por nenhum provider (sm+fd vazios para friendlies)`);
+    } else if (!friendliesBySource["futodds"] && friendliesBySource["sportmonks"]) {
+      console.log(`[FetchLive] ℹ️ amistosos cobertos APENAS por Sportmonks (Futodds=0) — fallback automático ativo`);
+    } else if (!friendliesBySource["sportmonks"] && friendliesBySource["futodds"]) {
+      console.log(`[FetchLive] ℹ️ amistosos cobertos APENAS por Futodds (Sportmonks=0)`);
+    }
+
+    // Log de auditoria do filtro (com breakdown)
     try {
       await supabase.from('cron_logs').insert({
         tipo: 'filtro_ligas',
         total_recebidos: allFixtures.length,
         total_filtrados: fixtures.length,
         ligas_encontradas: [...new Set(fixtures.map((f: any) => `${f.league.id}: ${f.league.name}`))],
+        detalhes: {
+          provider_principal: providerUsed,
+          provider_fallback_reason: providerFallbackReason ?? null,
+          rejected_total: rejected.length,
+          rejected_by_reason: rejectionByReason,
+          rejected_by_league: rejectionByLeague,
+          friendlies_seen: friendliesSeen,
+          friendlies_kept: friendliesKept,
+          friendlies_by_source: friendliesBySource,
+        },
       });
     } catch (logErr) {
       console.warn('[FetchLive] Falha ao gravar log de filtro:', logErr);

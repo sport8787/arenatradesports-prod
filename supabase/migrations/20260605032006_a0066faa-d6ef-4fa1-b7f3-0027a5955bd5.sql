@@ -1,0 +1,1 @@
+ALTER TABLE public.cron_logs ADD COLUMN IF NOT EXISTS detalhes jsonb;
