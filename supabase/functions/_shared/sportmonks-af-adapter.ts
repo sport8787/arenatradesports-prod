@@ -56,6 +56,10 @@ export const LEAGUE_AF_TO_SM: Record<number, number> = {
   624: 1294, // Copa do Nordeste
   628: 1386, // Copa Verde
   671: 1798, // Supercopa do Brasil
+  // Seleções + amistosos + Série C
+  1: 5,      // FIFA World Cup
+  10: 1325,  // Friendlies (International)
+  76: 651,   // Brasileirão Série C
 };
 export const LEAGUE_SM_TO_AF: Record<number, number> = Object.fromEntries(
   Object.entries(LEAGUE_AF_TO_SM).map(([af, sm]) => [sm, Number(af)]),
