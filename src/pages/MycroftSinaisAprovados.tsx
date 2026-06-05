@@ -373,8 +373,8 @@ export default function MycroftSinaisAprovados() {
   const filtered = useMemo(() => {
     return signals.filter((signal) => {
       if (filter === 'all') return true;
-      if (filter === 'green') return signal.result === 'green';
-      if (filter === 'red') return signal.result === 'red';
+      if (filter === 'green') return normalizeResult(signal.result) === 'green';
+      if (filter === 'red') return normalizeResult(signal.result) === 'red';
       if (filter === 'pending') return !isSettledResult(signal.result);
       return true;
     });
