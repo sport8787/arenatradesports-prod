@@ -193,6 +193,8 @@ const App = () => {
                 <Route path="/arena-trader-sports/sinais-aprovados" element={<RequireSubscription><MycroftSinaisAprovados /></RequireSubscription>} />
                 <Route path="/arena-trader-sports/sinais-aprovados/:id" element={<RequireSubscription><MycroftSinalDetalhe /></RequireSubscription>} />
                 <Route path="/arena-trader-sports/sinais-liquidados" element={<RequireSubscription><SinaisLiquidados /></RequireSubscription>} />
+                <Route path="/sinais-liquidados" element={<Navigate to="/arena-trader-sports/sinais-liquidados" replace />} />
+                <Route path="/sinais-aprovados" element={<Navigate to="/arena-trader-sports/sinais-aprovados" replace />} />
                 <Route path="/arena-trader-sports/liquidacoes" element={<RequireSubscription><LiquidationsHistory /></RequireSubscription>} />
                 <Route path="/arena-trader-sports/performance" element={<RequireSubscription><SportsPerformance /></RequireSubscription>} />
                 <Route path="/arena-trader-sports/ranking-mensal" element={<RequireSubscription><ArenaTraderSportsRankingMonthly /></RequireSubscription>} />
