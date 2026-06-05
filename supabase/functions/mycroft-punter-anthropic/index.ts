@@ -5,6 +5,7 @@ import { getCalibrationFloor, applyCalibrationFloor } from '../_shared/calibrati
 import { resolveFutoddsEventId, getExchangeQuote, computeExchangeEdgePP } from '../_shared/futoddsExchange.ts'
 import { applyApprovalBlocks, loadGateConfig } from '../_shared/punterApprovalBlocks.ts'
 import { probeSportmonksPrediction, logShadowPrediction } from '../_shared/sportmonksPredictions.ts'
+import { callDeepseek } from '../_shared/deepseekProvider.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
