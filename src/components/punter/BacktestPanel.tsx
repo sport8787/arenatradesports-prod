@@ -173,7 +173,7 @@ export default function BacktestPanel({ onClose }: Props) {
     { key: 'arena_matches', label: 'Arena Matches (DB)' },
     { key: 'api_football', label: 'API-Football' },
   ];
-  const [selectedLeagues, setSelectedLeagues] = useState<string[]>([LEAGUES[0].key]);
+  const [selectedLeagues, setSelectedLeagues] = useState<string[]>(DEFAULT_LEAGUES);
   const [season, setSeason] = useState(SEASONS[0]);
   const [initialBankroll, setInitialBankroll] = useState(10000);
   const [selectedMarkets, setSelectedMarkets] = useState<string[]>(ALL_MARKETS.map(m => m.key));
