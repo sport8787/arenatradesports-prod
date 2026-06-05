@@ -75,6 +75,19 @@ const LEAGUE_MAP: Record<string, LeagueDefinition> = {
   'soccer_conmebol_copa_sudamericana': { id: 11, name: 'Copa Sudamericana', aliases: ['copa sudamericana', 'sudamericana', 'conmebol sudamericana'] },
   'soccer_uefa_champs_league': { id: 2, name: 'Champions League', aliases: ['champions league', 'uefa champions league'] },
   'soccer_uefa_europa_league': { id: 3, name: 'Europa League', aliases: ['europa league', 'uefa europa league'] },
+  'soccer_uefa_europa_conference_league': { id: 848, name: 'Conference League', aliases: ['conference league', 'uefa europa conference league'] },
+  'soccer_portugal_primeira_liga': { id: 94, name: 'Primeira Liga', aliases: ['primeira liga', 'portugal primeira liga', 'liga portugal'] },
+  'soccer_netherlands_eredivisie': { id: 88, name: 'Eredivisie', aliases: ['eredivisie', 'netherlands eredivisie', 'holland eredivisie'] },
+  'soccer_belgium_first_div': { id: 144, name: 'Belgium Pro League', aliases: ['belgium pro league', 'jupiler pro league', 'belgium first division a'] },
+  'soccer_turkey_super_league': { id: 203, name: 'Süper Lig', aliases: ['super lig', 'süper lig', 'turkey super lig'] },
+  'soccer_usa_mls': { id: 253, name: 'MLS', aliases: ['mls', 'major league soccer', 'usa mls'] },
+  'soccer_mexico_ligamx': { id: 262, name: 'Liga MX', aliases: ['liga mx', 'mexico liga mx', 'liga mx mexico'] },
+  'soccer_saudi_pro_league': { id: 307, name: 'Saudi Pro League', aliases: ['saudi pro league', 'saudi arabia pro league'] },
+  'soccer_brazil_serie_c': { id: 75, name: 'Brasileirão Série C', aliases: ['brasileirão série c', 'brasileirao serie c', 'brazil serie c'] },
+  'soccer_brazil_copa_do_brasil': { id: 73, name: 'Copa do Brasil', aliases: ['copa do brasil', 'brazil copa do brasil'] },
+  'soccer_fifa_world_cup': { id: 1, name: 'Copa do Mundo', aliases: ['fifa world cup', 'world cup', 'copa do mundo'] },
+  'soccer_conmebol_copa_america': { id: 9, name: 'Copa América', aliases: ['copa america', 'copa américa', 'conmebol copa america'] },
+  'soccer_uefa_european_championship': { id: 4, name: 'Eurocopa', aliases: ['euro', 'eurocopa', 'uefa european championship', 'european championship'] },
 }
 
 interface TeamCumulativeStats {
