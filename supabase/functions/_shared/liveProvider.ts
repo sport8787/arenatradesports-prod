@@ -144,11 +144,22 @@ async function mergeProviders(): Promise<LiveResult> {
     filledLeagues.add(lid);
   }
 
+  // Cobertura de amistosos por provider (foco pré-Copa)
+  const isFriendlyName = (s: string) => /friendl|amistos|international match/i.test(s || "");
+  const smFriendlies = sm.filter((f: any) => isFriendlyName(f?.league?.name)).length;
+  const fdFriendlies = fd.filter((f: any) => isFriendlyName(f?.league?.name)).length;
+
   console.log(
     `[liveProvider] mode=merge sm=${sm.length} fd=${fd.length} → total=${merged.length} ` +
     `(futodds_added=${addedFromFutodds} skipped_dup=${skippedDup} leagues_filled=${[...filledLeagues].join(",") || "-"}) ` +
+    `friendlies=sm:${smFriendlies}/fd:${fdFriendlies} ` +
     `smErr=${smErr ?? "ok"} fdErr=${fdErr ?? "ok"}`,
   );
+  if (smFriendlies > 0 && fdFriendlies === 0) {
+    console.log(`[liveProvider] 🤝 amistosos cobertos só por Sportmonks (Futodds=0) — fallback ativo`);
+  } else if (fdFriendlies > 0 && smFriendlies === 0) {
+    console.log(`[liveProvider] 🤝 amistosos cobertos só por Futodds (Sportmonks=0)`);
+  }
 
   return {
     fixtures: merged,
