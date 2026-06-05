@@ -19,6 +19,8 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 const LEAGUES = [
   { key: 'soccer_brazil_campeonato', label: 'Brasileirão Série A' },
   { key: 'soccer_brazil_serie_b', label: 'Brasileirão Série B' },
+  { key: 'soccer_brazil_serie_c', label: 'Brasileirão Série C' },
+  { key: 'soccer_brazil_copa_do_brasil', label: 'Copa do Brasil' },
   { key: 'soccer_brazil_campeonato_paulista', label: '🏆 Paulistão' },
   { key: 'soccer_brazil_campeonato_carioca', label: '🏆 Carioca' },
   { key: 'soccer_brazil_campeonato_mineiro', label: '🏆 Mineiro' },
@@ -32,9 +34,34 @@ const LEAGUES = [
   { key: 'soccer_italy_serie_a', label: 'Serie A (Itália)' },
   { key: 'soccer_germany_bundesliga', label: 'Bundesliga' },
   { key: 'soccer_france_ligue_one', label: 'Ligue 1' },
+  { key: 'soccer_portugal_primeira_liga', label: 'Primeira Liga (Portugal)' },
+  { key: 'soccer_netherlands_eredivisie', label: 'Eredivisie (Holanda)' },
+  { key: 'soccer_belgium_first_div', label: 'Pro League (Bélgica)' },
+  { key: 'soccer_turkey_super_league', label: 'Süper Lig (Turquia)' },
   { key: 'soccer_argentina_primera_division', label: 'Argentina Primera' },
+  { key: 'soccer_mexico_ligamx', label: 'Liga MX (México)' },
+  { key: 'soccer_usa_mls', label: 'MLS (EUA)' },
+  { key: 'soccer_saudi_pro_league', label: 'Saudi Pro League' },
   { key: 'soccer_conmebol_copa_libertadores', label: 'Copa Libertadores' },
+  { key: 'soccer_conmebol_copa_sudamericana', label: 'Copa Sudamericana' },
+  { key: 'soccer_conmebol_copa_america', label: 'Copa América' },
   { key: 'soccer_uefa_champs_league', label: 'Champions League' },
+  { key: 'soccer_uefa_europa_league', label: 'Europa League' },
+  { key: 'soccer_uefa_europa_conference_league', label: 'Conference League' },
+  { key: 'soccer_uefa_european_championship', label: 'Eurocopa' },
+  { key: 'soccer_fifa_world_cup', label: 'Copa do Mundo' },
+];
+
+const DEFAULT_LEAGUES = [
+  'soccer_brazil_campeonato',
+  'soccer_brazil_serie_b',
+  'soccer_epl',
+  'soccer_spain_la_liga',
+  'soccer_italy_serie_a',
+  'soccer_germany_bundesliga',
+  'soccer_france_ligue_one',
+  'soccer_conmebol_copa_libertadores',
+  'soccer_uefa_champs_league',
 ];
 
 const currentYear = new Date().getFullYear();
