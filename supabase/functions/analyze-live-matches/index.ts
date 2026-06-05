@@ -75,14 +75,11 @@ const corsHeaders = {
 };
 
 // ============================================================
-// FALLBACK GROQ (api.groq.com - Llama) — usado se a engine determinística falhar
+// FALLBACK IA — DeepSeek (primário) → Groq Llama (secundário)
+// Usado se a engine determinística falhar.
 // ============================================================
-async function callGrokFallback(payload: any): Promise<any | null> {
-  const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY');
-  if (!GROQ_API_KEY) {
-    console.warn('[AnalyzeLive][Groq] GROQ_API_KEY não configurada — fallback desativado');
-    return null;
-  }
+
+function buildAiFallbackPrompt(payload: any): { system: string; user: string } {
   const m = payload?.match || {};
   const stats = m.stats || {};
   const system = `Você é o Mycroft, analista frio de futebol ao vivo. Responda APENAS um JSON válido com este shape exato:
@@ -93,7 +90,50 @@ Minuto: ${m.minute} (${m.period || '?'})
 Campeonato: ${m.championship || '?'}
 Stats: ${JSON.stringify(stats).slice(0, 2500)}
 Mercados já aprovados: ${JSON.stringify(m.existingApprovedMarkets || []).slice(0, 500)}`;
+  return { system, user };
+}
 
+function normalizeAiFallbackResult(raw: string, engineLabel: string): any | null {
+  if (!raw) return null;
+  let parsed: any;
+  try { parsed = JSON.parse(raw); } catch {
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) { console.error(`[AnalyzeLive][${engineLabel}] JSON inválido`); return null; }
+    try { parsed = JSON.parse(match[0]); } catch { return null; }
+  }
+  return {
+    verdict: String(parsed.verdict || 'AGUARDAR').toUpperCase(),
+    market: parsed.market || 'N/A',
+    plan_name: parsed.plan_name || `${engineLabel.toUpperCase()} FALLBACK`,
+    confidence: Number(parsed.confidence ?? 0),
+    thesis: parsed.thesis || `Fallback ${engineLabel} sem tese.`,
+    estimated_probability: parsed.estimated_probability ?? null,
+    odd: parsed.odd ?? null,
+    stake_pct: parsed.stake_pct ?? null,
+    ai_engine: `${engineLabel}-fallback`,
+  };
+}
+
+async function callDeepseekLiveFallback(payload: any): Promise<any | null> {
+  if (!Deno.env.get('DEEPSEEK_API_KEY')) return null;
+  const { system, user } = buildAiFallbackPrompt(payload);
+  try {
+    const content = await callDeepseek(system, user, { max_tokens: 600, temperature: 0.2, timeoutMs: 20_000 });
+    if (!content) return null;
+    return normalizeAiFallbackResult(content, 'deepseek');
+  } catch (e) {
+    console.warn('[AnalyzeLive][DeepSeek] exceção:', (e as Error)?.message);
+    return null;
+  }
+}
+
+async function callGroqLiveFallback(payload: any): Promise<any | null> {
+  const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY');
+  if (!GROQ_API_KEY) {
+    console.warn('[AnalyzeLive][Groq] GROQ_API_KEY não configurada — fallback desativado');
+    return null;
+  }
+  const { system, user } = buildAiFallbackPrompt(payload);
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 20_000);
@@ -122,32 +162,19 @@ Mercados já aprovados: ${JSON.stringify(m.existingApprovedMarkets || []).slice(
     }
     const j = await r.json();
     const content = j?.choices?.[0]?.message?.content;
-    if (!content) {
-      console.error('[AnalyzeLive][Groq] resposta sem content');
-      return null;
-    }
-    let parsed: any;
-    try { parsed = JSON.parse(content); } catch {
-      const match = content.match(/\{[\s\S]*\}/);
-      if (!match) { console.error('[AnalyzeLive][Groq] JSON inválido'); return null; }
-      parsed = JSON.parse(match[0]);
-    }
-    // Normaliza campos esperados
-    return {
-      verdict: String(parsed.verdict || 'AGUARDAR').toUpperCase(),
-      market: parsed.market || 'N/A',
-      plan_name: parsed.plan_name || 'GROQ FALLBACK',
-      confidence: Number(parsed.confidence ?? 0),
-      thesis: parsed.thesis || 'Fallback Grok sem tese.',
-      estimated_probability: parsed.estimated_probability ?? null,
-      odd: parsed.odd ?? null,
-      stake_pct: parsed.stake_pct ?? null,
-      ai_engine: 'groq-fallback',
-    };
+    if (!content) return null;
+    return normalizeAiFallbackResult(content, 'groq');
   } catch (e) {
     console.error('[AnalyzeLive][Groq] exceção:', (e as Error)?.message);
     return null;
   }
+}
+
+// Cascata: DeepSeek → Groq. Mantém o nome callGrokFallback por compatibilidade.
+async function callGrokFallback(payload: any): Promise<any | null> {
+  const ds = await callDeepseekLiveFallback(payload);
+  if (ds) return ds;
+  return await callGroqLiveFallback(payload);
 }
 
 
