@@ -590,9 +590,10 @@ function SignalCard({ signal, onClick }: { signal: ApprovedSignal; onClick: () =
   const eventLabel = isSettledResult(signal.result) ? 'Liquidado' : 'Aprovado';
 
   let resultBadge: { label: string; className: string; icon: React.ReactNode } | null = null;
-  if (signal.result === 'green') {
+  const normalized = normalizeResult(signal.result);
+  if (normalized === 'green') {
     resultBadge = { label: 'GREEN', className: 'bg-success text-success-foreground border-success', icon: <CheckCircle2 className="w-3.5 h-3.5" /> };
-  } else if (signal.result === 'red') {
+  } else if (normalized === 'red') {
     resultBadge = { label: 'RED', className: 'bg-destructive text-destructive-foreground border-destructive', icon: <XCircle className="w-3.5 h-3.5" /> };
   } else if (finished) {
     resultBadge = { label: 'EXPIRADO', className: 'bg-muted text-muted-foreground border-border', icon: <Hourglass className="w-3.5 h-3.5" /> };
