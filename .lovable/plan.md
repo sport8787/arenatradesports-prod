@@ -1,107 +1,126 @@
-# Correção do Método dos Ciclos — Metodologia Original
 
-## Diagnóstico do que está errado hoje
+## Resumo executivo
 
-A implementação atual de `horus-pilot-ciclos-live` trata o método como "entrada cheia a favor da odd alta (≥2.00)" buscando dobrar a banca em 1 green. Isso **viola a essência do método**, que é o oposto:
+Migrar Punter + Arena Live (Trader Sports) para **DeepSeek API** (`deepseek-chat` V3). Abaixo está a estimativa de chamadas/tokens/custo para 15 dias, baseada em **dados reais do banco** (últimos 30 dias) + **cadência efetiva de reanálise** das edges atuais.
 
-- ❌ Hoje: stake = banca inteira (R$200), odd ≥ 2.00, busca 1 green dobrar.
-- ✅ Correto: stake ~5% da banca corrente, odd 1.15–1.40, lucro-alvo 5% (decrescente 2,5% por green), 20+ entradas pra dobrar.
+---
 
-Além disso falta: gate de qualificação (mercado, momento, indicadores ao vivo, odd), monitoramento de fechamento no lucro-alvo, RED trigger, estrutura de 5 ciclos com saques, logs dedicados.
+## 1. Como cada arena chama a IA hoje
 
-## Escopo da correção
+### Arena Punter (pré-jogo)
+- Edges: `mycroft-punter-anthropic` + `mycroft-punter-sportmonks`.
+- **1 chamada IA por jogo, por janela de scan** (cron único 11:30 BR — ver memória `Punter Dup Prevention v2`).
+- Prompt: ~14–16k tokens input, **max_completion_tokens=3000** (anthropic) ou 1500 (sportmonks).
+- Volume real: tabela `punter_analyses` mostra **~5–15 jogos analisados por rodada de scan**, ~1 scan/dia útil.
 
-### 1. Banco de dados
+### Arena Live (Trader Sports)
+- Edge: `analyze-live-matches` (motor matemático determinístico) + `borderline-ai-validator` (Groq, ~200 tokens) + `analyze-live-shadow-ai` (Gemini paralelo).
+- **MESMO JOGO é reanalisado várias vezes** durante os 90 minutos. Intervalos atuais (`getReanalysisInterval`):
+  - AGUARDAR: 5 min (<25'), 3 min (>=25')
+  - JOGO_MORTO: 5 min (<60'), 3 min (>=60')
+  - CUIDADO: 5 min (<60'), 3 min (>=60')
+  - LABAREDA: 2 min sempre
+  - APROVADO_EXTRA: 5 min (<60'), 3 min (>=60')
+- **Chamadas IA por jogo em 90 min**: tipicamente **18–25 reanálises** (mistura de 5min e 3min). LABAREDA puxa para ~35.
+- Volume real (`live_matches`): **20–90 jogos/dia** durante semana europeia, **~14–35 jogos/dia** atualmente.
+- Borderline validator: dispara só quando confidence 55–65% e veredito ativo → ~5–10% dos jogos → desprezível (200 tk).
+- Shadow AI: roda em paralelo no Gemini (não é DeepSeek a menos que você migre também — **assumi NÃO migrado**).
 
-**Tabela nova `user_cycle_logs`** (logs por entrada do método):
-- user_id, cycle_number (1–5), entry_number, stake, entry_odd, target_odd, exit_odd, result (green/red/cancel), profit_loss, signal_id, match_id, timestamp.
-- RLS: user vê o próprio; service_role full.
+### Chats (Mycroft Match Chat / Sports Chat / Analyst)
+- Dependem do usuário; baseline atual ~50–150 mensagens/dia.
 
-**Ajustes em `user_cycles_bankroll`**:
-- Garantir colunas: `entry_number_in_cycle` (int, default 1), `green_streak_in_cycle` (int, default 0), `withdrawn_total` (numeric).
-- Tabela de ciclos fixa (1→200, 2→200, 3→150, 4→200, 5→300) com saques após meta.
+---
 
-**RPCs**:
-- `cycle_method_register_entry(user_id, entry_data)` — grava log + atualiza estado.
-- `cycle_method_on_green(user_id, profit)` — incrementa green_streak, recalcula target%, checa se bateu meta do ciclo → saque + avança ciclo.
-- `cycle_method_on_red(user_id, loss)` — reinicia entry_number=1, zera green_streak, mantém ciclo (banca restante vira nova base).
+## 2. Volumes observados (últimos 30 dias, dados reais)
 
-### 2. Edge `horus-pilot-ciclos-live` (reescrever)
+| Período | live_matches/dia | Live signals/dia | Punter analyses/dia |
+|---|---|---|---|
+| **Pico (Champions/Euro semifinal/final 21–25 mai)** | 24 → 88 | 9 → 25 | 4–12 |
+| **Pós-Euro (26–31 mai)** | 14 → 38 | 3 → 13 | 0–4 |
+| **Hoje (4 jun, vazio)** | ~5 | ~2 | ~0 |
 
-**Gate de 4 etapas** antes de aceitar sinal vindo de `mycroft_analyses`:
-1. **Mercado**: somente Match Odds (Back/Lay). Rejeita Over/Under, BTTS, Corners, Under Limite.
-2. **Momento**: jogo `LIVE` (status 1H/HT/2H/ET), e `minute >= 1`, com pelo menos 1 gol marcado OU mudança de favoritismo (drift de odd ≥ 5% últimos 5min). Lê `live_matches.score` + `pressure_indices`.
-3. **Indicadores ao vivo** (via `live_matches.stats` + `pressure_indices`):
-   - Pressão ≥ 2 do lado escolhido (dangerous_attacks dominância 2x+).
-   - Aceleração gráfica: odd movendo a favor (drift negativo na odd back nos últimos 3min) — usar `live_odds_history` se disponível, senão `mycroft_analyses.odds_trend`.
-   - xG do lado ≥ 0.4 nos últimos 10min (proxy: `stats.xG_home/away` >= 0.4 cumulativo OU shots_on_target >= 2 últimos 10min).
-4. **Odd**: 1.15 ≤ odd ≤ 1.40 (ideal 1.20–1.35; logar fora-ideal).
+---
 
-**Stake & target dinâmicos** (não mais banca inteira):
-- `entry_number = user_cycles_bankroll.entry_number_in_cycle`
-- `stake_pct = 5% * (1 - 0.025)^green_streak` → `stake = bankroll_atual * stake_pct / 5%` (na verdade tabela: stake cresce composto pelo lucro acumulado, target% decresce).
-- Implementar via helpers em `_shared/ciclosMath.ts` espelhando `src/lib/ciclosMath.ts` (criar `nextTargetPct`, `nextStake`, `targetExitOdd(entryOdd, targetPct)`).
-- `target_exit_odd = entry_odd / (1 + target_pct)` (para back: lucro = stake*(odd_entry/odd_exit - 1) ).
+## 3. Estimativa 15 dias — cenários
 
-**Concorrência**: 1 entrada por vez por usuário (mantém).
+### Cenário A — "Quinzena cheia" (Champions+Europa+Brasileirão A/B + amistosos)
+- 60 jogos/dia × 20 reanálises = **1.200 calls live/dia**
+- Punter: 12 analyses/dia
+- Chats: 100 msgs/dia
+- **Total: ~1.300 calls/dia → 19.500 calls em 15 dias**
 
-### 3. Edge nova `horus-pilot-ciclos-monitor` (cron 1min)
+### Cenário B — "Sua janela real (até final de julho)" — Série B + Série C + Copa do Mundo
+- Série B: 10 jogos/rodada × 2 rodadas/semana = ~3 jogos/dia
+- Série C: 10 jogos/rodada × 2 rodadas/semana = ~3 jogos/dia
+- Copa do Mundo (se ativa em junho/julho): 2–4 jogos/dia em fase de grupos, 1–2 em mata-mata
+- **~8–12 jogos live/dia × 22 reanálises = ~220 calls live/dia**
+- Punter: 8 analyses/dia (mais ligas no whitelist novo)
+- Chats: 80 msgs/dia
+- **Total: ~310 calls/dia → ~4.650 calls em 15 dias**
 
-Para cada `virtual_bets` com `via_horus_ciclos=true` e `status='pending'`:
-- Buscar odd ao vivo do match (Futodds/Sportmonks/The Odds via `_shared/sportmonks-af-adapter`).
-- Se `current_odd <= target_exit_odd` → fecha GREEN PARCIAL: marca `status='green'`, `exit_odd=current_odd`, `profit = stake*(entry_odd/current_odd - 1)`.
-- Se cenário RED (gol contra, virada de favoritismo, pressão invertida, ou odd subiu >15% acima da entry_odd) → fecha RED imediato: `status='red'`, `loss = stake*(current_odd/entry_odd)*(stake_factor)` (cash-out parcial; simplificação: registra `loss = stake * loss_pct` calculado pela razão de odds).
-- Se FT sem trigger → liquida pelo placar normal (trigger existente já faz isso, mas precisa respeitar exit_odd).
+### Cenário C — "Conservador" (só copa do mundo + série B fim de semana)
+- 5 jogos live/dia × 22 = 110 + Punter 5 + chat 50 = **165/dia → ~2.500 calls em 15 dias**
 
-### 4. Trigger `trg_horus_pilot_autobind_trader`
+---
 
-Ajustar pra usar **profit_loss real do log** (`exit_odd` vs `entry_odd`) em vez de `stake*(odd-1)` cheio. Chamar `cycle_method_on_green/on_red` que já gravam em `user_cycle_logs` e tratam saque/avanço/reinício de ciclo.
+## 4. Tokens e custo DeepSeek (preço atual mai/2026)
 
-### 5. Notificações
+Pricing `deepseek-chat` V3:
+- Input cache **MISS**: $0.27 / 1M tk
+- Input cache **HIT**: $0.07 / 1M tk (system prompt repetido é cacheado)
+- Output: $1.10 / 1M tk
 
-Edge `notify-cycle-event` (ou ampliar `notify-trader-event`) para enviar push + Telegram:
-- "🟢 Ciclo N concluído! Saque R$ X. Acumulado R$ Y."
-- "🔴 Ciclo N reiniciado após RED. Banca restante R$ Z."
-- "⚠️ Entrada rejeitada: gate falhou em <etapa>."
+Tokens médios por tipo de call:
+| Tipo | Input total | Cache hit ratio | Output |
+|---|---|---|---|
+| Punter (anthropic) | 16.000 | 80% (system fixo) | 3.000 |
+| Punter (sportmonks) | 12.000 | 80% | 1.500 |
+| Live reanálise IA | 4.000 | 70% | 800 |
+| Borderline validator | 1.200 | 50% | 200 |
+| Chat (Match/Sports) | 3.500 | 60% | 800 |
 
-### 6. UI (`src/pages/Ciclos.tsx` + `src/components/punter/` cycles)
+### Custo por cenário (15 dias)
 
-Painel dedicado **dentro do Arena Trader Sports** (mover/duplicar link, remover do Punter):
-- Card "Ciclo Atual: N/5" + barra de progresso (banca / meta).
-- Tabela "Histórico de Entradas do ciclo": data, mercado, odd entrada, odd saída, target%, lucro/prejuízo, resultado.
-- Resumo de saques: total sacado + banca disponível pro ciclo atual.
-- Indicador do gate ao vivo (próxima entrada elegível? mostra quais etapas passaram).
+**Cenário A — cheio** (~19.500 calls)
+- Live (18k): ~72M input tk + 14M output tk → **~$28**
+- Punter (180): ~2.9M input + 0.5M output → **~$1.20**
+- Chat (1.500): ~5.3M input + 1.2M output → **~$2.30**
+- **TOTAL ≈ US$ 32 (R$ 175)**
 
-### 7. Remoção do vínculo com Punter
+**Cenário B — sua janela real** (~4.650 calls)
+- Live (3.300): ~13M input + 2.6M output → **~$5.20**
+- Punter (120): ~1.9M input + 0.36M output → **~$0.80**
+- Chat (1.200): ~4.2M input + 0.96M output → **~$1.85**
+- **TOTAL ≈ US$ 8 (R$ 44)**
 
-- Remover botões/atalhos em `PunterMenu`, `PunterBancaVirtual` que apontam pra `/punter/ciclos`.
-- Mover rota para `/arena-trader-sports/ciclos` (manter `/punter/ciclos` como redirect pra compatibilidade).
-- Atualizar memória `mem://features/alavancagem/horus-pilota`.
+**Cenário C — conservador** (~2.500 calls)
+- **TOTAL ≈ US$ 4 (R$ 22)**
 
-## Arquivos a tocar
+---
 
-```
-supabase/migrations/<novo>.sql            (user_cycle_logs + RPCs + colunas)
-supabase/functions/horus-pilot-ciclos-live/index.ts      (reescrever gate+stake)
-supabase/functions/horus-pilot-ciclos-monitor/index.ts   (criar)
-supabase/functions/_shared/ciclosMath.ts                 (criar)
-src/lib/ciclosMath.ts                                    (adicionar nextStake/targetExitOdd)
-src/pages/Ciclos.tsx                                     (UI revisada)
-src/components/punter/* → remover atalhos de ciclos
-src/App.tsx                                              (rota nova)
-```
+## 5. Recomendação de carga
 
-## Validação após implementar
+Considerando seu calendário até fim de julho (Série B/C + Copa do Mundo):
 
-1. Inserir bankroll teste + simular `mycroft_analyses` APROVADO match-odds com odd 1.25 num jogo com gol e pressão → confirmar entrada com stake 5%.
-2. Atualizar odd ao vivo pra 1.19 → monitor deve fechar GREEN.
-3. RPC deve registrar log, incrementar green_streak, recalcular target.
-4. Simular 22 greens consecutivos → bate meta R$400, dispara saque, avança Ciclo 2.
-5. Simular RED → reinicia entry_number, mantém ciclo.
+| Recarga | Cobre |
+|---|---|
+| **US$ 10 (~R$ 55)** | 15 dias do Cenário B com folga de 20% |
+| **US$ 20 (~R$ 110)** | 15 dias mesmo se Copa do Mundo tiver fase de grupos cheia (4 jogos/dia simultâneos) |
+| **US$ 50 (~R$ 275)** | Tranquilo até **fim de julho inteiro** (45 dias) no Cenário B, ou 15 dias do Cenário A |
 
-## Aprovação
+**Sugestão: começar com US$ 20 (~R$ 110) para os 15 dias e monitorar a primeira semana** — se o custo real estiver abaixo, dá pra estender pra cobrir até final de julho com a mesma carga.
 
-Confirmar antes de implementar:
-- (a) Apaga totalmente o comportamento atual de "entrada cheia odd 2.00"? **Sim** (incompatível).
-- (b) Remover link do Punter ou só duplicar no Arena Trader? Recomendo **remover do Punter** + redirect.
-- (c) Notificações por Telegram herdam config já existente do usuário (`telegram_user_settings`)? Assumindo **sim**.
+---
+
+## 6. Observações técnicas
+
+1. **DeepSeek tem prompt caching automático** (ativado por padrão para system prompts >1024 tk). Como Punter tem system prompt enorme e fixo, ~80% das chamadas serão cache HIT — preço cai de $0.27 → $0.07/M.
+2. **DeepSeek-reasoner (R1)** é 3–5× mais caro e mais lento. Não recomendo — `deepseek-chat` (V3) já é superior ao Llama 3.3 70B em raciocínio estruturado JSON.
+3. **Rate limits DeepSeek**: 60 RPM tier free, sem limit prática no pago. Suficiente para o cron live (1 batch/min com 5–10 jogos).
+4. Se quiser, posso já preparar o código de migração mantendo Groq como fallback para 429/timeouts (igual hoje com Gemini fallback no anthropic).
+
+---
+
+## Próximo passo
+
+Quer que eu prepare o **plano de implementação da migração** (criar `_shared/deepseek.ts`, trocar provider nas 3 edges principais, manter Groq como fallback, adicionar telemetria de custo)? Ou prefere primeiro carregar o crédito e depois migrar?
