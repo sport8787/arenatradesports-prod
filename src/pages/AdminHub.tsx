@@ -15,6 +15,7 @@ import {
   ListChecks,
   ArrowLeft,
   BookOpen,
+  Trophy,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -170,6 +171,13 @@ const LINKS: AdminLink[] = [
     description: 'Compara hit rate e ROI por liga antes/depois de uma data de corte. Valida impacto Tier A.',
     icon: <Activity className="h-4 w-4" />,
     group: 'Análise',
+  },
+  {
+    to: '/admin/copa-mode',
+    label: '🏆 Modo Copa do Mundo 2026',
+    description: 'Toggle que substitui parâmetros globais por critérios específicos da Copa (AH, vetos, stakes por fase). Auto-desativa em 20/07/2026.',
+    icon: <Trophy className="h-4 w-4" />,
+    group: 'Mycroft',
   },
 ];
 
