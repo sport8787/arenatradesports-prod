@@ -12,6 +12,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { applyApprovalBlocks, loadGateConfig } from "../_shared/punterApprovalBlocks.ts";
 import { getUpcomingFixturesSM } from "../_shared/sportmonks-af-adapter.ts";
 import { fetchSportmonksPrematchOdds, listPrematchMarkets, normalizePrematchMarketLabel } from "../_shared/sportmonksPrematchOdds.ts";
+import { callDeepseek } from "../_shared/deepseekProvider.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
