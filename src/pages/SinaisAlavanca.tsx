@@ -86,8 +86,24 @@ export default function SinaisAlavancaPage() {
     }
   };
 
-  const ao_vivo = useMemo(() => entradas.filter((s) => s.mode === 'live' && s.status === 'pending'), [entradas]);
-  const pre_live = useMemo(() => entradas.filter((s) => s.mode === 'prelive' && s.status === 'pending'), [entradas]);
+  const agora = Date.now();
+  const ao_vivo = useMemo(
+    () => entradas.filter((s) => {
+      if (s.mode !== 'live' || s.status !== 'pending') return false;
+      // só mostrar live criado nas últimas 4h (jogo ainda rolando)
+      return agora - new Date(s.created_at).getTime() < 4 * 3600_000;
+    }),
+    [entradas, agora],
+  );
+  const pre_live = useMemo(
+    () => entradas.filter((s) => {
+      if (s.mode !== 'prelive' || s.status !== 'pending') return false;
+      // só mostrar jogos cujo kickoff ainda não passou
+      if (!s.kickoff) return false;
+      return new Date(s.kickoff).getTime() > agora;
+    }),
+    [entradas, agora],
+  );
   const liquidados = useMemo(() => entradas.filter((s) => s.status === 'green' || s.status === 'red').slice(0, 15), [entradas]);
 
   // Calculadora

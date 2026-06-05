@@ -30,6 +30,8 @@ const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 // LEAGUE_AF_TO_SM (sportmonks-af-adapter.ts) — IDs fora do mapa
 // são silenciosamente descartados pelo adapter Sportmonks.
 const LIGAS_PERMITIDAS = [
+  1,   // FIFA World Cup ⭐ Copa 2026
+  10,  // Friendlies (Amistosos internacionais — seleções)
   39,  // Premier League
   40,  // Championship
   78,  // Bundesliga
@@ -39,6 +41,7 @@ const LIGAS_PERMITIDAS = [
   61,  // Ligue 1
   71,  // Brasileirão A
   72,  // Brasileirão B
+  76,  // Brasileirão C
   88,  // Eredivisie
   94,  // Primeira Liga (PT)
   144, // Jupiler Pro League (BE)
