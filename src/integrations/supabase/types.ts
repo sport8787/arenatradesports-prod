@@ -2002,6 +2002,7 @@ export type Database = {
       cron_logs: {
         Row: {
           created_at: string | null
+          detalhes: Json | null
           id: string
           ligas_encontradas: Json | null
           tipo: string | null
@@ -2010,6 +2011,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          detalhes?: Json | null
           id?: string
           ligas_encontradas?: Json | null
           tipo?: string | null
@@ -2018,6 +2020,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          detalhes?: Json | null
           id?: string
           ligas_encontradas?: Json | null
           tipo?: string | null
