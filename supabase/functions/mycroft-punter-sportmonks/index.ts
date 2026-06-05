@@ -551,7 +551,9 @@ serve(async (req) => {
 
   try {
     if (!SM_TOKEN) throw new Error("SPORTMONKS_API_KEY missing");
-    if (!GROQ_KEY) throw new Error("GROQ_API_KEY missing");
+    if (!Deno.env.get("DEEPSEEK_API_KEY") && !GROQ_KEY) {
+      throw new Error("Nenhum provider de IA configurado (DEEPSEEK_API_KEY ou GROQ_API_KEY)");
+    }
 
     const body = await req.json().catch(() => ({}));
     const sports: string[] = body.sports || [
