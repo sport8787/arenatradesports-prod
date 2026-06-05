@@ -138,15 +138,30 @@ serve(async (req) => {
     const normName = (s: string) => String(s || "").toLowerCase()
       .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
       .replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+    // Aliases entre providers (Futodds usa textos diferentes de API-Football).
+    const LEAGUE_ALIASES: Record<string, string> = {
+      "international match": "amistosos internacionais",
+      "international matches": "amistosos internacionais",
+      "international friendly": "amistosos internacionais",
+      "international friendlies": "amistosos internacionais",
+      "friendly international": "amistosos internacionais",
+      "friendly internationals": "amistosos internacionais",
+      "int friendly": "amistosos internacionais",
+      "int friendlies": "amistosos internacionais",
+      "club friendly": "club friendlies",
+      "club friendlies": "club friendlies",
+      "friendlies clubs": "club friendlies",
+    };
     const allowedNameSet = new Set(allowedRows.map(r => normName(r.name)));
     const fixtures = allFixtures.filter((f: any) => {
       const leagueId = f.league?.id;
       if (typeof leagueId === "number" && allowedIds.has(leagueId) && !LIGAS_BLOQUEADAS.includes(leagueId)) {
         return true;
       }
-      // Fallback Futodds: match por nome de liga
-      const ln = normName(f.league?.name || "");
-      if (!ln) return false;
+      // Fallback Futodds: match por nome de liga (com alias)
+      const rawLn = normName(f.league?.name || "");
+      if (!rawLn) return false;
+      const ln = LEAGUE_ALIASES[rawLn] || rawLn;
       if (allowedNameSet.has(ln)) return true;
       // Match parcial (inclusão) para variações como "Brazilian Serie A" vs "Serie A"
       for (const allowed of allowedNameSet) {
