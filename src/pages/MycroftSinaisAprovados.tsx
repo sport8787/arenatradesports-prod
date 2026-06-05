@@ -226,7 +226,7 @@ function computeStats(rows: ApprovedSignal[]): ComputedStats {
     }
     if (!Number.isFinite(odd) || odd <= 1) continue;
     stakeUnits += 1;
-    pnlUnits += row.result === 'green' ? odd - 1 : -1;
+    pnlUnits += normalizeResult(row.result) === 'green' ? odd - 1 : -1;
   }
 
   return { greens, reds, pendings, pnlUnits, stakeUnits };
