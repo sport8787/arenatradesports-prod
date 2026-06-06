@@ -32,12 +32,13 @@ import {
 } from '@/lib/userTraderPlan';
 import PlanResultsTab from '@/components/arena-trader/PlanResultsTab';
 
-const MARKET_LABELS: Record<UserMarket, string> = {
+const MARKET_LABELS: Partial<Record<UserMarket, string>> = {
   '1x2': '1X2',
   over_under: 'Over/Under',
   btts: 'Ambas Marcam',
-  corners: 'Escanteios',
+  // corners: desativado em 06/06/2026 — não faz sentido para live, sem odd live integrada
 };
+
 
 const OUTCOMES: Record<UserMarket, { value: Outcome; label: string }[]> = {
   '1x2': [
