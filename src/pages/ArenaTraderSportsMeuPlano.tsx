@@ -417,7 +417,7 @@ export default function ArenaTraderSportsMeuPlano() {
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="font-semibold text-foreground truncate">{p.name}</h3>
-                          <Badge variant="outline" className="text-[10px] font-mono">{MARKET_LABELS[p.market]}</Badge>
+                          <Badge variant="outline" className="text-[10px] font-mono">{MARKET_LABELS[p.market] ?? p.market}</Badge>
                           <Badge variant="outline" className="text-[10px] font-mono">{outcomeLabel(p)}</Badge>
                         </div>
                       </div>
