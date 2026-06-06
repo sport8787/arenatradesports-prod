@@ -167,7 +167,7 @@ export const PLAN_TEMPLATES: Record<string, Omit<UserPlan, 'id'>> = {
   },
   corners_over: {
     name: 'Escanteios Over 8.5',
-    enabled: true,
+    enabled: false, // mercado de escanteios desativado em 06/06/2026
     market: 'corners',
     outcome: 'corners_over',
     line: 8.5,
@@ -180,7 +180,67 @@ export const PLAN_TEMPLATES: Record<string, Omit<UserPlan, 'id'>> = {
     reforco: {},
     vetos: { veto_apos_min: 80 },
   },
+  // ─── Presets profissionais (calibrados 06/06/2026) ───
+  btts_sim_pro: {
+    name: 'BTTS Sim · PRO',
+    enabled: true,
+    market: 'btts',
+    outcome: 'yes',
+    obrigatorios: {
+      minuto_min: 15,
+      minuto_max: 75,
+      odd_min: 1.65,
+      odd_max: 3.20,
+      shots_on_target_min: 4,      // total dos dois times
+      shots_total_min: 12,
+      corners_total_min: 5,
+    },
+    reforco: {},
+    vetos: { veto_apos_min: 80 },
+  },
+  back_favorito_pro: {
+    name: 'Back Favorito · PRO',
+    enabled: true,
+    market: '1x2',
+    outcome: 'home',
+    obrigatorios: {
+      minuto_min: 20,
+      minuto_max: 70,
+      odd_min: 1.35,
+      odd_max: 2.20,
+      shots_on_target_min: 3,      // do favorito
+      shots_total_min: 8,
+      corners_total_min: 3,
+    },
+    reforco: {
+      placar_permitido: ['drawing', 'winning_by_1', 'winning_2plus'],
+    },
+    vetos: {
+      veto_diff_2gols: true,
+      veto_xg_adversario_maior: true,
+      veto_apos_min: 70,
+    },
+  },
+  over_25_pro: {
+    name: 'Over 2.5 · PRO',
+    enabled: true,
+    market: 'over_under',
+    outcome: 'over',
+    line: 2.5,
+    obrigatorios: {
+      minuto_min: 15,
+      minuto_max: 65,
+      odd_min: 1.70,
+      odd_max: 2.80,
+      shots_on_target_min: 5,      // total
+      shots_total_min: 14,
+      corners_total_min: 6,
+    },
+    reforco: {},
+    vetos: { veto_apos_min: 70 },
+  },
 };
+
 
 export function createPlanFromTemplate(templateKey: keyof typeof PLAN_TEMPLATES): UserPlan {
   const t = PLAN_TEMPLATES[templateKey];
