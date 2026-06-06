@@ -104,6 +104,7 @@ function PlanEditor({ plan, onChange }: { plan: UserPlan; onChange: (p: UserPlan
             {(Object.keys(MARKET_LABELS) as UserMarket[]).map((m) => (
               <option key={m} value={m}>{MARKET_LABELS[m]}</option>
             ))}
+
           </select>
         </div>
         <div className="space-y-1">
