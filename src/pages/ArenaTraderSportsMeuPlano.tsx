@@ -32,12 +32,13 @@ import {
 } from '@/lib/userTraderPlan';
 import PlanResultsTab from '@/components/arena-trader/PlanResultsTab';
 
-const MARKET_LABELS: Record<UserMarket, string> = {
+const MARKET_LABELS: Partial<Record<UserMarket, string>> = {
   '1x2': '1X2',
   over_under: 'Over/Under',
   btts: 'Ambas Marcam',
-  corners: 'Escanteios',
+  // corners: desativado em 06/06/2026 — não faz sentido para live, sem odd live integrada
 };
+
 
 const OUTCOMES: Record<UserMarket, { value: Outcome; label: string }[]> = {
   '1x2': [
@@ -103,6 +104,7 @@ function PlanEditor({ plan, onChange }: { plan: UserPlan; onChange: (p: UserPlan
             {(Object.keys(MARKET_LABELS) as UserMarket[]).map((m) => (
               <option key={m} value={m}>{MARKET_LABELS[m]}</option>
             ))}
+
           </select>
         </div>
         <div className="space-y-1">
@@ -415,7 +417,7 @@ export default function ArenaTraderSportsMeuPlano() {
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="font-semibold text-foreground truncate">{p.name}</h3>
-                          <Badge variant="outline" className="text-[10px] font-mono">{MARKET_LABELS[p.market]}</Badge>
+                          <Badge variant="outline" className="text-[10px] font-mono">{MARKET_LABELS[p.market] ?? p.market}</Badge>
                           <Badge variant="outline" className="text-[10px] font-mono">{outcomeLabel(p)}</Badge>
                         </div>
                       </div>
