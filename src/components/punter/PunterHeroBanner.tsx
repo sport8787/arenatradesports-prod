@@ -5,6 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { FOUNDERS_GROUP } from '@/config/foundersGroup';
+import PunterCronToggle from '@/components/punter/PunterCronToggle';
+import { useAdmin } from '@/hooks/useAdmin';
 
 interface FeaturedSignal {
   match_label: string;
@@ -55,6 +57,7 @@ function useCountdown(targetIso?: string) {
 
 const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick }: Props) => {
   const navigate = useNavigate();
+  const { isAdmin } = useAdmin();
   const [stats, setStats] = useState<Stats>({ winRate: 0, weeklyRoi: 0, greensToday: 0, betsToday: 0, settledCount: 0, weeklyStaked: 0, source: 'empty', lastUpdated: null });
   const countdown = useCountdown(nextMatch?.kickoff);
 
@@ -417,6 +420,12 @@ const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick }: Pro
               Abrir
             </span>
           </button>
+
+          {isAdmin && (
+            <div className="flex justify-end pt-1">
+              <PunterCronToggle />
+            </div>
+          )}
         </div>
       </div>
     </motion.div>
