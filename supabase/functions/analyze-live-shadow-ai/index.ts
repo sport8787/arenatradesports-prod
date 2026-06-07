@@ -302,11 +302,11 @@ Deno.serve(async (req) => {
         }
 
         const prompt = buildPrompt(m);
-        let aiRes: { json: any; ms: number; raw: string };
+        let aiRes: { json: any; ms: number; raw: string; provider: "deepseek" | "groq"; model: string };
         try {
-          aiRes = await callGemini(prompt);
+          aiRes = await callAi(prompt);
         } catch (e) {
-          errors.push(`${m.match_id}: gemini ${(e as Error).message}`);
+          errors.push(`${m.match_id}: ai ${(e as Error).message}`);
           continue;
         }
         const a = aiRes.json;
