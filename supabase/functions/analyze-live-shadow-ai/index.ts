@@ -1,9 +1,10 @@
 // analyze-live-shadow-ai
-// Análise PARALELA pura de IA (Gemini via Lovable AI Gateway) sobre jogos ao vivo.
+// Análise PARALELA pura de IA (DeepSeek com fallback Groq) sobre jogos ao vivo.
 // Grava em mycroft_analyses_shadow_ai. Não interfere no motor primário.
 // Dedup por (match_id, mercado normalizado) — NÃO empilha sinais.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { callDeepseek } from "../_shared/deepseekProvider.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,9 +13,11 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const DEEPSEEK_KEY = Deno.env.get("DEEPSEEK_API_KEY") || "";
 const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") || "";
-const MODEL = "llama-3.3-70b-versatile";
-const GATEWAY = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_MODEL = "llama-3.3-70b-versatile";
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+const DEEPSEEK_MODEL = "deepseek-chat";
 
 // Janela de reanálise por minuto (igual ao motor primário)
 function reanalysisIntervalMs(minute: number): number {
