@@ -262,8 +262,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!GROQ_API_KEY) {
-      return new Response(JSON.stringify({ ok: false, error: "GROQ_API_KEY ausente" }), {
+    if (!DEEPSEEK_KEY && !GROQ_API_KEY) {
+      return new Response(JSON.stringify({ ok: false, error: "DEEPSEEK_API_KEY e GROQ_API_KEY ausentes" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
