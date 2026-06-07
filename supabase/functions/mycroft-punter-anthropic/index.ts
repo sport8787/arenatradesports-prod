@@ -25,6 +25,23 @@ serve(async (req) => {
     )
 
     const requestBody = await req.json()
+
+    // Kill switch global: cron_settings.punter_analyses_cron
+    // Bypass com { force: true } no body (botão manual admin).
+    if (!requestBody?.force) {
+      const { data: gate } = await supabaseClient
+        .from('cron_settings')
+        .select('is_enabled')
+        .eq('setting_key', 'punter_analyses_cron')
+        .maybeSingle()
+      if (gate && gate.is_enabled === false) {
+        console.log('[punter-anthropic] ⏸️ punter_analyses_cron desativado')
+        return new Response(
+          JSON.stringify({ skipped: true, reason: 'punter_analyses_cron_disabled' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
+      }
+    }
     const {
       sports = [
         'soccer_brazil_campeonato',
