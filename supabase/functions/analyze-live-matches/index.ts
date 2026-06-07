@@ -1276,22 +1276,17 @@ serve(async (req) => {
         // ====================================================================
 
         const _isApprovedVerdict = ['APROVADO', 'APROVADO_SITUACIONAL', 'LABAREDA'].includes(analysis.verdict);
-        // ── Telegram worthy: mercado prioritário × qualidade do sinal
-        // Mercados com melhor histórico de edge: Over 0.5 HT, Over 1.5,
-        // Próximo Gol, Back ao favorito dominante.
-        // Qualidade mínima: LABAREDA ou APROVADO com confidence >= 70.
-        // APROVADO_SITUACIONAL (conf. reduzida) nunca vai ao Telegram.
-        const _isTelegramWorthy = (() => {
-          const m = String(analysis.market || '').toLowerCase();
-          const isPriorityMarket =
-            /over\s*0\.5\s*(ht|1t|primeiro|first|half)/.test(m) ||
-            /over\s*1\.5(?!\s*ht)/.test(m) ||           // Over 1.5 FT (não HT)
-            /pr[oó]ximo\s*gol|next\s*goal/.test(m) ||
-            /back.*(favorit|dominan)|(favorit|dominan).*back/.test(m);
-          if (!isPriorityMarket) return false;
-          const conf = Number(analysis.confidence ?? 0);
-          return analysis.verdict === 'LABAREDA' || (analysis.verdict === 'APROVADO' && conf >= 70);
-        })();
+        // ── Telegram worthy: todos os sinais aprovados vão ao grupo.
+        // Com ~5 sinais/dia o filtro de mercado é desnecessário e silenciaria
+        // dias inteiros. Filtra apenas por qualidade mínima de verdict:
+        //   LABAREDA                → sempre (maior convicção)
+        //   APROVADO                → sempre
+        //   APROVADO_SITUACIONAL    → sempre (conf. reduzida mas volume baixo)
+        //   AGUARDAR / VETADO / etc → nunca
+        const _isTelegramWorthy =
+          analysis.verdict === 'LABAREDA' ||
+          analysis.verdict === 'APROVADO' ||
+          analysis.verdict === 'APROVADO_SITUACIONAL';
 
         const { data: analysisRow, error: insertError } = await supabase
           .from('mycroft_analyses')
@@ -1395,14 +1390,9 @@ serve(async (req) => {
           });
 
           // === TELEGRAM ATIVO — grupo dedicado @oraculo_mycroft_trader ===
-          // Somente sinais telegram_worthy chegam ao grupo:
-          //   • Mercado prioritário (Over 0.5 HT / Over 1.5 / Próximo Gol / Back dominante)
-          //   • LABAREDA  ou  APROVADO com confidence >= 70
-          //   • APROVADO_SITUACIONAL (conf. reduzida) NUNCA vai ao Telegram
+          // Todos os sinais aprovados vão ao Telegram (volume ~5/dia).
+          // telegram_worthy = true para LABAREDA / APROVADO / APROVADO_SITUACIONAL.
           const shouldNotifyEntry = _isTelegramWorthy;
-          if (_isApprovedVerdict && !_isTelegramWorthy) {
-            console.log(`[AnalyzeLive] 📵 Telegram suppressed (${analysis.verdict} conf=${analysis.confidence} market="${analysis.market}") — não atende filtro worthy`);
-          }
           const shouldNotifyCancel =
             analysis.plan_name === 'CANCELAMENTO UNDER 2.5 EARLY' ||
             analysis.plan_name === 'CANCELAMENTO BACK AO DOMINANTE';

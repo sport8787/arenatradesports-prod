@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
       .select("id, match_id, market, verdict, odd, stake_pct, confidence, result, final_score_home, final_score_away, profit_loss, settled_at")
       .in("result", ["GREEN", "RED"])
       .eq("sent_result_telegram", false)
-      .eq("telegram_worthy", true)           // só sinais que foram ao grupo na aprovação
+      .eq("telegram_worthy", true)    // só sinais que foram ao grupo na aprovação
       .gte("settled_at", since)
       .order("settled_at", { ascending: true })
       .limit(6);
