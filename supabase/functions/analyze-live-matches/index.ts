@@ -1289,7 +1289,7 @@ serve(async (req) => {
             risk_management: analysis.risk_management ?? null,
             alerts: Array.isArray(analysis.alerts) ? analysis.alerts.filter((a: any) => typeof a === 'string') : [],
             fundamentation: analysis.fundamentation ?? { stats: enrichedStats },
-            stats_snapshot: _isApprovedSm ? { provider: 'sportmonks', minute: match.minute ?? 0, score_home: match.score_home ?? 0, score_away: match.score_away ?? 0, stats: enrichedStats } : null,
+            stats_snapshot: _isApprovedSm ? { home_team: match.home_team, away_team: match.away_team, provider: 'sportmonks', minute: match.minute ?? 0, score_home: match.score_home ?? 0, score_away: match.score_away ?? 0, stats: enrichedStats } : null,
             // Snapshot do placar no momento da aprovação — exigido pela RPC settle_mycroft_analysis
             // para liquidar mercados "Próximo Gol" (e útil para auditoria de qualquer mercado).
             approved_at_score_home: _isApprovedVerdict ? (match.score_home ?? 0) : null,
