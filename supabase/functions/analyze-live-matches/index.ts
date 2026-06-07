@@ -1276,6 +1276,23 @@ serve(async (req) => {
         // ====================================================================
 
         const _isApprovedVerdict = ['APROVADO', 'APROVADO_SITUACIONAL', 'LABAREDA'].includes(analysis.verdict);
+        // ── Telegram worthy: mercado prioritário × qualidade do sinal
+        // Mercados com melhor histórico de edge: Over 0.5 HT, Over 1.5,
+        // Próximo Gol, Back ao favorito dominante.
+        // Qualidade mínima: LABAREDA ou APROVADO com confidence >= 70.
+        // APROVADO_SITUACIONAL (conf. reduzida) nunca vai ao Telegram.
+        const _isTelegramWorthy = (() => {
+          const m = String(analysis.market || '').toLowerCase();
+          const isPriorityMarket =
+            /over\s*0\.5\s*(ht|1t|primeiro|first|half)/.test(m) ||
+            /over\s*1\.5(?!\s*ht)/.test(m) ||           // Over 1.5 FT (não HT)
+            /pr[oó]ximo\s*gol|next\s*goal/.test(m) ||
+            /back.*(favorit|dominan)|(favorit|dominan).*back/.test(m);
+          if (!isPriorityMarket) return false;
+          const conf = Number(analysis.confidence ?? 0);
+          return analysis.verdict === 'LABAREDA' || (analysis.verdict === 'APROVADO' && conf >= 70);
+        })();
+
         const { data: analysisRow, error: insertError } = await supabase
           .from('mycroft_analyses')
           .insert({
@@ -1286,6 +1303,7 @@ serve(async (req) => {
             thesis: analysis.thesis || 'Análise sem tese.',
             odd: _oddToPersist,
             stake_pct: typeof analysis.stake_pct === 'number' && analysis.stake_pct > 0 ? analysis.stake_pct : null,
+            telegram_worthy: _isTelegramWorthy,
             confidence: analysis.confidence ?? 0,
             risk_management: analysis.risk_management ?? null,
             alerts: Array.isArray(analysis.alerts) ? analysis.alerts.filter((a: any) => typeof a === 'string') : [],
@@ -1377,13 +1395,14 @@ serve(async (req) => {
           });
 
           // === TELEGRAM ATIVO — grupo dedicado @oraculo_mycroft_trader ===
-          // Sinais ao vivo (APROVADO, APROVADO_SITUACIONAL, LABAREDA) e cancelamentos
-          // são enviados via notify-trader-event, que despacha para o grupo dedicado
-          // através do telegram-send-dedupe (com dedupe por match+market+verdict+canal).
-          const shouldNotifyEntry =
-            analysis.verdict === 'APROVADO' ||
-            analysis.verdict === 'APROVADO_SITUACIONAL' ||
-            analysis.verdict === 'LABAREDA';
+          // Somente sinais telegram_worthy chegam ao grupo:
+          //   • Mercado prioritário (Over 0.5 HT / Over 1.5 / Próximo Gol / Back dominante)
+          //   • LABAREDA  ou  APROVADO com confidence >= 70
+          //   • APROVADO_SITUACIONAL (conf. reduzida) NUNCA vai ao Telegram
+          const shouldNotifyEntry = _isTelegramWorthy;
+          if (_isApprovedVerdict && !_isTelegramWorthy) {
+            console.log(`[AnalyzeLive] 📵 Telegram suppressed (${analysis.verdict} conf=${analysis.confidence} market="${analysis.market}") — não atende filtro worthy`);
+          }
           const shouldNotifyCancel =
             analysis.plan_name === 'CANCELAMENTO UNDER 2.5 EARLY' ||
             analysis.plan_name === 'CANCELAMENTO BACK AO DOMINANTE';
