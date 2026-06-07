@@ -11,13 +11,22 @@ import { Button } from '@/components/ui/button';
 import logoOraculo from '@/assets/logo_oraculo_mycroft.png';
 import { supabase } from '@/integrations/supabase/client';
 
-// ─── Áudio de boas-vindas do Hórus ─────────────────────────────────────────
-// Substitua pela URL definitiva do arquivo de áudio após a produção.
-// Recomendado: .mp3 ou .ogg hospedado no Supabase Storage ou CDN.
-const HORUS_WELCOME_AUDIO_URL = ''; // TODO: inserir URL do áudio após produção
+// ─── Áudio de boas-vindas do Hórus (2 partes) ──────────────────────────────
+// Parte 1: TTS via ElevenLabs (personalizado com nome do usuário)
+// Parte 2: arquivo gravado salvo no Supabase Storage
+//
+// Após fazer upload do áudio no Supabase Storage:
+//   Dashboard → Storage → Bucket "audio" (público) → upload "inicio.mp3"
+//   A URL pública segue o padrão abaixo.
+const SUPABASE_PROJECT_REF = 'ogpohiugfkvygcejrzfp';
+const INICIO_AUDIO_URL = `https://${SUPABASE_PROJECT_REF}.supabase.co/storage/v1/object/public/audio/inicio.mp3`;
 
 // URL do vídeo tutorial (YouTube embed ou link direto)
 const TUTORIAL_VIDEO_URL = ''; // TODO: inserir URL do vídeo tutorial após produção
+
+// Texto TTS personalizado — {name} será substituído pelo nome do usuário
+const TTS_GREETING = (name: string) =>
+  `Seja bem-vindo, ${name}, ao Oráculo Mycroft.`;
 
 const heroArenas = [
   {
@@ -79,6 +88,7 @@ export default function Index() {
   const [audioPlaying, setAudioPlaying] = useState(false);
   const [audioMuted, setAudioMuted] = useState(false);
   const [showWelcomeBanner, setShowWelcomeBanner] = useState(false);
+  const [audioLabel, setAudioLabel] = useState('Hórus está falando com você...');
   const [videoOpen, setVideoOpen] = useState(false);
 
   // Redireciona usuário não autenticado
@@ -88,37 +98,100 @@ export default function Index() {
     }
   }, [isAuthenticated, authLoading, navigate]);
 
-  // Áudio de boas-vindas — toca 1x por usuário (após 1,5s para dar tempo de carregar)
+  // ── Sequência de áudio de boas-vindas (apenas para usuários sem assinatura, 1x) ──
+  // Parte 1: TTS personalizado via ElevenLabs ("Seja bem-vindo, [nome]...")
+  // Parte 2: arquivo inicio.mp3 do Supabase Storage (resto do discurso do Hórus)
   useEffect(() => {
     if (authLoading || subLoading || hasAccess || !isAuthenticated) return;
-    if (!HORUS_WELCOME_AUDIO_URL) return;
 
-    const storageKey = `horus_welcome_played_${profile?.id ?? 'anon'}`;
+    const userId = profile?.id ?? null;
+    const userName = profile?.full_name || profile?.username || null;
+    if (!userId || !userName) return; // aguarda profile carregar
+
+    const storageKey = `horus_welcome_played_${userId}`;
     if (localStorage.getItem(storageKey)) return;
 
-    const timer = setTimeout(() => {
-      const audio = new Audio(HORUS_WELCOME_AUDIO_URL);
-      audioRef.current = audio;
-      audio.volume = 0.85;
-      audio.play()
-        .then(() => {
-          setAudioPlaying(true);
-          setShowWelcomeBanner(true);
-          localStorage.setItem(storageKey, '1');
-        })
-        .catch(() => {
-          // Autoplay bloqueado — mostra banner para o usuário clicar
-          setShowWelcomeBanner(true);
+    // Marca como tocado imediatamente para não repetir em re-renders
+    localStorage.setItem(storageKey, '1');
+
+    let cancelled = false;
+
+    const playSequence = async () => {
+      setShowWelcomeBanner(true);
+
+      // ── PARTE 1: TTS personalizado ──────────────────────────────────────
+      try {
+        setAudioLabel(`Hórus: "Seja bem-vindo, ${userName}..."`);
+        setAudioPlaying(true);
+
+        const ttsRes = await fetch(
+          `https://${SUPABASE_PROJECT_REF}.supabase.co/functions/v1/elevenlabs-tts`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: TTS_GREETING(userName) }),
+          }
+        );
+
+        if (!cancelled && ttsRes.ok) {
+          const blob = await ttsRes.blob();
+          const url = URL.createObjectURL(blob);
+          const part1 = new Audio(url);
+          audioRef.current = part1;
+          part1.volume = 0.85;
+
+          await new Promise<void>((resolve) => {
+            part1.addEventListener('ended', () => {
+              URL.revokeObjectURL(url);
+              resolve();
+            });
+            part1.addEventListener('error', () => {
+              URL.revokeObjectURL(url);
+              resolve();
+            });
+            part1.play().catch(() => resolve());
+          });
+        }
+      } catch {
+        // TTS falhou — continua para parte 2 sem bloquear
+      }
+
+      if (cancelled) return;
+
+      // ── PARTE 2: inicio.mp3 do Supabase Storage ─────────────────────────
+      try {
+        setAudioLabel('Hórus está falando com você...');
+        const part2 = new Audio(INICIO_AUDIO_URL);
+        audioRef.current = part2;
+        part2.volume = 0.85;
+
+        await new Promise<void>((resolve) => {
+          part2.addEventListener('ended', () => {
+            setAudioPlaying(false);
+            resolve();
+          });
+          part2.addEventListener('error', () => {
+            setAudioPlaying(false);
+            resolve();
+          });
+          part2.play().catch(() => {
+            setAudioPlaying(false);
+            resolve();
+          });
         });
-
-      audio.addEventListener('ended', () => {
+      } catch {
         setAudioPlaying(false);
-      });
-    }, 1500);
+      }
+    };
 
-    return () => clearTimeout(timer);
+    const timer = setTimeout(() => { playSequence(); }, 1500);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, subLoading, hasAccess, isAuthenticated]);
+  }, [authLoading, subLoading, hasAccess, isAuthenticated, profile?.id, profile?.username, profile?.full_name]);
 
   const handleToggleMute = () => {
     if (!audioRef.current) return;
@@ -126,16 +199,18 @@ export default function Index() {
     setAudioMuted(!audioMuted);
   };
 
+  // Replay manual (toca apenas o inicio.mp3)
   const handlePlayAudio = () => {
-    if (!HORUS_WELCOME_AUDIO_URL) return;
-    if (!audioRef.current) {
-      const audio = new Audio(HORUS_WELCOME_AUDIO_URL);
-      audioRef.current = audio;
-      audio.volume = 0.85;
-      audio.addEventListener('ended', () => setAudioPlaying(false));
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
     }
-    audioRef.current.currentTime = 0;
-    audioRef.current.play().then(() => setAudioPlaying(true)).catch(() => {});
+    const audio = new Audio(INICIO_AUDIO_URL);
+    audioRef.current = audio;
+    audio.volume = audioMuted ? 0 : 0.85;
+    audio.muted = audioMuted;
+    audio.addEventListener('ended', () => setAudioPlaying(false));
+    audio.play().then(() => setAudioPlaying(true)).catch(() => {});
   };
 
   const handleLogout = async () => {
@@ -178,29 +253,23 @@ export default function Index() {
                   <span className="text-sm">🤖</span>
                 </div>
                 <p className="font-mono text-xs text-foreground/90">
-                  {audioPlaying
-                    ? 'Hórus está falando com você...'
-                    : HORUS_WELCOME_AUDIO_URL
-                      ? 'Hórus tem uma mensagem para você'
-                      : 'Bem-vindo ao Oráculo Mycroft — a primeira IA que varre o mercado por você.'}
+                  {audioPlaying ? audioLabel : 'Hórus tem uma mensagem para você'}
                 </p>
-                {HORUS_WELCOME_AUDIO_URL && (
-                  <div className="flex items-center gap-1.5">
-                    {!audioPlaying && (
-                      <button
-                        onClick={handlePlayAudio}
-                        className="flex items-center gap-1 font-mono text-[10px] text-primary hover:text-primary/80 border border-primary/30 rounded px-2 py-0.5"
-                      >
-                        <Play className="w-2.5 h-2.5" /> Ouvir
-                      </button>
-                    )}
-                    {audioPlaying && (
-                      <button onClick={handleToggleMute} className="text-muted-foreground hover:text-foreground">
-                        {audioMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
-                      </button>
-                    )}
-                  </div>
-                )}
+                <div className="flex items-center gap-1.5">
+                  {!audioPlaying && (
+                    <button
+                      onClick={handlePlayAudio}
+                      className="flex items-center gap-1 font-mono text-[10px] text-primary hover:text-primary/80 border border-primary/30 rounded px-2 py-0.5"
+                    >
+                      <Play className="w-2.5 h-2.5" /> Ouvir
+                    </button>
+                  )}
+                  {audioPlaying && (
+                    <button onClick={handleToggleMute} className="text-muted-foreground hover:text-foreground">
+                      {audioMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+                    </button>
+                  )}
+                </div>
               </div>
               <button onClick={() => setShowWelcomeBanner(false)} className="text-muted-foreground hover:text-foreground flex-shrink-0">
                 <X className="w-4 h-4" />
