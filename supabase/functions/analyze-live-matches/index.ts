@@ -1285,6 +1285,7 @@ serve(async (req) => {
             market: analysis.market || 'N/A',
             thesis: analysis.thesis || 'Análise sem tese.',
             odd: _oddToPersist,
+            stake_pct: typeof analysis.stake_pct === 'number' && analysis.stake_pct > 0 ? analysis.stake_pct : null,
             confidence: analysis.confidence ?? 0,
             risk_management: analysis.risk_management ?? null,
             alerts: Array.isArray(analysis.alerts) ? analysis.alerts.filter((a: any) => typeof a === 'string') : [],

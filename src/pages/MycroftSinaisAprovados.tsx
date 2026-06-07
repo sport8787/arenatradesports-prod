@@ -12,6 +12,7 @@ interface ApprovedSignal {
   market: string;
   verdict: string;
   odd: number | null;
+  stake_pct: number | null;
   confidence: number | null;
   thesis: string | null;
   plan_name: string | null;
@@ -225,8 +226,15 @@ function computeStats(rows: ApprovedSignal[]): ComputedStats {
       odd = marketOddAvg(row.market) ?? fallbackOddByMarket(row.market) ?? 0;
     }
     if (!Number.isFinite(odd) || odd <= 1) continue;
-    stakeUnits += 1;
-    pnlUnits += normalizeResult(row.result) === 'green' ? odd - 1 : -1;
+
+    // Stake: usa stake_pct da IA; fallback por verdict (APROVADO_SITUACIONAL=2%, outros=5%)
+    let stake = Number(row.stake_pct);
+    if (!Number.isFinite(stake) || stake <= 0) {
+      stake = row.verdict === 'APROVADO_SITUACIONAL' ? 2 : 5;
+    }
+
+    stakeUnits += stake;
+    pnlUnits += normalizeResult(row.result) === 'green' ? stake * (odd - 1) : -stake;
   }
 
   return { greens, reds, pendings, pnlUnits, stakeUnits };
@@ -279,7 +287,7 @@ export default function MycroftSinaisAprovados() {
         while (true) {
           const { data: page, error } = await supabase
             .from('mycroft_analyses')
-            .select('id, match_id, market, verdict, odd, confidence, thesis, plan_name, result, final_score_home, final_score_away, settled_at, approved_at_timestamp, created_at')
+            .select('id, match_id, market, verdict, odd, stake_pct, confidence, thesis, plan_name, result, final_score_home, final_score_away, settled_at, approved_at_timestamp, created_at')
             .in('verdict', [...APPROVED_VERDICTS])
             .or(`settled_at.gte.${since},approved_at_timestamp.gte.${since},and(approved_at_timestamp.is.null,created_at.gte.${since})`)
             .order('created_at', { ascending: false })
@@ -661,6 +669,7 @@ function SignalCard({ signal, onClick }: { signal: ApprovedSignal; onClick: () =
       <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1">
         <span>{eventLabel}: {formatDate(eventDate)}</span>
         {signal.confidence != null && <span>Conf. {signal.confidence}%</span>}
+        {signal.stake_pct != null && <span>Stake {signal.stake_pct}%</span>}
         {signal.plan_name && <span className="text-primary font-orbitron">{signal.plan_name}</span>}
       </div>
     </motion.button>
