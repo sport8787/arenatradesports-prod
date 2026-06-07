@@ -132,22 +132,28 @@ function applyMarketSanityVeto(params: {
   };
 }
 
-async function callGemini(prompt: string, timeoutMs = 20_000): Promise<{ json: any; ms: number; raw: string }> {
-  const t0 = Date.now();
+const SYSTEM_PROMPT = "Você é o Mycroft, analista frio e dedutivo de trading esportivo ao vivo. Responde SOMENTE em JSON pt-br válido.";
+
+function parseJson(raw: string): any {
+  try { return JSON.parse(raw); } catch {
+    const m = raw.match(/\{[\s\S]*\}/);
+    if (m) { try { return JSON.parse(m[0]); } catch { /* ignore */ } }
+  }
+  return null;
+}
+
+async function callGroq(prompt: string, timeoutMs = 20_000): Promise<{ raw: string }> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const resp = await fetch(GATEWAY, {
+    const resp = await fetch(GROQ_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${GROQ_API_KEY}`,
-      },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_API_KEY}` },
       signal: ctrl.signal,
       body: JSON.stringify({
-        model: MODEL,
+        model: GROQ_MODEL,
         messages: [
-          { role: "system", content: "Você é o Mycroft, analista frio e dedutivo de trading esportivo ao vivo. Responde SOMENTE em JSON pt-br válido." },
+          { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: prompt },
         ],
         temperature: 0.2,
@@ -157,19 +163,36 @@ async function callGemini(prompt: string, timeoutMs = 20_000): Promise<{ json: a
     });
     if (!resp.ok) {
       const txt = await resp.text().catch(() => "");
-      throw new Error(`HTTP ${resp.status} ${txt.slice(0, 200)}`);
+      throw new Error(`Groq HTTP ${resp.status} ${txt.slice(0, 200)}`);
     }
     const data = await resp.json();
-    const raw = data?.choices?.[0]?.message?.content ?? "";
-    let parsed: any = null;
-    try { parsed = JSON.parse(raw); } catch {
-      const m = raw.match(/\{[\s\S]*\}/);
-      if (m) { try { parsed = JSON.parse(m[0]); } catch { /* ignore */ } }
-    }
-    return { json: parsed, ms: Date.now() - t0, raw };
+    return { raw: data?.choices?.[0]?.message?.content ?? "" };
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function callAi(prompt: string): Promise<{ json: any; ms: number; raw: string; provider: "deepseek" | "groq"; model: string }> {
+  const t0 = Date.now();
+  // 1) DeepSeek primário
+  if (DEEPSEEK_KEY) {
+    try {
+      const raw = await callDeepseek(SYSTEM_PROMPT, prompt, {
+        model: DEEPSEEK_MODEL,
+        temperature: 0.2,
+        max_tokens: 700,
+        response_format_json: true,
+        timeoutMs: 25_000,
+      });
+      return { json: parseJson(raw), ms: Date.now() - t0, raw, provider: "deepseek", model: DEEPSEEK_MODEL };
+    } catch (e) {
+      console.warn(`[ShadowAI] DeepSeek falhou, fallback Groq: ${(e as Error).message}`);
+    }
+  }
+  // 2) Fallback Groq
+  if (!GROQ_API_KEY) throw new Error("Sem providers disponíveis (DEEPSEEK_API_KEY e GROQ_API_KEY ausentes)");
+  const { raw } = await callGroq(prompt);
+  return { json: parseJson(raw), ms: Date.now() - t0, raw, provider: "groq", model: GROQ_MODEL };
 }
 
 function buildPrompt(m: any): string {
