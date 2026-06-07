@@ -48,8 +48,8 @@ export function RequireSubscription({ children }: RequireSubscriptionProps) {
   }
 
   if (!hasAccess) {
-    // Usuário logado sem assinatura → oferta Day Pass (R$ 9,90 / 24h)
-    return <Navigate to="/lobby-preview" replace />;
+    // Usuário logado sem assinatura → lobby (onde vê a oferta Day Pass + video tutorial)
+    return <Navigate to="/lobby" replace />;
   }
 
   return <>{children}</>;

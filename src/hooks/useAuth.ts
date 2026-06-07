@@ -146,7 +146,7 @@ export const useAuth = () => {
     }
 
     const { email: cleanEmail, password: cleanPassword, username: cleanUsername, fullName: cleanFullName } = parsed.data;
-    const redirectUrl = `${window.location.origin}/punter`;
+    const redirectUrl = `${window.location.origin}/lobby`;
 
     const { data, error } = await supabase.auth.signUp({
       email: cleanEmail,
