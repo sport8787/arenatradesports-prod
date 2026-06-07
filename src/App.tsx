@@ -84,6 +84,7 @@ const PunterFunctions = React.lazy(() => import("./pages/PunterFunctions"));
 const PunterBancaVirtual = React.lazy(() => import("./pages/PunterBancaVirtual"));
 const PunterAnaliseManual = React.lazy(() => import("./pages/PunterAnaliseManual"));
 const PunterAprovadas = React.lazy(() => import("./pages/PunterAprovadas"));
+const PunterCopa = React.lazy(() => import("./pages/PunterCopa"));
 const PunterLiquidacoes = React.lazy(() => import("./pages/PunterLiquidacoes"));
 const PunterFeedEventos = React.lazy(() => import("./pages/PunterFeedEventos"));
 const PunterComunidade = React.lazy(() => import("./pages/PunterComunidade"));
