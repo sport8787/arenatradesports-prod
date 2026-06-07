@@ -254,6 +254,34 @@ serve(async (req) => {
       borderlineAIEnabled = kill?.is_enabled ?? true;
     } catch { /* default ON */ }
 
+    // Modo Copa 2026: carrega flag + fixtures da Copa (próximas 36h) para tag S-COPA
+    let modoCopa = false;
+    const copaFixturesByKey = new Map<string, any>();
+    try {
+      const { data: gate } = await supabase
+        .from('punter_gate_config')
+        .select('modo_copa, copa_end_date')
+        .limit(1).maybeSingle();
+      const endDate = gate?.copa_end_date ? new Date(gate.copa_end_date) : null;
+      modoCopa = !!gate?.modo_copa && (!endDate || endDate.getTime() >= Date.now());
+      if (modoCopa) {
+        const horizon = new Date(Date.now() + 36 * 3600_000).toISOString();
+        const { data: fx } = await supabase
+          .from('copa_fixtures')
+          .select('home, away, phase, home_fifa_pts, away_fifa_pts, commence_time')
+          .lte('commence_time', horizon)
+          .gte('commence_time', new Date(Date.now() - 6 * 3600_000).toISOString());
+        for (const f of (fx || [])) {
+          const k = `${(f.home || '').toLowerCase().trim()}|${(f.away || '').toLowerCase().trim()}`;
+          copaFixturesByKey.set(k, f);
+        }
+        console.log(`[AnalyzeLive][COPA] modo_copa=ON · ${copaFixturesByKey.size} fixtures Copa carregados`);
+      }
+    } catch (e) {
+      console.warn('[AnalyzeLive][COPA] falha ao carregar contexto Copa:', (e as Error)?.message);
+    }
+
+
     // Helper: check if match has special early context
     const hasSpecialEarlyContext = (m: any): boolean => {
       const stats = m.stats || {};
