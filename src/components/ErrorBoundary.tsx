@@ -150,10 +150,29 @@ export class ErrorBoundary extends Component<Props, State> {
     console.error('[ErrorBoundary] Caught error:', error);
     console.error('[ErrorBoundary] Component stack:', errorInfo.componentStack);
 
+    const msg = error?.message || '';
+
+    // Auto-reload silencioso: chunk JS desatualizado após novo deploy (Vercel).
+    const isChunkError =
+      msg.includes('Failed to fetch dynamically imported module') ||
+      msg.includes('Importing a module script failed') ||
+      msg.includes('error loading dynamically imported module') ||
+      /Loading chunk \d+ failed/i.test(msg);
+
+    if (isChunkError) {
+      const alreadyReloaded = sessionStorage.getItem('chunk_reload');
+      if (!alreadyReloaded) {
+        console.warn('[ErrorBoundary] Chunk desatualizado detectado — recarregando automaticamente.');
+        sessionStorage.setItem('chunk_reload', '1');
+        window.location.reload();
+        return;
+      }
+      sessionStorage.removeItem('chunk_reload');
+    }
+
     // Auto-recover from DOM mutation errors caused by browser extensions
     // (Chrome auto-translate, Grammarly, LanguageTool, etc.) that wrap text
     // nodes and conflict with React's reconciliation.
-    const msg = error?.message || '';
     const isExtensionDomError =
       msg.includes('removeChild') ||
       msg.includes('insertBefore') ||
@@ -162,7 +181,6 @@ export class ErrorBoundary extends Component<Props, State> {
 
     if (isExtensionDomError) {
       console.warn('[ErrorBoundary] Extension-induced DOM error detected — auto-recovering.');
-      // Reset on next tick so React can re-render cleanly.
       setTimeout(() => {
         this.setState({ hasError: false, error: null, errorInfo: null });
       }, 50);
