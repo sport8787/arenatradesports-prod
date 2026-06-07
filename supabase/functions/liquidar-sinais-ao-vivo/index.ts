@@ -220,6 +220,103 @@ async function sofaFallback(home: string, away: string, isoDate: string): Promis
   }
 }
 
+/**
+ * Deriva o resultado (green/red) de um sinal aprovado com base no mercado e placar final.
+ * Cobre os principais mercados do motor determinístico.
+ */
+function deriveMarketResult(
+  market: string,
+  finalHome: number,
+  finalAway: number,
+  htHome: number | null,
+  htAway: number | null,
+  approvedHome: number,
+  approvedAway: number,
+): "green" | "red" | null {
+  const m = (market || "").toLowerCase().trim();
+  const total = finalHome + finalAway;
+  const htTotal = (htHome ?? 0) + (htAway ?? 0);
+  const isHT = m.includes(" ht") || m.includes("(ht)") || m.includes("1t") || m.includes("primeiro tempo") || m.includes("half time");
+
+  // Over X.5
+  const overMatch = m.match(/over\s+(\d+(?:[.,]\d+)?)/);
+  if (overMatch) {
+    const line = parseFloat(overMatch[1].replace(",", "."));
+    const goals = isHT ? htTotal : total;
+    return goals > line ? "green" : "red";
+  }
+
+  // Under X.5
+  const underMatch = m.match(/under\s+(\d+(?:[.,]\d+)?)/);
+  if (underMatch) {
+    const line = parseFloat(underMatch[1].replace(",", "."));
+    const goals = isHT ? htTotal : total;
+    return goals < line ? "green" : "red";
+  }
+
+  // BTTS / Ambas Marcam
+  if (m.includes("btts") || m.includes("ambas") || m.includes("both teams to score") || m.includes("gg")) {
+    const bttsSim = finalHome > 0 && finalAway > 0;
+    const isNao = m.includes("não") || m.includes("nao") || m.includes(" no") || m.includes("ng");
+    return (isNao ? !bttsSim : bttsSim) ? "green" : "red";
+  }
+
+  // 1X2 / Match Odds
+  if (m.includes("vitória casa") || m.includes("home win") || m === "1" || m.includes("1x2 casa") || m.includes("back casa")) {
+    return finalHome > finalAway ? "green" : "red";
+  }
+  if (m.includes("vitória fora") || m.includes("away win") || m === "2" || m.includes("1x2 fora") || m.includes("back fora")) {
+    return finalHome < finalAway ? "green" : "red";
+  }
+  if (m.includes("empate") || m.includes("draw") || m === "x" || m.includes("back empate")) {
+    return finalHome === finalAway ? "green" : "red";
+  }
+
+  // Double Chance (DC)
+  if (m.includes("1x") || m.includes("dc 1x")) return finalHome >= finalAway ? "green" : "red";
+  if (m.includes("x2") || m.includes("dc x2")) return finalHome <= finalAway ? "green" : "red";
+  if (m.includes("12") || m.includes("dc 12")) return finalHome !== finalAway ? "green" : "red";
+
+  // Asian Handicap
+  const ahMatch = m.match(/ah?\s*([-+]?\d+(?:[.,]\d+)?)\s*(casa|fora|home|away)?/);
+  if (ahMatch) {
+    const line = parseFloat(ahMatch[1].replace(",", "."));
+    const side = ahMatch[2] || (m.includes("fora") || m.includes("away") ? "away" : "home");
+    const isAway = side === "fora" || side === "away";
+    const handicap = isAway ? finalAway - finalHome + line : finalHome - finalAway + line;
+    if (handicap > 0) return "green";
+    if (handicap < 0) return "red";
+    return null; // push/void (linha exata)
+  }
+
+  // Próximo Gol / Gols Restantes
+  if (m.includes("próximo gol") || m.includes("proximo gol") || m.includes("gols restantes") || m.includes("next goal")) {
+    const newHome = finalHome - approvedHome;
+    const newAway = finalAway - approvedAway;
+    const anyGoal = newHome + newAway > 0;
+    if (!anyGoal) return null; // jogo não teve mais gols ainda
+    if (m.includes("casa") || m.includes("home")) return newHome > 0 ? "green" : "red";
+    if (m.includes("fora") || m.includes("away")) return newAway > 0 ? "green" : "red";
+    return anyGoal ? "green" : "red"; // fallback: qualquer gol = green
+  }
+
+  // BACK 0x0
+  if (m.includes("0x0") || m.includes("0-0") || m.includes("back 0")) {
+    return (finalHome === 0 && finalAway === 0) ? "green" : "red";
+  }
+
+  // LAY markets (inverso)
+  if (m.startsWith("lay ")) {
+    const inner = m.slice(4).trim();
+    const r = deriveMarketResult(inner, finalHome, finalAway, htHome, htAway, approvedHome, approvedAway);
+    if (r === "green") return "red";
+    if (r === "red") return "green";
+    return null;
+  }
+
+  return null; // mercado não reconhecido
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
@@ -331,14 +428,105 @@ Deno.serve(async (req) => {
     settled++;
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // PASSO 2 — Liquida mycroft_analyses (sinais aprovados ao vivo pelo motor IA)
+  // mycroft_analyses nunca tinha o result preenchido porque o passo 1 só toca live_sinais.
+  // ─────────────────────────────────────────────────────────────────────────
+  const APPROVED_VERDICTS = ["APROVADO", "APROVADO_SITUACIONAL", "LABAREDA"];
+
+  const { data: pendingAnalyses, error: aErr } = await supabase
+    .from("mycroft_analyses")
+    .select("id, match_id, market, odd, approved_at_score_home, approved_at_score_away, created_at, stats_snapshot")
+    .in("verdict", APPROVED_VERDICTS)
+    .is("result", null)
+    .gte("created_at", windowStart)
+    .lte("created_at", cutoff)
+    .order("created_at", { ascending: false })
+    .limit(300);
+
+  if (aErr) {
+    console.error("[liquidar] mycroft_analyses query error", aErr.message);
+  }
+
+  let settledAnalyses = 0;
+  let stillPendingAnalyses = 0;
+
+  for (const analysis of pendingAnalyses ?? []) {
+    // Extrai times do stats_snapshot (único lugar onde temos home/away team no mycroft_analyses)
+    const snap = analysis.stats_snapshot || {};
+    const home: string = snap.home_team || snap.home || "";
+    const away: string = snap.away_team || snap.away || "";
+    const signalDay = new Date(analysis.created_at).toISOString().slice(0, 10);
+
+    if (!home || !away) {
+      stillPendingAnalyses++;
+      continue;
+    }
+
+    const cacheKey = `${signalDay}|${norm(home)}|${norm(away)}`;
+    let fs: FinalScore | null;
+    if (fsCache.has(cacheKey)) {
+      fs = fsCache.get(cacheKey)!;
+    } else {
+      if (!futoddsByDayCache.has(signalDay)) {
+        futoddsByDayCache.set(signalDay, await futoddsByDate(signalDay));
+      }
+      fs = findFutodds(futoddsByDayCache.get(signalDay) ?? [], home, away);
+      if (!fs) fs = await smFallback(home, away, analysis.created_at);
+      if (!fs) fs = await sofaFallback(home, away, analysis.created_at);
+      fsCache.set(cacheKey, fs);
+    }
+
+    if (!fs) { stillPendingAnalyses++; continue; }
+
+    // Deriva o resultado com base no mercado e placar final
+    const result = deriveMarketResult(
+      analysis.market,
+      fs.home, fs.away,
+      fs.ht_home, fs.ht_away,
+      Number(analysis.approved_at_score_home ?? 0),
+      Number(analysis.approved_at_score_away ?? 0),
+    );
+
+    if (!result) {
+      console.log(`[liquidar] ⚠️ mercado sem lógica: ${analysis.market}`);
+      continue;
+    }
+
+    const odd = Number(analysis.odd ?? DEFAULT_SETTLEMENT_ODD);
+    const profit_loss = result === "green" ? (odd - 1) : -1; // em unidades de stake
+
+    const { error: upErr } = await supabase
+      .from("mycroft_analyses")
+      .update({
+        result,
+        final_score_home: fs.home,
+        final_score_away: fs.away,
+        settled_at: new Date().toISOString(),
+      })
+      .eq("id", analysis.id)
+      .is("result", null);
+
+    if (upErr) {
+      console.error("[liquidar] mycroft_analyses update error", analysis.id, upErr.message);
+      continue;
+    }
+
+    console.log(`[liquidar] ✅ mycroft_analyses liquidado: ${home} ${fs.home}-${fs.away} ${away} | ${analysis.market} → ${result}`);
+    settledAnalyses++;
+  }
+
   const elapsed = Date.now() - startedAt;
-  console.log(`[liquidar] today=${today} days_back=${daysBack} pendentes=${list.length} liquidados=${settled} sem_placar=${stillPending} mercado_desconhecido=${unknownMarket} (${elapsed}ms)`);
+  console.log(`[liquidar] today=${today} days_back=${daysBack}`
+    + ` live_sinais: pendentes=${list.length} liquidados=${settled} sem_placar=${stillPending} mercado_desconhecido=${unknownMarket}`
+    + ` | mycroft_analyses: liquidados=${settledAnalyses} sem_placar=${stillPendingAnalyses}`
+    + ` (${elapsed}ms)`);
 
   return new Response(JSON.stringify({
     ok: true, today,
     days_back: daysBack,
-    pending_total: list.length,
-    settled, no_score_yet: stillPending, unknown_market: unknownMarket,
-    examples, elapsed_ms: elapsed,
+    live_sinais: { pending_total: list.length, settled, no_score_yet: stillPending, unknown_market: unknownMarket, examples },
+    mycroft_analyses: { pending_total: pendingAnalyses?.length ?? 0, settled: settledAnalyses, no_score_yet: stillPendingAnalyses },
+    elapsed_ms: elapsed,
   }), { headers: { ...cors, "Content-Type": "application/json" } });
 });

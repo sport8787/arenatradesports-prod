@@ -33,6 +33,14 @@ interface SettledBet {
   settled_at: string | null;
   cashout_value: number | null;
   cashed_out_at: string | null;
+  // campos extras vindos de mycroft_analyses
+  verdict?: string | null;
+  confidence?: number | null;
+  thesis?: string | null;
+  home_team?: string | null;
+  away_team?: string | null;
+  championship?: string | null;
+  source?: 'virtual_bets' | 'mycroft_analyses';
 }
 
 type ResultFilter = 'all' | 'gren' | 'red' | 'cashout';
@@ -103,20 +111,92 @@ export default function LiquidationsHistory() {
 
     async function fetchAll() {
       setLoading(true);
-      const { data } = await supabase
+
+      // Busca virtual_bets liquidadas (apostas registradas manualmente / Hórus)
+      const { data: vbData } = await supabase
         .from('virtual_bets')
         .select('id, match_name, market, odd, stake, status, profit_loss, score_home, score_away, settled_at, cashout_value, cashed_out_at')
         .eq('user_id', user!.id)
         .in('status', ['won', 'lost', 'cashout'])
         .order('settled_at', { ascending: false });
 
-      setBets((data as any[] as SettledBet[]) || []);
+      const virtualBets: SettledBet[] = ((vbData as any[]) || []).map((b) => ({
+        ...b,
+        source: 'virtual_bets' as const,
+      }));
+
+      // Busca mycroft_analyses liquidadas (motor determinístico ao vivo)
+      const { data: maData } = await supabase
+        .from('mycroft_analyses')
+        .select('id, match_id, market, odd, confidence, verdict, thesis, result, final_score_home, final_score_away, settled_at, approved_at_score_home, approved_at_score_away, stats_snapshot, created_at')
+        .in('verdict', ['APROVADO', 'APROVADO_SITUACIONAL', 'LABAREDA'])
+        .not('result', 'is', null)
+        .order('settled_at', { ascending: false })
+        .limit(500);
+
+      const DEFAULT_STAKE = 5; // stake padrão em unidades para exibição
+
+      const analysesSettled: SettledBet[] = ((maData as any[]) || []).map((a) => {
+        const snap = a.stats_snapshot || {};
+        const homeTeam = snap.home_team || snap.home || null;
+        const awayTeam = snap.away_team || snap.away || null;
+        const championship = snap.championship || snap.league || null;
+        const matchName = homeTeam && awayTeam ? `${homeTeam} vs ${awayTeam}` : (championship || 'Jogo');
+
+        const odd = Number(a.odd ?? 1.85);
+        const result = String(a.result || '').toLowerCase();
+        const isGreen = result === 'green' || result === 'half_green';
+        const pnl = isGreen ? (odd - 1) * DEFAULT_STAKE : -DEFAULT_STAKE;
+
+        return {
+          id: a.id,
+          match_name: matchName,
+          market: a.market || '—',
+          odd,
+          stake: DEFAULT_STAKE,
+          status: isGreen ? 'won' : 'lost',
+          profit_loss: pnl,
+          score_home: a.final_score_home ?? null,
+          score_away: a.final_score_away ?? null,
+          settled_at: a.settled_at,
+          cashout_value: null,
+          cashed_out_at: null,
+          verdict: a.verdict,
+          confidence: a.confidence,
+          thesis: a.thesis,
+          home_team: homeTeam,
+          away_team: awayTeam,
+          championship,
+          source: 'mycroft_analyses' as const,
+        };
+      });
+
+      // Merge: mycroft_analyses como primário (dados confiáveis do motor determinístico)
+      // virtual_bets como complemento (apostas manuais com stake/P&L real)
+      // Deduplica por match+market para evitar duplicatas se existirem nas duas tabelas
+      const seen = new Set<string>();
+      const merged: SettledBet[] = [];
+      for (const b of [...analysesSettled, ...virtualBets]) {
+        const key = `${b.match_name}::${b.market}::${b.settled_at?.slice(0, 10) || ''}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          merged.push(b);
+        }
+      }
+      merged.sort((a, b) =>
+        new Date(b.settled_at || b.cashed_out_at || 0).getTime() -
+        new Date(a.settled_at || a.cashed_out_at || 0).getTime()
+      );
+
+      setBets(merged);
       setLoading(false);
     }
+
     fetchAll();
 
     const channel = supabase
       .channel(`liquidations_${user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'mycroft_analyses' }, () => fetchAll())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'virtual_bets', filter: `user_id=eq.${user.id}` }, () => fetchAll())
       .subscribe();
 
@@ -554,6 +634,9 @@ export default function LiquidationsHistory() {
                         <div className="flex-1 min-w-0">
                           <p className="font-orbitron text-xs font-bold text-foreground truncate">{bet.match_name}</p>
                           <p className="text-xs text-muted-foreground mt-0.5">{bet.market} @ {Number(bet.odd).toFixed(2)}</p>
+                          {bet.source === 'mycroft_analyses' && bet.verdict && (
+                            <p className="text-[10px] text-primary/70 font-mono mt-0.5">⚙️ Motor Det. · {bet.verdict}{bet.confidence ? ` · ${bet.confidence}%` : ''}</p>
+                          )}
                         </div>
 
                         <Tooltip>
