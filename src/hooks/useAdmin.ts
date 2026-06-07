@@ -1,10 +1,16 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
+// Cache module-level: resultado do check admin sobrevive navegação entre rotas.
+// Evita múltiplas chamadas RPC redundantes e race conditions onde isAdmin=false
+// durante loading causa redirect prematuro nos componentes filhos.
+let _adminCache: { isAdmin: boolean; userId: string | null } | null = null;
+
 export function useAdmin() {
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [userId, setUserId] = useState<string | null>(null);
+  const cached = _adminCache;
+  const [isAdmin, setIsAdmin] = useState(cached?.isAdmin ?? false);
+  const [loading, setLoading] = useState(cached === null); // já tem cache → não loading
+  const [userId, setUserId] = useState<string | null>(cached?.userId ?? null);
 
   useEffect(() => {
     let cancelled = false;
@@ -17,7 +23,17 @@ export function useAdmin() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
 
+        // Se cache já tem resultado para este usuário, não chama RPC de novo
+        if (_adminCache && user && _adminCache.userId === user.id) {
+          if (!cancelled) {
+            setIsAdmin(_adminCache.isAdmin);
+            setLoading(false);
+          }
+          return;
+        }
+
         if (!user) {
+          _adminCache = null; // limpa cache ao sair
           if (!cancelled) {
             setIsAdmin(false);
             setLoading(false);
@@ -36,8 +52,11 @@ export function useAdmin() {
         if (error) {
           console.error('Error checking admin role:', error);
           setIsAdmin(false);
+          _adminCache = { isAdmin: false, userId: user.id };
         } else {
-          setIsAdmin(!!data);
+          const result = !!data;
+          setIsAdmin(result);
+          _adminCache = { isAdmin: result, userId: user.id };
         }
       } catch (e) {
         console.error('checkAdmin threw:', e);
