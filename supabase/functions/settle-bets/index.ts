@@ -193,12 +193,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!oddsApiKey) {
-      return new Response(JSON.stringify({ error: 'No API key configured (THE_ODDS_API_KEY)' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    // The Odds API é apenas fallback — Sportmonks é a fonte primária. Não bloquear.
 
     // 1. Fetch all pending bets
     const betsQuery = supabase.from('virtual_bets').select('*').eq('status', 'pending');
@@ -403,6 +398,16 @@ Deno.serve(async (req) => {
             updated_at: new Date().toISOString(),
           })
           .eq('user_id', bet.user_id);
+      }
+
+      // Recompensa BC: 10 BC por green na banca virtual
+      if (result.isGreen) {
+        try {
+          await supabase.rpc('increment_bc_balance', { p_user_id: bet.user_id, p_amount: 10 });
+          console.log(`[settle-bets] +10 BC para ${bet.user_id} (green)`);
+        } catch (e) {
+          console.warn('[settle-bets] BC reward falhou:', (e as Error).message);
+        }
       }
 
       settledCount++;
