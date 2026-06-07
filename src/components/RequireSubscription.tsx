@@ -15,10 +15,10 @@ export function RequireSubscription({ children }: RequireSubscriptionProps) {
   const location = useLocation();
 
   // Mostra splash enquanto auth ou subscription/admin estão carregando.
-  // Também trata a janela em que o usuário já existe mas a subscription ainda
-  // não foi buscada (subscription === null e loading=false por uma fração de segundo)
-  // — sem isso, admins eram redirecionados para /paywall ao dar F5.
-  const stillResolving = authLoading || loading || (!!user && subscription === null && !hasAccess);
+  // useSubscription.loading já inclui adminLoading + authLoading, então quando
+  // loading=false temos a resposta definitiva. Não usar subscription===null como
+  // critério adicional pois causa spinner infinito para usuários sem assinatura.
+  const stillResolving = authLoading || loading;
 
   if (stillResolving) {
     return (
