@@ -1262,6 +1262,11 @@ export default function PunterPage() {
     const matchName = `${signal.match.home_team} vs ${signal.match.away_team}`;
     const matchId = `${signal.match.home_team}_${signal.match.away_team}`.replace(/\s+/g, '_');
 
+    if (!signal.recommendation.odd || signal.recommendation.odd <= 1) {
+      toast.error('Odd não disponível para este sinal. Tente novamente em instantes.');
+      return;
+    }
+
     const assetScoreResult = calculateAssetScore({
       value_percentage: signal.recommendation.value_percentage,
       confidence: signal.recommendation.confidence,
