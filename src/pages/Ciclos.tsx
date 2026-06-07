@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, TrendingUp, AlertTriangle, RotateCcw, CheckCircle2, Wallet, Target, Trophy, Bot, PauseCircle, PlayCircle } from 'lucide-react';
+import { ArrowLeft, Loader2, TrendingUp, AlertTriangle, RotateCcw, CheckCircle2, Wallet, Target, Trophy, Bot, PauseCircle, PlayCircle, BarChart2, TrendingDown, Percent } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -198,6 +198,7 @@ export default function Ciclos() {
             <HorusPilotPanel bk={bk} onToggle={handleTogglePilot} onResume={handleResumePilot} />
             <ActivePanel bk={bk} onOpenRegister={openRegister} onAdvance={handleAdvance} onReset={handleReset} />
             <CyclesTimeline bk={bk} />
+            <CiclosROI entries={entries} bk={bk} />
             <EntriesHistory entries={entries} />
             <NettunoRules />
           </>
@@ -517,6 +518,140 @@ function CyclesTimeline({ bk }: { bk: CycleBankroll }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function CiclosROI({ entries, bk }: { entries: CycleEntry[]; bk: CycleBankroll }) {
+  const stats = useMemo(() => {
+    if (entries.length === 0) return null;
+
+    const greens = entries.filter(e => e.result === 'green');
+    const reds   = entries.filter(e => e.result === 'red');
+    const voids  = entries.filter(e => e.result === 'void');
+
+    const totalProfit = greens.reduce((s, e) => s + e.profit_loss, 0);
+    const totalLoss   = reds.reduce((s, e) => s + e.profit_loss, 0);
+    const netPnl      = totalProfit - totalLoss;
+
+    // ROI sobre a banca isolada inicial
+    const roi = bk.initial_bankroll > 0
+      ? ((netPnl / bk.initial_bankroll) * 100)
+      : 0;
+
+    // Win rate (excluindo voids)
+    const decididos = greens.length + reds.length;
+    const winRate = decididos > 0 ? (greens.length / decididos) * 100 : 0;
+
+    // Sequência atual de greens
+    let currentStreak = 0;
+    for (const e of entries) {
+      if (e.result === 'green') currentStreak++;
+      else if (e.result === 'red') break;
+      else continue;
+    }
+
+    // Maior sequência de greens
+    let maxStreak = 0, streak = 0;
+    for (const e of [...entries].reverse()) {
+      if (e.result === 'green') { streak++; maxStreak = Math.max(maxStreak, streak); }
+      else if (e.result === 'red') streak = 0;
+    }
+
+    // Evolução da banca por ciclo (para mini-gráfico textual)
+    const byDay: Record<string, number> = {};
+    for (const e of [...entries].reverse()) {
+      const day = e.created_at.slice(0, 10);
+      byDay[day] = (byDay[day] ?? 0) + (e.result === 'green' ? e.profit_loss : e.result === 'red' ? -e.profit_loss : 0);
+    }
+
+    return {
+      greens: greens.length,
+      reds: reds.length,
+      voids: voids.length,
+      totalProfit,
+      totalLoss,
+      netPnl,
+      roi,
+      winRate,
+      currentStreak,
+      maxStreak,
+      totalWithdrawn: bk.total_withdrawn,
+      byDay,
+    };
+  }, [entries, bk]);
+
+  if (!stats) return null;
+
+  const isPositive = stats.netPnl >= 0;
+
+  return (
+    <div className="bg-card border border-border rounded-xl p-4 space-y-4">
+      <div className="flex items-center gap-2">
+        <BarChart2 className="w-4 h-4 text-primary" />
+        <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70">
+          ROI Consolidado do Método
+        </p>
+      </div>
+
+      {/* KPIs principais */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-muted/20 border border-border rounded-lg p-3 space-y-1">
+          <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-wide">P&amp;L Líquido</p>
+          <p className={`text-lg font-bold font-mono ${isPositive ? 'text-success' : 'text-destructive'}`}>
+            {isPositive ? '+' : ''}{fmtBRL(stats.netPnl)}
+          </p>
+        </div>
+        <div className="bg-muted/20 border border-border rounded-lg p-3 space-y-1">
+          <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-wide">ROI</p>
+          <p className={`text-lg font-bold font-mono ${stats.roi >= 0 ? 'text-success' : 'text-destructive'}`}>
+            {stats.roi >= 0 ? '+' : ''}{stats.roi.toFixed(1)}%
+          </p>
+        </div>
+        <div className="bg-muted/20 border border-border rounded-lg p-3 space-y-1">
+          <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-wide">Win Rate</p>
+          <p className="text-lg font-bold font-mono text-foreground">{stats.winRate.toFixed(0)}%</p>
+          <p className="text-[10px] text-muted-foreground">{stats.greens}G · {stats.reds}R{stats.voids > 0 ? ` · ${stats.voids}V` : ''}</p>
+        </div>
+        <div className="bg-muted/20 border border-border rounded-lg p-3 space-y-1">
+          <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-wide">Saques</p>
+          <p className="text-lg font-bold font-mono text-warning">{fmtBRL(stats.totalWithdrawn)}</p>
+        </div>
+      </div>
+
+      {/* Linha secundária */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
+        <div className="flex items-center gap-2 text-success">
+          <TrendingUp className="w-3 h-3" />
+          <span>Lucro bruto: {fmtBRL(stats.totalProfit)}</span>
+        </div>
+        <div className="flex items-center gap-2 text-destructive">
+          <TrendingDown className="w-3 h-3" />
+          <span>Perdas: {fmtBRL(stats.totalLoss)}</span>
+        </div>
+        <div className="flex items-center gap-2 text-primary">
+          <Percent className="w-3 h-3" />
+          <span>Streak atual: {stats.currentStreak} greens</span>
+        </div>
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Trophy className="w-3 h-3" />
+          <span>Maior streak: {stats.maxStreak} greens</span>
+        </div>
+      </div>
+
+      {/* Mini evolução por dia */}
+      {Object.keys(stats.byDay).length > 1 && (
+        <div>
+          <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-wide mb-2">Resultado por dia</p>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(stats.byDay).map(([day, pnl]) => (
+              <div key={day} className={`text-[10px] font-mono px-2 py-1 rounded border ${pnl > 0 ? 'border-success/40 bg-success/10 text-success' : pnl < 0 ? 'border-destructive/40 bg-destructive/10 text-destructive' : 'border-border text-muted-foreground'}`}>
+                {day.slice(5)} {pnl > 0 ? '+' : ''}{fmtBRL(pnl)}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
