@@ -82,12 +82,21 @@ const corsHeaders = {
 function buildAiFallbackPrompt(payload: any): { system: string; user: string } {
   const m = payload?.match || {};
   const stats = m.stats || {};
+  const copa = m.copa_context || null;
+  const copaBlock = copa ? `
+CONTEXTO COPA DO MUNDO 2026 (regras S-COPA — substituem S1–S4 padrão):
+- Fase: ${copa.phase || '?'} | Diff FIFA pts: ${copa.fifa_diff ?? '?'}
+- S-COPA-1 (LABAREDA): a partir de 55' com xG do favorito ≥ 0.7 OU 3+ escanteios no 2T
+- S-COPA-2 (AGUARDAR): mata-mata 0x0 antes de 70' com xG combinado < 1.0
+- S-COPA-3 (VETO/JOGO_MORTO): seleção já classificada/eliminada em rodada decisiva
+- S-COPA-4 (CUIDADO): mata-mata com risco de prorrogação após 80' → reduzir stake
+` : '';
   const system = `Você é o Mycroft, analista frio de futebol ao vivo. Responda APENAS um JSON válido com este shape exato:
 {"verdict":"APROVADO|APROVADO_SITUACIONAL|LABAREDA|AGUARDAR|CUIDADO|JOGO_MORTO","market":"string","plan_name":"string","confidence":0-100,"thesis":"string em pt-br","estimated_probability":0-1,"odd":number|null,"stake_pct":number|null}
-Use no máximo 2 frases na thesis. NUNCA invente estatísticas.`;
+Use no máximo 2 frases na thesis. NUNCA invente estatísticas.${copa ? '\nQuando houver CONTEXTO COPA, aplique as regras S-COPA no lugar das S1–S4.' : ''}`;
   const user = `Jogo: ${m.home} ${m.scoreHome ?? 0} x ${m.scoreAway ?? 0} ${m.away}
 Minuto: ${m.minute} (${m.period || '?'})
-Campeonato: ${m.championship || '?'}
+Campeonato: ${m.championship || '?'}${copaBlock}
 Stats: ${JSON.stringify(stats).slice(0, 2500)}
 Mercados já aprovados: ${JSON.stringify(m.existingApprovedMarkets || []).slice(0, 500)}`;
   return { system, user };
