@@ -4,6 +4,7 @@ import { ArrowLeft, LogOut, Eye } from 'lucide-react';
 import PunterBreadcrumb from '@/components/punter/PunterBreadcrumb';
 import PunterNavGrid from '@/components/punter/PunterNavGrid';
 import PunterMenuHeroStatus from '@/components/punter/PunterMenuHeroStatus';
+import PunterAnalysesCronToggle from '@/components/punter/PunterAnalysesCronToggle';
 import ActivationChecklist from '@/components/punter/ActivationChecklist';
 import BCRewardsBanner from '@/components/punter/BCRewardsBanner';
 import NextPrizeProgress from '@/components/punter/NextPrizeProgress';
