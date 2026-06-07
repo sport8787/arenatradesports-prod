@@ -136,7 +136,7 @@ export default function AdminAbLab() {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" asChild>
-              <a href="/admin/hub">← Hub Admin</a>
+              <a href="/admin">← Admin</a>
             </Button>
             <Button size="sm" onClick={() => setShowNew(v => !v)}>
               <Plus className="w-4 h-4 mr-1" /> Novo Experimento

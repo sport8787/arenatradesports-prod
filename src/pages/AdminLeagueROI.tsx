@@ -93,7 +93,7 @@ export default function AdminLeagueROI() {
             <h1 className="text-2xl md:text-3xl font-bold">📊 ROI por Liga — Antes vs Depois</h1>
             <p className="text-sm text-muted-foreground">Compara performance dos entradas APROVADO/LABAREDA antes e depois da data de corte. Use para validar o impacto da redução para Tier A.</p>
           </div>
-          <Button asChild size="sm" variant="outline"><a href="/admin/hub">← Hub Admin</a></Button>
+          <Button asChild size="sm" variant="outline"><a href="/admin">← Admin</a></Button>
         </div>
 
         <Card className="p-4 flex flex-wrap items-end gap-3">

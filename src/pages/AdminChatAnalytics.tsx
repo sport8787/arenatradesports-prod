@@ -170,7 +170,7 @@ export default function AdminChatAnalytics() {
           <p className="text-sm text-muted-foreground mb-4">
             Esta página é exclusiva para administradores.
           </p>
-          <Button onClick={() => navigate('/')} variant="outline" size="sm">Voltar</Button>
+          <Button onClick={() => navigate('/admin')} variant="outline" size="sm">Voltar</Button>
         </Card>
       </div>
     );

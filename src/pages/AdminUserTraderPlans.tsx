@@ -153,7 +153,7 @@ export default function AdminUserTraderPlans() {
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/admin/hub')} className="mb-2">
+            <Button variant="ghost" size="sm" onClick={() => navigate('/admin')} className="mb-2">
               <ArrowLeft className="w-4 h-4 mr-1" /> Hub Admin
             </Button>
             <h1 className="text-2xl md:text-3xl font-bold">Planos Pessoais dos Usuários</h1>
