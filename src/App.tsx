@@ -223,6 +223,7 @@ const App = () => {
                 <Route path="/punter/banca-virtual" element={<RequireSubscription><RequireArena arena="banca_virtual" arenaLabel="Banca Virtual"><PunterBancaVirtual /></RequireArena></RequireSubscription>} />
                 <Route path="/punter/analise-manual" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterAnaliseManual /></RequireArena></RequireSubscription>} />
                 <Route path="/punter/aprovadas" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterAprovadas /></RequireArena></RequireSubscription>} />
+                <Route path="/punter/copa" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterCopa /></RequireArena></RequireSubscription>} />
                <Route path="/punter/liquidacoes" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterLiquidacoes /></RequireArena></RequireSubscription>} />
                <Route path="/punter/feed-eventos" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterFeedEventos /></RequireArena></RequireSubscription>} />
                 <Route path="/punter/performance-por-mercado" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterPerformancePorMercado /></RequireArena></RequireSubscription>} />
