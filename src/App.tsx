@@ -29,6 +29,7 @@ import BCRewardToastsMount from "@/components/BCRewardToastsMount";
 import UpsellGate from "@/components/upsell/UpsellGate";
 import { RequireSubscription } from "@/components/RequireSubscription";
 import { RequireArena } from "@/components/RequireArena";
+import { RequireAdmin } from "@/components/RequireAdmin";
 import { getAudioCacheStats } from "./services/audioCacheService";
 import { getHorusCacheProgress } from "./services/horusCacheService";
 import { setupVisibilityManager } from "@/utils/visibilityManager";
@@ -244,30 +245,30 @@ const App = () => {
                 <Route path="/arena-blackjack" element={<RequireSubscription><ArenaBlackjack /></RequireSubscription>} />
                 <Route path="/arena-blackjack/ao-vivo" element={<RequireSubscription><ArenaBlackjackLive /></RequireSubscription>} />
                 <Route path="/mycroft-memory" element={<RequireSubscription><MycroftMemory /></RequireSubscription>} />
-                <Route path="/admin" element={<AdminDashboard />} />
-                <Route path="/admin/hub" element={<AdminHub />} />
-                <Route path="/admin/futodds-health" element={<AdminFutoddsHealth />} />
-                <Route path="/admin/chat-analytics" element={<AdminChatAnalytics />} />
-                <Route path="/admin/push-test" element={<AdminPushTest />} />
-                <Route path="/admin/api-key-expirations" element={<AdminApiKeyExpirations />} />
-                <Route path="/admin/settlement-log" element={<AdminSettlementLog />} />
-                <Route path="/admin/edge-status" element={<AdminEdgeFunctionsStatus />} />
-                <Route path="/admin/edge-errors" element={<AdminEdgeFunctionErrors />} />
-                <Route path="/admin/mycroft-rules" element={<AdminMycroftRules />} />
-                <Route path="/admin/user-trader-plans" element={<AdminUserTraderPlans />} />
-                <Route path="/admin/punter-gate-config" element={<AdminPunterGateConfig />} />
-                <Route path="/admin/copa-mode" element={<AdminCopaMode />} />
-                <Route path="/admin/clv-monitor" element={<AdminCLVMonitor />} />
-                <Route path="/admin/metricas-conversao" element={<AdminMetricasConversao />} />
-                <Route path="/admin/trader-leagues" element={<AdminTraderLeagues />} />
-                <Route path="/admin/league-roi" element={<AdminLeagueROI />} />
-                <Route path="/admin/borderline-ai" element={<AdminBorderlineAI />} />
-                <Route path="/admin/assinaturas" element={<AdminAssinaturas />} />
-                <Route path="/admin/auditoria-sinais" element={<AdminAuditoriaSinais />} />
-                <Route path="/admin/auditoria-sinais/:source/:id" element={<AdminAuditoriaSinalDetalhe />} />
-                <Route path="/admin/auditoria-punter" element={<AdminAuditoriaPunter />} />
-                <Route path="/admin/mycroft-chat-access" element={<AdminMycroftChatAccessLog />} />
-                <Route path="/admin/ab-lab" element={<AdminAbLab />} />
+                <Route path="/admin" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
+                <Route path="/admin/hub" element={<RequireAdmin><AdminHub /></RequireAdmin>} />
+                <Route path="/admin/futodds-health" element={<RequireAdmin><AdminFutoddsHealth /></RequireAdmin>} />
+                <Route path="/admin/chat-analytics" element={<RequireAdmin><AdminChatAnalytics /></RequireAdmin>} />
+                <Route path="/admin/push-test" element={<RequireAdmin><AdminPushTest /></RequireAdmin>} />
+                <Route path="/admin/api-key-expirations" element={<RequireAdmin><AdminApiKeyExpirations /></RequireAdmin>} />
+                <Route path="/admin/settlement-log" element={<RequireAdmin><AdminSettlementLog /></RequireAdmin>} />
+                <Route path="/admin/edge-status" element={<RequireAdmin><AdminEdgeFunctionsStatus /></RequireAdmin>} />
+                <Route path="/admin/edge-errors" element={<RequireAdmin><AdminEdgeFunctionErrors /></RequireAdmin>} />
+                <Route path="/admin/mycroft-rules" element={<RequireAdmin><AdminMycroftRules /></RequireAdmin>} />
+                <Route path="/admin/user-trader-plans" element={<RequireAdmin><AdminUserTraderPlans /></RequireAdmin>} />
+                <Route path="/admin/punter-gate-config" element={<RequireAdmin><AdminPunterGateConfig /></RequireAdmin>} />
+                <Route path="/admin/copa-mode" element={<RequireAdmin><AdminCopaMode /></RequireAdmin>} />
+                <Route path="/admin/clv-monitor" element={<RequireAdmin><AdminCLVMonitor /></RequireAdmin>} />
+                <Route path="/admin/metricas-conversao" element={<RequireAdmin><AdminMetricasConversao /></RequireAdmin>} />
+                <Route path="/admin/trader-leagues" element={<RequireAdmin><AdminTraderLeagues /></RequireAdmin>} />
+                <Route path="/admin/league-roi" element={<RequireAdmin><AdminLeagueROI /></RequireAdmin>} />
+                <Route path="/admin/borderline-ai" element={<RequireAdmin><AdminBorderlineAI /></RequireAdmin>} />
+                <Route path="/admin/assinaturas" element={<RequireAdmin><AdminAssinaturas /></RequireAdmin>} />
+                <Route path="/admin/auditoria-sinais" element={<RequireAdmin><AdminAuditoriaSinais /></RequireAdmin>} />
+                <Route path="/admin/auditoria-sinais/:source/:id" element={<RequireAdmin><AdminAuditoriaSinalDetalhe /></RequireAdmin>} />
+                <Route path="/admin/auditoria-punter" element={<RequireAdmin><AdminAuditoriaPunter /></RequireAdmin>} />
+                <Route path="/admin/mycroft-chat-access" element={<RequireAdmin><AdminMycroftChatAccessLog /></RequireAdmin>} />
+                <Route path="/admin/ab-lab" element={<RequireAdmin><AdminAbLab /></RequireAdmin>} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </React.Suspense>
