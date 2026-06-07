@@ -294,7 +294,7 @@ export default function ComparativoDetVsIaTab() {
                 {[det, ia].filter(Boolean).map((r) => (
                   <TableRow key={r!.fonte}>
                     <TableCell className="font-medium">
-                      {r!.fonte?.toLowerCase().includes('deter') ? '🧮 Determinístico' : '🤖 Oráculo IA'}
+                      {r!.fonte?.toLowerCase().includes('deter') ? '🧮 Determinístico' : '🤖 Mycroft'}
                     </TableCell>
                     <TableCell className="text-right">{r!.aprovados}</TableCell>
                     <TableCell className="text-right text-emerald-500 font-semibold">{r!.green}</TableCell>
@@ -366,7 +366,7 @@ export default function ComparativoDetVsIaTab() {
 
             {ia ? (
               <div className="rounded-lg border border-violet-500/40 bg-violet-500/5 p-4">
-                <div className="text-xs text-muted-foreground mb-1">🤖 Oráculo IA</div>
+                <div className="text-xs text-muted-foreground mb-1">🤖 Mycroft</div>
                 <div className={`text-3xl font-bold tabular-nums ${(ia.roi_pct ?? 0) >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                   {(ia.roi_pct ?? 0) >= 0 ? '+' : ''}{fmt(ia.roi_pct, 1)}%
                 </div>

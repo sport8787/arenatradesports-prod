@@ -47,7 +47,7 @@ export function useApprovedAiSignalSound(enabled: boolean = true) {
         playAiSignalAlert();
         if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
           new Notification('🤖 Sinal IA Aprovado', {
-            body: 'Oráculo IA aprovou um novo sinal ao vivo.',
+            body: 'Mycroft aprovou um novo sinal ao vivo.',
             tag: `mycroft-ia-aprovado-${id}`,
             silent: false,
           });
