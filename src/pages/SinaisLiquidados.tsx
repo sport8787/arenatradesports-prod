@@ -86,6 +86,9 @@ function readPersisted(): { period: Period; view: ViewFilter } {
   return { period: "30d", view: "all" };
 }
 
+// Cache módulo-level: sobrevive navegação entre rotas (evita spinner ao voltar)
+let _liquidadosCache: Signal[] = [];
+
 export default function SinaisLiquidados() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -98,7 +101,7 @@ export default function SinaisLiquidados() {
   const [source, setSource] = useState<Source>(
     (searchParams.get("source") === "ia" ? "ia" : "deterministico") as Source,
   );
-  const [signals, setSignals] = useState<Signal[]>([]);
+  const [signals, setSignals] = useState<Signal[]>(() => _liquidadosCache);
   const [summary, setSummary] = useState<Summary>({
     total: 0,
     approved_total: 0,
@@ -111,7 +114,7 @@ export default function SinaisLiquidados() {
     profit_total: 0,
     stake_total: 0,
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(_liquidadosCache.length === 0);
   const [runningSettlement, setRunningSettlement] = useState(false);
 
   // Persist filters
@@ -149,7 +152,8 @@ export default function SinaisLiquidados() {
       });
     } else {
       const payload = data as unknown as { summary: Summary; signals: Signal[] };
-      setSignals(payload?.signals ?? []);
+      _liquidadosCache = payload?.signals ?? [];
+      setSignals(_liquidadosCache);
       setSummary(payload?.summary ?? {
         total: 0,
         approved_total: 0,

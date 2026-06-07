@@ -96,11 +96,18 @@ export interface LiveMatch {
   } | null;
 }
 
+// Cache módulo-level: sobrevive a desmontagem/remontagem de componentes (navegação entre rotas).
+// Evita spinner ao voltar para a página — mostra dados imediatamente enquanto revalida em background.
+let _moduleCache: LiveMatch[] = [];
+let _moduleCacheTs = 0;
+const CACHE_STALE_MS = 30_000; // dados < 30s são exibidos sem spinner
+
 export function useLiveMatches() {
-  const [matches, setMatches] = useState<LiveMatch[]>([]);
-  const [loading, setLoading] = useState(true);
+  const hasCache = _moduleCache.length > 0;
+  const [matches, setMatches] = useState<LiveMatch[]>(() => _moduleCache);
+  const [loading, setLoading] = useState(!hasCache);
   const [refreshing, setRefreshing] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(() => _moduleCacheTs ? new Date(_moduleCacheTs) : null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchMatches = useCallback(async () => {
@@ -193,6 +200,10 @@ export function useLiveMatches() {
       }
       return merged;
     });
+    // Atualiza cache módulo-level para próximas navegações
+    _moduleCache = mapped;
+    _moduleCacheTs = Date.now();
+
     setLoading(false);
     setRefreshing(false);
     setLastUpdated(new Date());

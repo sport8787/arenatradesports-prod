@@ -232,11 +232,14 @@ function computeStats(rows: ApprovedSignal[]): ComputedStats {
   return { greens, reds, pendings, pnlUnits, stakeUnits };
 }
 
+// Cache módulo-level: sobrevive navegação entre rotas (evita spinner ao voltar)
+let _sinaisCache: ApprovedSignal[] = [];
+
 export default function MycroftSinaisAprovados() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [signals, setSignals] = useState<ApprovedSignal[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [signals, setSignals] = useState<ApprovedSignal[]>(() => _sinaisCache);
+  const [loading, setLoading] = useState(_sinaisCache.length === 0);
   const requestIdRef = useRef(0);
 
   const persisted = readPersisted();
@@ -348,6 +351,7 @@ export default function MycroftSinaisAprovados() {
         });
 
         if (mounted && requestId === requestIdRef.current) {
+          _sinaisCache = enriched;
           setSignals(enriched);
           setLoading(false);
         }
