@@ -16,6 +16,7 @@ const cors = {
 interface BetToSend {
   id: string;
   source: "mycroft_analyses" | "live_sinais";
+  chat_id: string;
   home_team: string;
   away_team: string;
   league: string;
@@ -96,10 +97,11 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
   const TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
-  const CHAT_ID = Deno.env.get("TELEGRAM_CHAT_ID");
+  const CHAT_ID_LIVE    = Deno.env.get("TELEGRAM_CHAT_ID");          // Arena Live (ao vivo)
+  const CHAT_ID_PRELIVE = Deno.env.get("TELEGRAM_PRELIVE_CHAT_ID");  // Arena Live pré-live
 
-  if (!TOKEN || !CHAT_ID) {
-    console.warn("[live-telegram-results] TELEGRAM_BOT_TOKEN ou TELEGRAM_CHAT_ID não configurado");
+  if (!TOKEN || (!CHAT_ID_LIVE && !CHAT_ID_PRELIVE)) {
+    console.warn("[live-telegram-results] TELEGRAM_BOT_TOKEN ou CHAT_IDs não configurados");
     return new Response(
       JSON.stringify({ ok: false, sent: 0, message: "Telegram não configurado" }),
       { headers: { ...cors, "Content-Type": "application/json" } },
@@ -159,6 +161,7 @@ Deno.serve(async (req) => {
       queue.push({
         id: r.id,
         source: "mycroft_analyses",
+        chat_id: CHAT_ID_LIVE!,
         home_team: home,
         away_team: away,
         league,
@@ -194,6 +197,7 @@ Deno.serve(async (req) => {
       queue.push({
         id: r.id,
         source: "live_sinais",
+        chat_id: CHAT_ID_PRELIVE!,
         home_team: r.home_team || "—",
         away_team: r.away_team || "—",
         league: r.championship || "—",
@@ -222,7 +226,11 @@ Deno.serve(async (req) => {
   const sentLive: string[] = [];
 
   for (const b of queue) {
-    const ok = await sendTelegram(TOKEN, CHAT_ID, buildMessage(b));
+    if (!b.chat_id) {
+      console.warn(`[live-telegram-results] chat_id não configurado para source=${b.source} — pulando`);
+      continue;
+    }
+    const ok = await sendTelegram(TOKEN, b.chat_id, buildMessage(b));
     if (ok) {
       sent++;
       if (b.source === "mycroft_analyses") sentMycroft.push(b.id);
