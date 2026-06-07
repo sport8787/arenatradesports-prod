@@ -665,6 +665,20 @@ serve(async (req) => {
           console.warn('[AnalyzeLive] Falha ao buscar mercados já aprovados:', (e as Error)?.message);
         }
 
+        // Tag Copa context se o jogo bate com um fixture da Copa
+        let copaContext: any = null;
+        if (modoCopa && copaFixturesByKey.size) {
+          const k = `${(match.home_team || '').toLowerCase().trim()}|${(match.away_team || '').toLowerCase().trim()}`;
+          const fx = copaFixturesByKey.get(k);
+          if (fx) {
+            copaContext = {
+              phase: fx.phase,
+              fifa_diff: (fx.home_fifa_pts ?? 0) - (fx.away_fifa_pts ?? 0),
+            };
+            console.log(`[AnalyzeLive][COPA] 🏆 ${match.home_team} vs ${match.away_team} → S-COPA (${fx.phase})`);
+          }
+        }
+
         const matchPayload = {
           match: {
             home: match.home_team,
@@ -679,8 +693,10 @@ serve(async (req) => {
             bankroll: bankroll ?? 500,
             existingApprovedMarkets,
             punterPreliveAnalyses,
+            copa_context: copaContext,
           },
         };
+
 
         let analysis: any = null;
         let usedFallback = false;
