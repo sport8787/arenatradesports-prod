@@ -84,6 +84,7 @@ const PunterFunctions = React.lazy(() => import("./pages/PunterFunctions"));
 const PunterBancaVirtual = React.lazy(() => import("./pages/PunterBancaVirtual"));
 const PunterAnaliseManual = React.lazy(() => import("./pages/PunterAnaliseManual"));
 const PunterAprovadas = React.lazy(() => import("./pages/PunterAprovadas"));
+const PunterCopa = React.lazy(() => import("./pages/PunterCopa"));
 const PunterLiquidacoes = React.lazy(() => import("./pages/PunterLiquidacoes"));
 const PunterFeedEventos = React.lazy(() => import("./pages/PunterFeedEventos"));
 const PunterComunidade = React.lazy(() => import("./pages/PunterComunidade"));
@@ -222,6 +223,7 @@ const App = () => {
                 <Route path="/punter/banca-virtual" element={<RequireSubscription><RequireArena arena="banca_virtual" arenaLabel="Banca Virtual"><PunterBancaVirtual /></RequireArena></RequireSubscription>} />
                 <Route path="/punter/analise-manual" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterAnaliseManual /></RequireArena></RequireSubscription>} />
                 <Route path="/punter/aprovadas" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterAprovadas /></RequireArena></RequireSubscription>} />
+                <Route path="/punter/copa" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterCopa /></RequireArena></RequireSubscription>} />
                <Route path="/punter/liquidacoes" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterLiquidacoes /></RequireArena></RequireSubscription>} />
                <Route path="/punter/feed-eventos" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterFeedEventos /></RequireArena></RequireSubscription>} />
                 <Route path="/punter/performance-por-mercado" element={<RequireSubscription><RequireArena arena="arena_punter" arenaLabel="Arena Punter"><PunterPerformancePorMercado /></RequireArena></RequireSubscription>} />
