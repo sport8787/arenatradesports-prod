@@ -262,13 +262,29 @@ export function normalizeFixture(smFixture: any, leagueMap: Map<number, number>)
   const home = participants.find((p: any) => p.meta?.location === "home") || participants[0];
   const away = participants.find((p: any) => p.meta?.location === "away") || participants[1];
 
-  // scores: pega o "CURRENT" para placar atual
+  // scores: pega o "CURRENT" para placar atual.
+  // Sportmonks retorna múltiplos entries com description="CURRENT" (um por participante).
+  // É preciso buscar CURRENT do home e CURRENT do away separadamente — antes usávamos
+  // scores.find(CURRENT) que pegava só o primeiro (geralmente away) e o fallback caía em
+  // 1ST_HALF, devolvendo placar parcial do 1º tempo em vez do placar atual.
   const scores = smFixture.scores || [];
-  const cur = scores.find((s: any) => (s.description || "").toUpperCase() === "CURRENT");
-  const goalsHome = cur?.score?.participant === "home" ? cur.score.goals
-    : scores.find((s: any) => s.score?.participant === "home")?.score?.goals ?? null;
-  const goalsAway = cur?.score?.participant === "away" ? cur.score.goals
-    : scores.find((s: any) => s.score?.participant === "away")?.score?.goals ?? null;
+  const currentScores = scores.filter(
+    (s: any) => (s.description || "").toUpperCase() === "CURRENT",
+  );
+  const curHome = currentScores.find((s: any) => s.score?.participant === "home");
+  const curAway = currentScores.find((s: any) => s.score?.participant === "away");
+  // Fallback determinístico: 2ND_HALF (jogo no 2º tempo) → FT → 1ST_HALF.
+  const pickFallback = (participant: "home" | "away") => {
+    const byDesc = (desc: string) =>
+      scores.find(
+        (s: any) =>
+          (s.description || "").toUpperCase() === desc &&
+          s.score?.participant === participant,
+      );
+    return byDesc("2ND_HALF") || byDesc("FT") || byDesc("1ST_HALF");
+  };
+  const goalsHome = curHome?.score?.goals ?? pickFallback("home")?.score?.goals ?? null;
+  const goalsAway = curAway?.score?.goals ?? pickFallback("away")?.score?.goals ?? null;
 
   // state
   const stateName = smFixture.state?.short_name || smFixture.state?.name || "";
