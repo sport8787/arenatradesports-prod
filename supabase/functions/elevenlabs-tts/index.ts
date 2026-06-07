@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
     const voiceId =
       body.voice_id ??
       Deno.env.get('ELEVENLABS_VOICE_ID') ??
-      '21m00Tcm4TlvDq8ikWAM'; // Rachel - funciona bem em pt-BR
+      'N2lVS1w4EtoT3dr4eOWO'; // Callum — voz oficial do Horus
 
     const ttsRes = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
