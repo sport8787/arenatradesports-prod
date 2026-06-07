@@ -35,7 +35,7 @@ export default function ShadowAiCronToggle() {
       setEnabled(newValue);
       toast.success(
         newValue
-          ? '🤖 Shadow AI ATIVADO — análise paralela com Gemini'
+          ? '🤖 Shadow AI ATIVADO — análise paralela'
           : '⏸️ Shadow AI DESATIVADO — economizando créditos Lovable AI',
       );
     }
@@ -54,7 +54,7 @@ export default function ShadowAiCronToggle() {
           ? 'border-violet-500/60 bg-violet-500/10 text-violet-600 hover:bg-violet-500/20'
           : 'border-border bg-secondary/30 text-muted-foreground hover:border-muted-foreground',
       )}
-      title="Ativa/desativa análise paralela com IA Gemini (Lovable AI)"
+      title="Ativa/desativa análise paralela com IA"
     >
       {enabled ? (
         <>

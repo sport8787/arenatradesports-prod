@@ -1037,8 +1037,8 @@ export default function PunterPage() {
         const remaining = data?.remaining_games || 0;
         const execTime = data?.execution_time_s || 0;
         let msg = savedOnly > 0
-          ? `${newApproved} novos + ${savedOnly} salvos = ${mergedSignals.length} entradas (Gemini)`
-          : `${newApproved} entradas aprovados de ${newAnalyzed} jogos (Gemini)`;
+          ? `${newApproved} novos + ${savedOnly} salvos = ${mergedSignals.length} entradas `
+          : `${newApproved} entradas aprovados de ${newAnalyzed} jogos `;
         if (timedOut) msg += ` ⏱️ Parcial (${remaining} jogos pendentes)`;
         toast.success(msg);
 
@@ -1054,7 +1054,7 @@ export default function PunterPage() {
       }
     } catch (err: any) {
       console.error('Erro ao analisar jogos:', err);
-      setError(err.message || 'Erro ao conectar com Mycroft Punter (Gemini)');
+      setError(err.message || 'Erro ao conectar com Mycroft Punter ');
       // 🔊 Play alert audio on error
       playHorusTrigger('alerta');
     } finally {

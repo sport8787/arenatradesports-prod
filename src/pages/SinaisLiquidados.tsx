@@ -245,7 +245,7 @@ export default function SinaisLiquidados() {
               🧮 Determinístico
             </TabsTrigger>
             <TabsTrigger value="ia" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
-              🤖 IA (Gemini)
+              🤖 Oráculo IA
             </TabsTrigger>
           </TabsList>
         </Tabs>

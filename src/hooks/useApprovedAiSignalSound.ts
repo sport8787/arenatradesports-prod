@@ -1,7 +1,7 @@
 /**
  * Toca um sinal sonoro SCI-FI (arpejo Cmaj7) sempre que uma nova análise
  * APROVADA / APROVADA_SITUACIONAL / LABAREDA é inserida em
- * `mycroft_analyses_shadow_ai` (Trader Sports — aba "Sinais Aprovados — Gemini IA").
+ * `mycroft_analyses_shadow_ai` (Trader Sports — aba Sinais Aprovados IA).
  *
  * Som distinto do alerta determinístico (`useApprovedSignalSound`) para o
  * usuário identificar de ouvido qual motor aprovou.
@@ -47,7 +47,7 @@ export function useApprovedAiSignalSound(enabled: boolean = true) {
         playAiSignalAlert();
         if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
           new Notification('🤖 Sinal IA Aprovado', {
-            body: 'Gemini aprovou um novo sinal ao vivo.',
+            body: 'Oráculo IA aprovou um novo sinal ao vivo.',
             tag: `mycroft-ia-aprovado-${id}`,
             silent: false,
           });

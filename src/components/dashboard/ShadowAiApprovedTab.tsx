@@ -201,7 +201,7 @@ export default function ShadowAiApprovedTab() {
         <CardTitle className="flex items-center justify-between gap-2 text-base flex-wrap">
           <span className="flex items-center gap-2">
             <Brain className="h-4 w-4 text-violet-500" />
-            Entradas Aprovadas — Gemini IA <Badge variant="outline" className="ml-2">SHADOW AI · ADMIN</Badge>
+            Entradas Aprovadas — Oráculo IA <Badge variant="outline" className="ml-2">SHADOW AI · ADMIN</Badge>
           </span>
           <div className="flex gap-2 items-center flex-wrap">
             <ShadowAiCronToggle />
@@ -228,7 +228,7 @@ export default function ShadowAiApprovedTab() {
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-xs text-muted-foreground">
-          Análise paralela pura de IA (Gemini via Lovable AI). Dedup por jogo+mercado — <strong>não empilha entradas</strong>.
+          Análise paralela pura de IA. Dedup por jogo+mercado — <strong>não empilha entradas</strong>.
           Liquidação automática ao fim do jogo (Over/Under/BTTS/Próximo Gol).
         </p>
 

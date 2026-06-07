@@ -113,7 +113,7 @@ function tone(
 }
 
 /**
- * Padrão IA Gemini — arpejo sci-fi futurista, totalmente diferente do alerta crítico.
+ * Padrão IA — arpejo sci-fi futurista, totalmente diferente do alerta crítico.
  * 4 notas ascendentes em onda triangular + glide final, lembra "computador pensando concluiu".
  * Duração total ~1.0s.
  */
