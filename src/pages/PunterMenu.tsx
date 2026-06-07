@@ -105,6 +105,9 @@ export default function PunterMenuPage() {
             Todas as ferramentas, ajustes e canais oficiais do Oráculo Mycroft.
           </p>
         </div>
+        <div className="flex justify-end">
+          <PunterAnalysesCronToggle />
+        </div>
         <PunterMenuHeroStatus />
         <ActivationChecklist />
         <BCRewardsBanner />
