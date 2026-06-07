@@ -1,6 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, BarChart3, Upload, Settings, Wallet, ChevronRight, Brain } from 'lucide-react';
 import PunterBreadcrumb from '@/components/punter/PunterBreadcrumb';
+import PunterCronToggle from '@/components/punter/PunterCronToggle';
+import { useAdmin } from '@/hooks/useAdmin';
 
 interface FunctionItem {
   title: string;
@@ -50,6 +52,7 @@ const FUNCTIONS: FunctionItem[] = [
 
 export default function PunterFunctionsPage() {
   const navigate = useNavigate();
+  const { isAdmin } = useAdmin();
 
   return (
     <div className="min-h-screen bg-background">
@@ -70,10 +73,11 @@ export default function PunterFunctionsPage() {
 
       <main className="container mx-auto px-4 py-6 max-w-3xl space-y-3">
         <PunterBreadcrumb items={[{ label: 'Funções' }]} className="mb-2" />
-        <div className="mb-2">
+        <div className="mb-2 flex items-center justify-between gap-2 flex-wrap">
           <p className="font-mono text-xs text-muted-foreground">
             Acesse aqui as funções avançadas e configurações da Arena Punter.
           </p>
+          {isAdmin && <PunterCronToggle />}
         </div>
 
         {FUNCTIONS.map((f) => (
