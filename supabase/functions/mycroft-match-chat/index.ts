@@ -2,6 +2,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { chatCascade } from "../_shared/chatCascade.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -53,11 +54,10 @@ serve(async (req) => {
 
   try {
     const { query, matchContext, history = [] }: Body = await req.json();
+    // DeepSeek-first cascade (DeepSeek → Groq 70B → Groq 8B)
+    const DEEPSEEK_KEY = Deno.env.get("DEEPSEEK_API_KEY");
     const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
-    if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY not configured");
-    const AI_KEY = GROQ_API_KEY;
-    const AI_URL = "https://api.groq.com/openai/v1/chat/completions";
-    const AI_MODEL = "llama-3.3-70b-versatile";
+    if (!DEEPSEEK_KEY && !GROQ_API_KEY) throw new Error("Nenhum provider IA configurado (DEEPSEEK_API_KEY/GROQ_API_KEY)");
 
     // Identificar usuário a partir do JWT (não bloqueia chamada se faltar)
     let userId: string | null = null;
@@ -107,83 +107,33 @@ ${JSON.stringify(matchContext.stats ?? {}, null, 2).slice(0, 1500)}`;
       { role: "user", content: query },
     ];
 
-    // Cadeia de modelos: tenta o forte primeiro, depois cai pro lite
-    const modelChain = [AI_MODEL, "llama-3.1-8b-instant", "llama-3.3-70b-versatile"];
-    let resp: Response | null = null;
-    let data: any = null;
     let answer = "";
-    let lastErr = "";
-    let lastStatus = 0;
-
-    outer: for (const model of modelChain) {
-      for (let attempt = 0; attempt < 3; attempt++) {
-        resp = await fetch(AI_URL, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${AI_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ model, messages, max_tokens: 2400 }),
-        });
-
-        if (resp.ok) {
-          // Validar conteúdo: se Gemini estourou tokens e devolveu vazio, NÃO aceita
-          try {
-            data = await resp.json();
-          } catch (e) {
-            lastErr = `parse_error: ${e}`;
-            await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
-            continue;
-          }
-          answer = (data?.choices?.[0]?.message?.content ?? "").trim();
-          const finish = data?.choices?.[0]?.finish_reason;
-          if (answer.length > 0) break outer;
-
-          // Resposta vazia — provável MAX_TOKENS / overload silencioso
-          console.warn(`[mycroft-match-chat] ${model} attempt ${attempt + 1} returned EMPTY (finish=${finish})`);
-          lastErr = `empty_content (finish=${finish})`;
-          await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
-          continue;
-        }
-
-        lastStatus = resp.status;
-        if (resp.status === 429 || resp.status === 402) break outer;
-
-        if ([500, 502, 503, 504].includes(resp.status)) {
-          lastErr = await resp.text().catch(() => "");
-          console.warn(`[mycroft-match-chat] ${model} attempt ${attempt + 1} failed ${resp.status}`);
-          await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
-          continue;
-        }
-
-        lastErr = await resp.text().catch(() => "");
-        break outer;
-      }
-    }
-
-    if (!answer) {
-      if (lastStatus === 429) {
-        return new Response(
-          JSON.stringify({ error: "Limite de requisições atingido. Tente novamente em instantes." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
-      if (lastStatus === 402) {
-        return new Response(
-          JSON.stringify({ error: "Créditos de IA esgotados. Adicione saldo em Settings → Cloud & AI." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
-      console.error("AI gateway error", lastStatus, lastErr);
-      return new Response(JSON.stringify({
-        error: lastStatus === 503
-          ? "Mycroft está sobrecarregado no momento (alta demanda do modelo). Aguarde alguns segundos e tente novamente."
-          : "Falha ao consultar o Mycroft. Tente novamente em alguns segundos.",
-      }), {
-        status: 502,
+    let providerUsed = "";
+    try {
+      const result = await chatCascade({
+        messages: messages as any,
+        temperature: 0.6,
+        max_tokens: 2400,
+        timeoutMs: 60_000,
+      });
+      answer = result.text;
+      providerUsed = `${result.provider}/${result.model}`;
+      console.log(`[mycroft-match-chat] ok via ${providerUsed} in ${result.ms}ms`);
+    } catch (e) {
+      const msg = (e as Error).message;
+      console.error("[mycroft-match-chat] cascade failed:", msg);
+      const status = /429/.test(msg) ? 429 : /402/.test(msg) ? 402 : 502;
+      const userMsg = status === 429
+        ? "Limite de requisições atingido. Tente novamente em instantes."
+        : status === 402
+        ? "Créditos de IA esgotados."
+        : "Mycroft está temporariamente indisponível. Tente novamente em alguns segundos.";
+      return new Response(JSON.stringify({ error: userMsg }), {
+        status,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
 
     const response = answer;
 

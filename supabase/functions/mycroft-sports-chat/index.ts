@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { chatCascade } from "../_shared/chatCascade.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -425,8 +426,9 @@ serve(async (req) => {
     const { query, matchContext, conversationHistory, userId } = await req.json();
     if (!query) throw new Error("Missing query");
 
-    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
-    if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY not configured");
+    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY"); // ainda usado por aiExtractRules (tool calling)
+    const DEEPSEEK_KEY = Deno.env.get("DEEPSEEK_API_KEY");
+    if (!DEEPSEEK_KEY && !GROQ_API_KEY) throw new Error("Nenhum provider IA configurado (DEEPSEEK_API_KEY/GROQ_API_KEY)");
 
     // Load KB, match data, and persistent memory in parallel
     const [knowledgeBaseContent, autoMatchContext, memoryContent] = await Promise.all([
@@ -498,39 +500,34 @@ TOM: Direto, trader profissional. Foco em EV positivo e disciplina.`;
     }
     messages.push({ role: "user", content: query });
 
-    // Timeout de 90s para evitar travamento
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 90000);
-
-    let response: Response;
+    // DeepSeek-first cascade (DeepSeek → Groq 70B → Groq 8B), com timeout de 90s
+    let text = "";
+    let providerUsed = "";
     try {
-      response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_API_KEY}` },
-        body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages, temperature: 0.7, max_tokens: query.includes("INSTRUÇÃO ESPECIAL") ? 4000 : 2000 }),
-        signal: controller.signal,
+      const result = await chatCascade({
+        messages: messages as any,
+        temperature: 0.7,
+        max_tokens: query.includes("INSTRUÇÃO ESPECIAL") ? 4000 : 2000,
+        timeoutMs: 90_000,
       });
-    } catch (fetchErr) {
-      clearTimeout(timeout);
-      if (fetchErr.name === 'AbortError') {
-        console.error("[MycroftSportsChat] Timeout após 90s");
+      text = result.text || "Sem resposta.";
+      providerUsed = `${result.provider}/${result.model}`;
+      console.log(`[MycroftSportsChat] ok via ${providerUsed} in ${result.ms}ms`);
+    } catch (e) {
+      const msg = (e as Error).message;
+      console.error("[MycroftSportsChat] cascade failed:", msg);
+      if (/aborted|timeout/i.test(msg)) {
         return new Response(JSON.stringify({ error: "Timeout", response: "⚠️ A análise demorou demais. Tente uma pergunta mais curta ou específica." }), { status: 504, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      throw fetchErr;
-    }
-    clearTimeout(timeout);
-
-    if (!response.ok) {
-      const status = response.status;
-      const body = await response.text();
-      console.error(`[MycroftSportsChat] AI error [${status}]:`, body);
-      if (status === 429) return new Response(JSON.stringify({ error: "Rate limit", response: "⚠️ Limite de requisições. Tente novamente." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      if (status === 402) return new Response(JSON.stringify({ error: "Payment required", response: "⚠️ Créditos insuficientes." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      return new Response(JSON.stringify({ error: "AI API error", response: "⚠️ Erro na API de IA. Tente novamente." }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const status = /429/.test(msg) ? 429 : /402/.test(msg) ? 402 : 500;
+      const userMsg = status === 429
+        ? "⚠️ Limite de requisições. Tente novamente."
+        : status === 402
+        ? "⚠️ Créditos insuficientes."
+        : "⚠️ Erro na API de IA. Tente novamente.";
+      return new Response(JSON.stringify({ error: "AI error", response: userMsg }), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const data = await response.json();
-    const text = data.choices?.[0]?.message?.content || "Sem resposta.";
 
     // Background tasks: memory extraction + analysis sync to dashboard
     if (userId) {
