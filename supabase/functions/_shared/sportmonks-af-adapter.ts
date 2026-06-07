@@ -90,20 +90,26 @@ export interface AFShapeTeamStats {
 // HELPERS
 // =============================================================================
 function parseScores(scores: any[]): { home: number | null; away: number | null } {
+  // Sportmonks devolve 1 entry por (participante × período). Precisamos buscar CURRENT
+  // separadamente para home e away — antes o loop sobrescrevia e o fallback caía em
+  // 1ST_HALF, devolvendo o placar parcial do 1º tempo.
   let home: number | null = null, away: number | null = null;
   for (const s of (scores || [])) {
     if ((s.description || "").toUpperCase() !== "CURRENT") continue;
-    if (s.score?.participant === "home") home = s.score.goals;
-    if (s.score?.participant === "away") away = s.score.goals;
+    if (s.score?.participant === "home" && home === null) home = s.score.goals;
+    if (s.score?.participant === "away" && away === null) away = s.score.goals;
   }
-  if (home === null || away === null) {
+  // Fallback determinístico: 2ND_HALF (jogo no 2º tempo) → FT → 1ST_HALF (apenas se ainda 1º tempo).
+  const tryDesc = (desc: string) => {
     for (const s of (scores || [])) {
-      const d = (s.description || "").toUpperCase();
-      if (d !== "FT" && d !== "2ND_HALF") continue;
+      if ((s.description || "").toUpperCase() !== desc) continue;
       if (s.score?.participant === "home" && home === null) home = s.score.goals;
       if (s.score?.participant === "away" && away === null) away = s.score.goals;
     }
-  }
+  };
+  if (home === null || away === null) tryDesc("2ND_HALF");
+  if (home === null || away === null) tryDesc("FT");
+  if (home === null || away === null) tryDesc("1ST_HALF");
   return { home, away };
 }
 
