@@ -193,9 +193,14 @@ function fallbackOddByMarket(market: string | null | undefined): number | null {
   return 1.85;
 }
 
+// Under 2.5 é cash-out — excluído de todas as métricas (ROI, win rate, contagens).
+const isUnder25 = (market: string | null | undefined) =>
+  /under\s*2\.5/.test((market ?? '').toLowerCase());
+
 function computeStats(rows: ApprovedSignal[]): ComputedStats {
-  const greens = rows.filter((row) => normalizeResult(row.result) === 'green').length;
-  const reds = rows.filter((row) => normalizeResult(row.result) === 'red').length;
+  const counted = rows.filter((r) => !isUnder25(r.market));
+  const greens = counted.filter((row) => normalizeResult(row.result) === 'green').length;
+  const reds = counted.filter((row) => normalizeResult(row.result) === 'red').length;
   const pendings = rows.length - greens - reds;
 
   const marketOddSum = new Map<string, { sum: number; n: number }>();
@@ -221,6 +226,12 @@ function computeStats(rows: ApprovedSignal[]): ComputedStats {
 
   for (const row of rows) {
     if (!isSettledResult(row.result)) continue;
+
+    // Under 2.5 é estratégia de cash-out (saída rápida em alguns ticks),
+    // não uma entrada de resultado — excluído do cálculo de ROI.
+    const mkt = (row.market ?? '').toLowerCase();
+    if (/under\s*2\.5/.test(mkt)) continue;
+
     let odd = Number(row.odd);
     if (!Number.isFinite(odd) || odd <= 1) {
       odd = marketOddAvg(row.market) ?? fallbackOddByMarket(row.market) ?? 0;
