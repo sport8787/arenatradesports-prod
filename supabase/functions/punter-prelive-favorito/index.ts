@@ -53,6 +53,30 @@ serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  // Kill switch global: cron_settings.punter_analyses_cron
+  // Bypass com { force: true } no body (botão manual admin).
+  let force = false;
+  try {
+    const b = await req.clone().json();
+    force = !!b?.force;
+  } catch { /* sem body */ }
+  if (!force) {
+    try {
+      const r = await fetch(
+        `${SUPABASE_URL}/rest/v1/cron_settings?setting_key=eq.punter_analyses_cron&select=is_enabled`,
+        { headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` } },
+      );
+      const rows = await r.json().catch(() => []);
+      if (Array.isArray(rows) && rows[0] && rows[0].is_enabled === false) {
+        console.log("[prelive-favorito] ⏸️ punter_analyses_cron desativado");
+        return new Response(JSON.stringify({ skipped: true, reason: "punter_analyses_cron_disabled" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    } catch (e) { console.warn("[prelive-favorito] gate check falhou", e); }
+  }
+
   const startedAt = Date.now();
   console.log("[prelive-favorito] iniciando rodada Favorito + AH");
 
