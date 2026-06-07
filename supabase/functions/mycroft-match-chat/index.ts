@@ -53,11 +53,10 @@ serve(async (req) => {
 
   try {
     const { query, matchContext, history = [] }: Body = await req.json();
+    // DeepSeek-first cascade (DeepSeek → Groq 70B → Groq 8B)
+    const DEEPSEEK_KEY = Deno.env.get("DEEPSEEK_API_KEY");
     const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
-    if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY not configured");
-    const AI_KEY = GROQ_API_KEY;
-    const AI_URL = "https://api.groq.com/openai/v1/chat/completions";
-    const AI_MODEL = "llama-3.3-70b-versatile";
+    if (!DEEPSEEK_KEY && !GROQ_API_KEY) throw new Error("Nenhum provider IA configurado (DEEPSEEK_API_KEY/GROQ_API_KEY)");
 
     // Identificar usuário a partir do JWT (não bloqueia chamada se faltar)
     let userId: string | null = null;
