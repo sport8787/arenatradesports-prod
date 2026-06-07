@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { chatCascade } from "../_shared/chatCascade.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -153,8 +154,9 @@ serve(async (req) => {
     const { query, marketData, conversationHistory, userId } = await req.json();
     if (!query) throw new Error("Missing query");
 
-    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
-    if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY not configured");
+    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY"); // mantido para aiExtractRules (tool calling)
+    const DEEPSEEK_KEY = Deno.env.get("DEEPSEEK_API_KEY");
+    if (!DEEPSEEK_KEY && !GROQ_API_KEY) throw new Error("Nenhum provider IA configurado (DEEPSEEK_API_KEY/GROQ_API_KEY)");
 
     const supabase = getSupabaseAdmin();
 
@@ -292,23 +294,29 @@ TOM: Técnico, direto, bullet points, números e percentuais.`;
     }
     messages.push({ role: "user", content: query });
 
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_API_KEY}` },
-      body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: [{ role: "system", content: systemPrompt }, ...messages], temperature: 0.6, max_tokens: 2000 }),
-    });
-
-    if (!response.ok) {
-      const status = response.status;
-      const errorText = await response.text();
-      console.error("AI API error:", status, errorText);
-      if (status === 429) return new Response(JSON.stringify({ error: "Rate limit", response: "⚠️ Limite de requisições. Tente novamente." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      if (status === 402) return new Response(JSON.stringify({ error: "Payment required", response: "⚠️ Créditos insuficientes." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      throw new Error(`AI API error: ${status}`);
+    // DeepSeek-first cascade (DeepSeek → Groq 70B → Groq 8B)
+    let content = "";
+    try {
+      const result = await chatCascade({
+        messages: [{ role: "system", content: systemPrompt }, ...messages] as any,
+        temperature: 0.6,
+        max_tokens: 2000,
+        timeoutMs: 90_000,
+      });
+      content = result.text || "Sem resposta.";
+      console.log(`[MycroftAnalystChat] ok via ${result.provider}/${result.model} in ${result.ms}ms`);
+    } catch (e) {
+      const msg = (e as Error).message;
+      console.error("[MycroftAnalystChat] cascade failed:", msg);
+      const status = /429/.test(msg) ? 429 : /402/.test(msg) ? 402 : 500;
+      const userMsg = status === 429
+        ? "⚠️ Limite de requisições. Tente novamente."
+        : status === 402
+        ? "⚠️ Créditos insuficientes."
+        : "⚠️ Mycroft Analyst temporariamente indisponível.";
+      return new Response(JSON.stringify({ error: "AI error", response: userMsg }), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content?.trim() || "Sem resposta.";
 
     // AI-based memory extraction in background
     if (userId) {
