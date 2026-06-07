@@ -418,6 +418,10 @@ const PunterHeroBanner = ({ userId, featuredSignal, nextMatch, onCtaClick }: Pro
               Abrir
             </span>
           </button>
+
+          <div className="w-full flex justify-end pt-1">
+            <PunterAnalysesCronToggle />
+          </div>
         </div>
       </div>
     </motion.div>
