@@ -567,14 +567,32 @@ serve(async (req) => {
         // ou marca xg_unavailable abaixo. (sofascoreFound já foi declarado acima como `let`)
         const flashscoreFound = false;
 
-        // 🚨 FLAG xG INDISPONÍVEL: SofaScore E Flashscore falharam + API-Football zerado
+        // 🧮 xG SINTÉTICO: quando xG real = 0 (Sportmonks sem xgfixture ou Futodds sem dado),
+        // mas há shots disponíveis, estimamos xG calibrado via pesos StatsBomb/Understat.
+        // Calibração: SoT×0.32 + off_target×0.05  (média Big5: ~2.7 xG/jogo).
+        // Flag xg_estimated=true para que o Mycroft saiba que é estimativa.
         const _xgH = Number((enrichedStats as any).xG_home ?? (enrichedStats as any).xg_home ?? 0);
         const _xgA = Number((enrichedStats as any).xG_away ?? (enrichedStats as any).xg_away ?? 0);
-        const _shotsTotal = Number((enrichedStats as any).shots_total_home ?? (enrichedStats as any).shots_home ?? 0)
-                          + Number((enrichedStats as any).shots_total_away ?? (enrichedStats as any).shots_away ?? 0);
-        if (!sportmonksFound && !sofascoreFound && !flashscoreFound && _xgH === 0 && _xgA === 0 && _shotsTotal >= 2) {
+        const _sotH = Number((enrichedStats as any).shots_on_target_home ?? (enrichedStats as any).shots_home ?? 0);
+        const _sotA = Number((enrichedStats as any).shots_on_target_away ?? (enrichedStats as any).shots_away ?? 0);
+        const _stH  = Number((enrichedStats as any).shots_total_home ?? 0);
+        const _stA  = Number((enrichedStats as any).shots_total_away ?? 0);
+        const _shotsTotal = _stH + _stA;
+        if (_xgH === 0 && _xgA === 0 && _shotsTotal >= 2) {
+          // off_target ≈ total - on_target (não separamos blocked aqui)
+          const estH = Math.round((_sotH * 0.32 + Math.max(0, _stH - _sotH) * 0.05) * 100) / 100;
+          const estA = Math.round((_sotA * 0.32 + Math.max(0, _stA - _sotA) * 0.05) * 100) / 100;
+          (enrichedStats as any).xG_home = estH;
+          (enrichedStats as any).xG_away = estA;
+          (enrichedStats as any).xg_home = estH;
+          (enrichedStats as any).xg_away = estA;
+          (enrichedStats as any).xg_estimated = true;
+          (enrichedStats as any).xg_unavailable = false;
+          console.log(`[AnalyzeLive] 🧮 xG sintético para ${match.home_team} vs ${match.away_team}: H=${estH} A=${estA} (SoT ${_sotH}/${_sotA}, total ${_stH}/${_stA}) sportmonks=${sportmonksFound}`);
+        } else if (_xgH === 0 && _xgA === 0 && _shotsTotal < 2) {
+          // Sem shots suficientes E sem xG real → genuinamente indisponível
           (enrichedStats as any).xg_unavailable = true;
-          console.log(`[AnalyzeLive] ⚠️ xG INDISPONÍVEL para ${match.home_team} vs ${match.away_team} (shots=${_shotsTotal}, sportmonks=false, sofascore=false, flashscore=false) — Mycroft será avisado`);
+          console.log(`[AnalyzeLive] ⚠️ xG INDISPONÍVEL para ${match.home_team} vs ${match.away_team} (shots=${_shotsTotal} insuficientes)`);
         }
 
         // 🛠️ ADMIN OVERRIDE: estatísticas editadas manualmente por admin têm prioridade sobre tudo
