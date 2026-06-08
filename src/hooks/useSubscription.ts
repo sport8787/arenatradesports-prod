@@ -11,10 +11,12 @@ export type ArenaKey =
   | 'banca_virtual'
   | 'banca_real';
 
+export type PlanTier = 'promo' | 'iniciante' | 'profissional' | 'elite';
+
 export interface Subscription {
   id: string;
   user_id: string;
-  plan: 'trial' | 'starter' | 'basic' | 'base' | 'premium';
+  plan: 'trial' | 'starter' | 'basic' | 'base' | 'premium' | 'iniciante' | 'profissional' | 'elite';
   trial_started_at: string | null;
   trial_ends_at: string | null;
   subscription_started_at: string | null;
@@ -27,16 +29,32 @@ export interface Subscription {
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
   chat_override_until: string | null;
+  bc_multiplier: number | null;
   created_at: string;
   updated_at: string;
 }
 
+/** Mapeamento interno de plano DB → nome de exibição comercial */
+export const PLAN_DISPLAY_NAMES: Record<string, string> = {
+  trial:        'Trial Gratuito',
+  starter:      'Plano Promo',
+  basic:        'Plano Básico',
+  base:         'Plano Promo',
+  premium:      'Plano Premium',
+  iniciante:    'Plano Iniciante',
+  profissional: 'Plano Profissional',
+  elite:        'Plano Elite',
+};
+
 const PLAN_DEFAULT_ARENAS: Record<string, ArenaKey[]> = {
-  trial:   ['arena_live', 'arena_punter', 'multiplas', 'banca_virtual', 'banca_real'],
-  starter: ['arena_live'],
-  basic:   ['arena_punter'],
-  base:    ['arena_live', 'arena_punter'],
-  premium: ['arena_live', 'arena_punter', 'multiplas', 'banca_virtual', 'banca_real'],
+  trial:        ['arena_live', 'arena_punter', 'multiplas', 'banca_virtual', 'banca_real'],
+  starter:      ['arena_live', 'arena_punter'],
+  basic:        ['arena_punter'],
+  base:         ['arena_live', 'arena_punter'],
+  premium:      ['arena_live', 'arena_punter', 'multiplas', 'banca_virtual', 'banca_real'],
+  iniciante:    ['arena_punter'],  // usuário escolhe; sobrescrito por allowed_arenas
+  profissional: ['arena_live', 'arena_punter', 'multiplas', 'banca_virtual', 'banca_real'],
+  elite:        ['arena_live', 'arena_punter', 'multiplas', 'banca_virtual', 'banca_real'],
 };
 
 export function useSubscription() {
@@ -134,9 +152,24 @@ export function useSubscription() {
   const isTrialActive = subscription?.plan === 'trial' && daysLeft > 0;
   const isTrialExpired = subscription?.plan === 'trial' && daysLeft <= 0;
   const isPaidActive =
-    (subscription?.plan === 'starter' || subscription?.plan === 'basic' || subscription?.plan === 'base' || subscription?.plan === 'premium') &&
+    (['starter', 'basic', 'base', 'premium', 'iniciante', 'profissional', 'elite'] as const)
+      .includes(subscription?.plan as any) &&
     !!subscription?.is_active &&
     (!subscription?.subscription_ends_at || new Date(subscription.subscription_ends_at) > new Date());
+
+  // Plano Promo (starter/base) = pago, mas sem resgate de prêmios na Liga Mycroft
+  const isPromoOnly = isPaidActive && (subscription?.plan === 'starter' || subscription?.plan === 'base');
+
+  // Pode resgatar prêmios: assinante pago que NÃO é plano promo
+  const canRedeemPrizes = !!(isAdmin || (isPaidActive && !isPromoOnly));
+
+  // Multiplicador de BC: Elite → 1.3×; demais → 1.0×
+  const bcMultiplier: number = subscription?.bc_multiplier ?? (subscription?.plan === 'elite' ? 1.3 : 1.0);
+
+  // Nome de exibição do plano atual
+  const planDisplayName: string = subscription
+    ? (PLAN_DISPLAY_NAMES[subscription.plan] ?? subscription.plan)
+    : (isAdmin ? 'Admin' : '—');
 
   // Admin = acesso total. Trial ativo = acesso total. Pago ativo = acesso total ao app (mas filtrado por arena).
   const hasAccess = !!(isAdmin || isTrialActive || isPaidActive);
@@ -168,6 +201,10 @@ export function useSubscription() {
     isTrialActive,
     isTrialExpired,
     isPaid: isPaidActive,
+    isPromoOnly,
+    canRedeemPrizes,
+    bcMultiplier,
+    planDisplayName,
     hasAccess,
     allowedArenas,
     hasArena,

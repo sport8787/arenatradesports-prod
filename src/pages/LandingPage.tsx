@@ -722,7 +722,7 @@ const FEATURES = [
 const COMPARISONS = [
   { criteria: "Histórico", oraculo: "Painel de auditoria aberto: cada operação registrada com timestamp, odd e resultado.", salas: "Screenshots manuais, sem verificação independente." },
   { criteria: "Transparência", oraculo: "Edge, probabilidade e stake exibidos antes de cada operação.", salas: "Apenas o palpite final, sem o critério técnico por trás." },
-  { criteria: "Preço", oraculo: "A partir de R$ 49,90/mês ou Day Pass de R$ 9,90 por 24h.", salas: "R$ 497-997/mês, sem teste curto." },
+  { criteria: "Preço", oraculo: "A partir de R$ 87,90/mês ou Day Pass de R$ 9,90 por 24h.", salas: "R$ 497-997/mês, sem teste curto." },
   { criteria: "Tecnologia", oraculo: "Modelos estatísticos + IA calculando edge e ineficiência.", salas: "Leitura subjetiva do tipster, sem modelo." },
   { criteria: "Proteção emocional", oraculo: "Hórus detecta tilt e recomenda pausar operações.", salas: "Estímulo constante a operar mais." },
   { criteria: "Política de reembolso", oraculo: "Reembolso integral em 7 dias se a plataforma não atender o esperado.", salas: "Sem reembolso." },
@@ -731,16 +731,17 @@ const COMPARISONS = [
 const PRICING_PLANS = [
   {
     name: "Plano Iniciante",
-    price: "49,90",
-    description: "Para quem quer seguir os métodos prontos do Mycroft",
+    price: "87,90",
+    description: "Siga os métodos prontos do Mycroft em 1 arena à sua escolha",
     features: [
-      "Arena Punter (análises pré-jogo prontas)",
+      "Arena Punter OU Arena Live (você escolhe)",
+      "Análises pré-jogo prontas do Mycroft",
       "Métodos globais do Mycroft já calibrados",
       "Asset Score + Edge calculado",
-      "Canal VIP de novas análises",
-      "Notificações push de novas análises aprovadas",
-      
-      "Suporte por WhatsApp",
+      "Canal de novas análises",
+      "Notificações push de análises aprovadas",
+      "Grupo dos Fundadores",
+      "Liga Mycroft — acumule BC e resgate prêmios reais",
     ],
     cta: "FALAR COM CONSULTOR",
     popular: false,
@@ -748,16 +749,15 @@ const PRICING_PLANS = [
   },
   {
     name: "Plano Profissional",
-    price: "149,90",
-    description: "Crie seus próprios métodos e use o Método dos Ciclos",
+    price: "147,00",
+    description: "Crie seus próprios métodos e opere ao vivo com o Mycroft",
     features: [
       "Tudo do Iniciante +",
       "Arena Trader Sports (análise ao vivo)",
-      "🚀 Método dos Ciclos — gestão de banca em estágios definidos",
+      "🚀 Método dos Ciclos — gestão de banca em estágios",
       "🛠️ Criação de métodos personalizados (Meu Método)",
       "Status dinâmicos: APROVADO, LABAREDA e cash-out em tempo real",
       "Eventos Raros (LAY Goleada, 2x2…)",
-      
       "Suporte prioritário WhatsApp",
     ],
     cta: "FALAR COM CONSULTOR",
@@ -776,6 +776,7 @@ const PRICING_PLANS = [
       "Sherlock estatístico ilimitado",
       "Bônus: Trader Financeiro Beta (WIN/WDO/BTC — em calibração)",
       "Mentoria via WhatsApp",
+      "🏆 Multiplicador 1.3× de BluffCoins na Liga Mycroft",
     ],
     cta: "FALAR COM CONSULTOR",
     popular: false,
@@ -786,11 +787,11 @@ const PRICING_PLANS = [
 const FAQ = [
   { question: "Como funciona o acesso após o pagamento?", answer: "Acesso liberado em segundos após a confirmação do pagamento. Você recebe os dados de login por e-mail e já pode entrar nas arenas Punter, Trader Sports (Profissional+) e Elite (Chat AO VIVO + integração com Exchange)." },
   { question: "Posso testar antes de assinar um plano mensal?", answer: "Sim. Oferecemos um Day Pass de 24h por R$ 9,90 que libera todas as áreas (Punter + Trader Sports + Hórus). É a forma mais barata de conhecer a plataforma na prática antes de escolher um plano." },
-  { question: "Qual a diferença entre Iniciante, Profissional e Elite?", answer: "Iniciante (R$ 49,90): análises prontas no Arena Punter com os métodos globais do Mycroft. Profissional (R$ 149,90): destrava o Trader Sports ao vivo, a criação de métodos personalizados (Meu Método) e o Método dos Ciclos. Elite (R$ 249,90): destrava o Chat AO VIVO com o Mycroft dentro de cada jogo e a integração com Exchange. O Trader Financeiro (WIN/WDO/BTC) também acompanha o Elite, mas está em Beta — resultados não auditados enquanto refinamos o motor." },
+  { question: "Qual a diferença entre Iniciante, Profissional e Elite?", answer: "Iniciante (R$ 87,90): acesso a 1 arena à sua escolha (Punter ou Live) + métodos globais do Mycroft + Liga Mycroft com resgate de prêmios. Profissional (R$ 147,00): destrava as 2 arenas, o Trader Sports ao vivo, o Método dos Ciclos e métodos personalizados. Elite (R$ 249,90): tudo do Profissional + Chat AO VIVO dentro de cada jogo, integração com Exchange e multiplicador 1.3× de BluffCoins. O Trader Financeiro (WIN/WDO/BTC) acompanha o Elite em Beta." },
   { question: "Vocês são mais um canal de palpites?", answer: "Não. Somos uma plataforma técnica de análise estatística com IA. Cada operação fica registrada no painel de auditoria com timestamp, odd, edge e resultado. A diferença é o método, não a promessa." },
   { question: "Vocês garantem retorno financeiro?", answer: "Não. Nenhuma plataforma séria pode garantir resultado em operações esportivas. O que oferecemos é método, modelo estatístico e painel auditável. Resultados passados não garantem resultados futuros. Em caso de insatisfação nos primeiros 7 dias, devolvemos integralmente o valor da assinatura." },
   { question: "Preciso entender de operações esportivas?", answer: "Não. Mycroft faz a análise quantitativa. Hórus alerta sobre decisões emocionais. Você só precisa: (1) seguir as recomendações, (2) respeitar o stake sugerido, (3) não operar fora do estado ideal." },
   { question: "Quanto preciso para começar?", answer: "Recomendamos R$ 1.000 como banca inicial para stake adequado (2-5% por operação). Mas você pode começar com R$ 500 e ir ajustando. O importante é gestão de banca, não valor absoluto." },
   { question: "Posso cancelar quando quiser?", answer: "Sim. Sem fidelidade, sem multa. Cancela direto na sua área da plataforma a qualquer momento." },
-  { question: "Como é o suporte?", answer: "Iniciante: WhatsApp em horário comercial. Profissional: WhatsApp prioritário. Elite: mentoria direta via WhatsApp com o time. Atendimento humano." },
+  { question: "Como é o suporte?", answer: "Plano Promo (R$ 47,90): suporte básico. Iniciante (R$ 87,90): WhatsApp em horário comercial + Grupo dos Fundadores. Profissional (R$ 147,00): WhatsApp prioritário. Elite (R$ 249,90): mentoria direta via WhatsApp com o time. Atendimento humano em todos os planos." },
 ];

@@ -1,21 +1,20 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Check, Sparkles, Lock, Rocket, Info, Zap, Calendar, ArrowRight } from 'lucide-react';
+import { Check, Sparkles, Lock, Rocket, Info, Zap, Calendar, ArrowRight, Crown, Star } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import GoldButton from '@/components/game/GoldButton';
 import { track } from '@/lib/analytics';
 import { useAuth } from '@/hooks/useAuth';
-import { UpsellModal } from '@/components/upsell/UpsellModal';
 import { Link } from 'react-router-dom';
 
 /**
- * Funil oficial (Day Pass → Upsell mensal recorrente):
- *  - Day Pass R$ 9,90 / 24h  → entrada via /day-pass (signup + Pix)
- *  - Mensal R$ 47 / mês       → assinatura recorrente Asaas (Pix mensal automático)
- *
- * Durante o trial cortesia, tudo é liberado. Após o trial, o acesso passa a
- * respeitar o plano contratado.
+ * Paywall v2 — planos padronizados:
+ *  - Day Pass R$ 9,90 / 24h  → entrada via /day-pass
+ *  - Plano Promo R$ 47,90/mês → acumula BC mas não resgata prêmios
+ *  - Plano Iniciante R$ 87,90/mês → 1 arena + Liga Mycroft com resgate
+ *  - Plano Profissional R$ 147,00/mês → 2 arenas + Ciclos + Meu Método
+ *  - Plano Elite R$ 249,90/mês → tudo + Chat AO VIVO + 1.3× BC
  */
 
 declare global {
@@ -33,20 +32,75 @@ const DAY_PASS_INCLUDES = [
   'Ideal para testar o sistema sem compromisso',
 ];
 
-const MENSAL_INCLUDES = [
-  'Tudo do Day Pass, sem expirar',
-  'Arena Punter + Arena Live',
-  'Asset Score, Kelly, Sherlock',
-  'Banca Virtual e Banca Real (Betfair)',
-  'Eventos Raros (LAY Goleada, 2x2…)',
-  'Chat com o Mycroft em cada jogo',
-  'Cobrança Pix mensal automática',
-  'Cancele quando quiser — sem fidelidade',
+const PLANS = [
+  {
+    id: 'iniciante',
+    icon: Star,
+    name: 'Plano Iniciante',
+    price: 'R$ 87,90',
+    per: '/mês',
+    tagline: '1 arena à sua escolha',
+    badge: null,
+    color: 'border-border/50',
+    features: [
+      'Arena Punter OU Arena Live (você escolhe)',
+      'Análises pré-jogo do Mycroft prontas',
+      'Asset Score + Edge calculado',
+      'Canal de novas análises',
+      'Notificações push de análises aprovadas',
+      'Grupo dos Fundadores',
+      'Liga Mycroft — resgate prêmios reais com BC',
+    ],
+    waLink: 'https://wa.me/5534991290648?text=Ol%C3%A1!%20Tenho%20interesse%20no%20Plano%20Iniciante.',
+    cta: 'Assinar Iniciante',
+  },
+  {
+    id: 'profissional',
+    icon: Rocket,
+    name: 'Plano Profissional',
+    price: 'R$ 147,00',
+    per: '/mês',
+    tagline: '2 arenas + ferramentas avançadas',
+    badge: 'MAIS POPULAR',
+    color: 'border-primary/50 ring-1 ring-primary/30',
+    features: [
+      'Tudo do Iniciante +',
+      'Arena Trader Sports (análise ao vivo)',
+      '🚀 Método dos Ciclos — gestão em estágios',
+      '🛠️ Criação de métodos personalizados (Meu Método)',
+      'Status dinâmicos: APROVADO, LABAREDA, cash-out',
+      'Eventos Raros (LAY Goleada, 2x2…)',
+      'Suporte prioritário WhatsApp',
+    ],
+    waLink: 'https://wa.me/5534991290648?text=Ol%C3%A1!%20Tenho%20interesse%20no%20Plano%20Profissional.',
+    cta: 'Assinar Profissional',
+  },
+  {
+    id: 'elite',
+    icon: Crown,
+    name: 'Plano Elite',
+    price: 'R$ 249,90',
+    per: '/mês',
+    tagline: 'Mycroft ao vivo em cada jogo',
+    badge: 'ELITE',
+    color: 'border-yellow-500/40 ring-1 ring-yellow-500/20',
+    features: [
+      'Tudo do Profissional +',
+      '💬 Chat Mycroft AO VIVO em cada jogo',
+      'Integração com Exchange (acompanhamento de banca)',
+      'Gerador de Múltiplas (IA + Kelly)',
+      'Sherlock estatístico ilimitado',
+      'Bônus: Trader Financeiro Beta (WIN/WDO/BTC)',
+      'Mentoria via WhatsApp',
+      '🏆 Multiplicador 1.3× de BluffCoins',
+    ],
+    waLink: 'https://wa.me/5534991290648?text=Ol%C3%A1!%20Tenho%20interesse%20no%20Plano%20Elite.',
+    cta: 'Assinar Elite',
+  },
 ];
 
 export default function Paywall() {
   const { user } = useAuth();
-  const [upsellOpen, setUpsellOpen] = useState(false);
 
   useEffect(() => {
     track.paywallViewed('paywall');
@@ -56,28 +110,15 @@ export default function Paywall() {
         content_category: 'subscription',
         content_type: 'product_group',
         currency: 'BRL',
-        value: 47,
+        value: 87.9,
       });
     }
   }, []);
 
-  const trackDayPass = () => {
-    track.checkoutInitiated('Day Pass', 9.9, 'paywall');
+  const trackPlan = (name: string, price: number) => {
+    track.checkoutInitiated(name, price, 'paywall');
     if (window.fbq) {
-      window.fbq('track', 'InitiateCheckout', { content_name: 'Day Pass', currency: 'BRL', value: 9.9 });
-    }
-  };
-
-  const handleMensalClick = () => {
-    track.checkoutInitiated('Mensal R$47', 47, 'paywall');
-    if (window.fbq) {
-      window.fbq('track', 'InitiateCheckout', { content_name: 'Mensal R$47', currency: 'BRL', value: 47 });
-    }
-    if (user) {
-      setUpsellOpen(true);
-    } else {
-      // sem sessão: começa pelo Day Pass (signup + Pix), upsell entra depois no app
-      window.location.href = '/day-pass?intent=monthly';
+      window.fbq('track', 'InitiateCheckout', { content_name: name, currency: 'BRL', value: price });
     }
   };
 
@@ -90,7 +131,7 @@ export default function Paywall() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative z-10 w-full max-w-4xl space-y-8"
+        className="relative z-10 w-full max-w-5xl space-y-8"
       >
         {/* Header */}
         <div className="text-center space-y-3">
@@ -101,131 +142,146 @@ export default function Paywall() {
           >
             <Lock className="w-10 h-10 text-destructive-foreground" />
           </motion.div>
-          <h1 className="text-3xl font-bold text-foreground">Comece pelo que faz sentido pra você 🎯</h1>
+          <h1 className="text-3xl font-bold text-foreground">Escolha seu plano 🎯</h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Teste o Oráculo Mycroft por <strong className="text-foreground">24 horas por R$ 9,90</strong>{' '}
-            ou vá direto para a assinatura mensal recorrente por{' '}
-            <strong className="text-foreground">R$ 47/mês</strong>. Cancele quando quiser.
+            Teste por <strong className="text-foreground">24h por R$ 9,90</strong>, ou escolha um plano mensal.
+            Cancele quando quiser, sem fidelidade.
           </p>
         </div>
 
-        {/* Trial cortesia */}
+        {/* Trial notice */}
         <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 flex items-start gap-3">
           <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
           <div className="text-sm text-muted-foreground">
-            <p className="font-medium text-foreground mb-1">Sobre o seu trial</p>
+            <p className="font-medium text-foreground mb-1">Sobre o trial gratuito</p>
             <p>
-              Durante o trial gratuito,{' '}
-              <strong className="text-foreground">todas as arenas ficam liberadas por cortesia</strong>.
-              Quando o trial terminar, escolha entre o Day Pass (24h) ou a assinatura mensal.
+              Durante o trial, <strong className="text-foreground">todas as arenas ficam liberadas por cortesia</strong>.
+              Ao expirar, escolha o plano que melhor se encaixa no seu perfil.
             </p>
           </div>
         </div>
 
-        {/* Plans (2 cards) */}
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* DAY PASS */}
-          <Card className="bg-card/80 backdrop-blur border-border/50 flex flex-col">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-primary" />
-                Day Pass
-              </CardTitle>
-              <CardDescription>Teste o sistema completo por 24h</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 flex-1">
-              <div>
-                <span className="text-4xl font-bold text-foreground">R$ 9,90</span>
-                <span className="text-muted-foreground text-sm">/24h</span>
-                <p className="text-xs text-muted-foreground mt-1">Pagamento único via Pix</p>
-              </div>
-              <div>
-                <p className="text-xs font-mono uppercase tracking-wider text-emerald-400 mb-2">
-                  Está incluso
-                </p>
-                <ul className="space-y-1.5 text-sm">
-                  {DAY_PASS_INCLUDES.map((item) => (
-                    <li key={item} className="flex items-start gap-2 text-muted-foreground">
-                      <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Link to="/day-pass" className="w-full" onClick={trackDayPass}>
-                <GoldButton variant="outline" className="w-full gap-2">
-                  Começar Day Pass <ArrowRight className="w-4 h-4" />
-                </GoldButton>
-              </Link>
-            </CardFooter>
-          </Card>
-
-          {/* MENSAL R$ 47 */}
-          <Card className="bg-card/80 backdrop-blur relative flex flex-col border-primary/50 ring-1 ring-primary/30">
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-              <Badge className="bg-primary text-primary-foreground shadow-lg">MELHOR CUSTO</Badge>
+        {/* Day Pass */}
+        <div className="rounded-2xl border border-yellow-500/40 bg-gradient-to-r from-yellow-500/10 via-yellow-500/5 to-transparent p-5 flex flex-col md:flex-row md:items-center gap-4">
+          <div className="flex items-start gap-3 flex-1">
+            <div className="w-12 h-12 rounded-xl bg-yellow-500/20 border border-yellow-500/40 flex items-center justify-center shrink-0">
+              <span className="text-2xl">🎟️</span>
             </div>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Rocket className="w-5 h-5 text-primary" />
-                Mensal Recorrente
-              </CardTitle>
-              <CardDescription>Acesso contínuo com Pix mensal automático</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 flex-1">
-              <div>
-                <span className="text-4xl font-bold text-foreground">R$ 47</span>
-                <span className="text-muted-foreground text-sm">/mês</span>
-                <p className="text-xs text-emerald-400 mt-1 font-medium">
-                  Equivale a apenas R$ 1,57/dia
-                </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <div className="text-lg font-bold text-foreground">Day Pass — R$ 9,90</div>
+                <Badge variant="outline" className="text-yellow-400 border-yellow-400/40 text-[10px]">24H</Badge>
               </div>
-              <div>
-                <p className="text-xs font-mono uppercase tracking-wider text-emerald-400 mb-2">
-                  Está incluso
-                </p>
-                <ul className="space-y-1.5 text-sm">
-                  {MENSAL_INCLUDES.map((item) => (
-                    <li key={item} className="flex items-start gap-2 text-muted-foreground">
-                      <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
+              <div className="text-sm text-muted-foreground mt-1">
+                Libera todas as arenas por um dia. Ideal para conhecer o sistema antes de escolher um plano.
               </div>
-            </CardContent>
-            <CardFooter>
-              <GoldButton className="w-full gap-2" onClick={handleMensalClick}>
-                <Sparkles className="w-4 h-4" />
-                Assinar R$ 47/mês
-              </GoldButton>
-            </CardFooter>
-          </Card>
+              <ul className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0.5">
+                {DAY_PASS_INCLUDES.map((item) => (
+                  <li key={item} className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                    <Check className="w-3 h-3 text-emerald-500 shrink-0 mt-0.5" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          <Link to="/day-pass" className="shrink-0" onClick={() => trackPlan('Day Pass', 9.9)}>
+            <GoldButton variant="outline" className="gap-2 whitespace-nowrap">
+              Começar Day Pass <ArrowRight className="w-4 h-4" />
+            </GoldButton>
+          </Link>
         </div>
 
-        {/* Como funciona o upsell */}
+        {/* Planos mensais */}
+        <div>
+          <p className="text-center text-xs font-mono uppercase tracking-widest text-muted-foreground mb-6">
+            — Planos mensais recorrentes —
+          </p>
+          <div className="grid md:grid-cols-3 gap-6">
+            {PLANS.map((plan, index) => {
+              const Icon = plan.icon;
+              const priceNum = parseFloat(plan.price.replace('R$ ', '').replace(',', '.'));
+              return (
+                <motion.div
+                  key={plan.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <Card className={`bg-card/80 backdrop-blur flex flex-col relative ${plan.color}`}>
+                    {plan.badge && (
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                        <Badge className={`shadow-lg ${plan.id === 'elite' ? 'bg-yellow-500 text-black' : 'bg-primary text-primary-foreground'}`}>
+                          {plan.badge}
+                        </Badge>
+                      </div>
+                    )}
+                    <CardHeader className="pt-6">
+                      <CardTitle className="flex items-center gap-2">
+                        <Icon className={`w-5 h-5 ${plan.id === 'elite' ? 'text-yellow-400' : 'text-primary'}`} />
+                        {plan.name}
+                      </CardTitle>
+                      <CardDescription>{plan.tagline}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4 flex-1">
+                      <div>
+                        <span className="text-4xl font-bold text-foreground">{plan.price}</span>
+                        <span className="text-muted-foreground text-sm">{plan.per}</span>
+                        <p className="text-xs text-muted-foreground mt-1">Cobrança via Pix ou cartão</p>
+                      </div>
+                      <ul className="space-y-1.5 text-sm">
+                        {plan.features.map((item) => (
+                          <li key={item} className="flex items-start gap-2 text-muted-foreground">
+                            <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                    <CardFooter>
+                      <a
+                        href={plan.waLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full"
+                        onClick={() => trackPlan(plan.name, priceNum)}
+                      >
+                        {plan.id === 'profissional' ? (
+                          <GoldButton className="w-full gap-2">
+                            <Sparkles className="w-4 h-4" />
+                            {plan.cta}
+                          </GoldButton>
+                        ) : (
+                          <GoldButton variant="outline" className="w-full gap-2">
+                            {plan.cta} <ArrowRight className="w-4 h-4" />
+                          </GoldButton>
+                        )}
+                      </a>
+                    </CardFooter>
+                  </Card>
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Plano Promo note */}
         <div className="bg-muted/20 border border-border/30 rounded-xl p-4 text-sm text-muted-foreground">
           <p className="flex items-center gap-2 font-medium text-foreground mb-1">
-            <Zap className="w-4 h-4 text-primary" /> Como funciona
+            <Zap className="w-4 h-4 text-primary" /> Plano Promo R$ 47,90/mês
           </p>
           <p>
-            Começou pelo Day Pass? Dentro do app você poderá converter para a mensal de R$ 47 a
-            qualquer momento — sem perder o que já está rodando. Cobrança automática via Pix,
-            cancele quando quiser pelo WhatsApp.
+            Já assina o Plano Promo? Você tem acesso às 2 arenas no modo simples e <strong className="text-foreground">acumula BluffCoins</strong>.
+            Para resgatar prêmios na Liga Mycroft, faça upgrade para o Plano Iniciante. Fale com a gente pelo WhatsApp para migrar.
           </p>
         </div>
 
         {/* Guarantee */}
         <div className="text-center text-sm text-muted-foreground bg-muted/30 rounded-xl p-4 border border-border/30">
-          <p className="font-medium text-foreground mb-1">✅ Garantia de 7 dias na mensal</p>
+          <p className="font-medium text-foreground mb-1">✅ Garantia de 7 dias em qualquer plano mensal</p>
           <p>Não gostou? Cancele em até 7 dias e receba 100% do seu dinheiro de volta.</p>
         </div>
       </motion.div>
-
-      {/* Modal de assinatura mensal (para usuários logados) */}
-      <UpsellModal open={upsellOpen} onOpenChange={setUpsellOpen} trigger="4h" />
     </div>
   );
 }

@@ -108,15 +108,13 @@ const prizes: PrizeCard[] = [
 export default function BlackMarket() {
   const { bcBalance, loading } = useEconomy();
   const { user } = useAuth();
-  const { isPaid, isTrialActive, subscription, loading: subLoading } = useSubscription();
+  const { isPaid, isTrialActive, isPromoOnly, canRedeemPrizes, bcMultiplier, planDisplayName, subscription, loading: subLoading } = useSubscription();
   const userCoins = bcBalance;
-  const canRedeem = isPaid; // Trial acumula mas NÃO resgata
   const currentPlan = subscription?.plan ?? 'free';
-  const isPremium = currentPlan === 'premium' && !!subscription?.is_active;
-  const isBase = currentPlan === 'base' && !!subscription?.is_active;
   const isTrial = isTrialActive;
-  const planMultiplier = isPremium ? 1.3 : isBase ? 1.1 : isTrial ? 2.5 : 1.0;
-  const monthlyCap = isPremium ? 2000 : isBase ? 1200 : 600;
+  const isElite = currentPlan === 'elite' && !!subscription?.is_active;
+  const planMultiplier = bcMultiplier;
+  const monthlyCap = isElite ? 3000 : isPaid ? 2000 : 600;
 
   // Cap mensal acumulado + próximo lote a expirar
   const [creditedThisMonth, setCreditedThisMonth] = useState<number>(0);
@@ -169,10 +167,26 @@ export default function BlackMarket() {
   };
 
   const handleRedeemClick = () => {
-    if (!canRedeem) {
+    if (!isPaid && !isTrial) {
       toast({
         title: '🔒 Resgate disponível só para assinantes',
-        description: 'Você acumula BC durante o Trial, mas só pode trocar por prêmios após assinar um plano.',
+        description: 'Assine um plano para trocar seus BluffCoins por prêmios reais.',
+        duration: 4500,
+      });
+      return;
+    }
+    if (isPromoOnly) {
+      toast({
+        title: '⬆️ Upgrade necessário para resgatar',
+        description: 'O Plano Promo acumula BC, mas o resgate de prêmios requer o Plano Iniciante ou superior. Faça upgrade para desbloquear!',
+        duration: 5500,
+      });
+      return;
+    }
+    if (isTrial) {
+      toast({
+        title: '🔒 Trial acumula, assinante resgata',
+        description: 'Você já está acumulando BluffCoins! Assine um plano para resgatar seus prêmios.',
         duration: 4500,
       });
       return;
@@ -286,7 +300,7 @@ export default function BlackMarket() {
                   </Link>
                 </div>
               </div>
-            ) : canRedeem ? (
+            ) : canRedeemPrizes ? (
               <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 flex items-start gap-3">
                 <div className="shrink-0 rounded-lg bg-emerald-500/20 p-2">
                   <Gift className="w-5 h-5 text-emerald-400" />
@@ -298,6 +312,28 @@ export default function BlackMarket() {
                   </p>
                 </div>
               </div>
+            ) : isPromoOnly ? (
+              <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-4 flex items-start gap-3">
+                <div className="shrink-0 rounded-lg bg-blue-500/20 p-2">
+                  <Sparkles className="w-5 h-5 text-blue-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-blue-300">
+                    Plano Promo — acumulando BC 🪙
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Você acumula BluffCoins normalmente, mas o{' '}
+                    <span className="text-foreground font-medium">resgate de prêmios requer o Plano Iniciante ou superior</span>.
+                    Faça upgrade para desbloquear a troca quando o cofre abrir.
+                  </p>
+                  <Link
+                    to="/paywall"
+                    className="inline-flex items-center gap-1.5 mt-3 rounded-md bg-blue-500/20 hover:bg-blue-500/30 px-3 py-1.5 text-xs font-medium text-blue-300 transition"
+                  >
+                    ⬆️ Fazer upgrade de plano
+                  </Link>
+                </div>
+              </div>
             ) : (
               <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 flex items-start gap-3">
                 <div className="shrink-0 rounded-lg bg-amber-500/20 p-2">
@@ -305,11 +341,11 @@ export default function BlackMarket() {
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-amber-300">
-                    {isTrialActive ? 'Você está acumulando BC durante o Trial 🪙' : 'Resgate disponível só para assinantes'}
+                    {isTrial ? 'Você está acumulando BC durante o Trial 🪙' : 'Resgate disponível só para assinantes'}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
                     Você pode <span className="text-foreground font-medium">acumular BluffCoins</span> normalmente, mas o{' '}
-                    <span className="text-foreground font-medium">resgate de prêmios é exclusivo para usuários assinantes</span>.
+                    <span className="text-foreground font-medium">resgate de prêmios é exclusivo para assinantes</span>.
                     Assine qualquer plano para liberar a troca quando o cofre abrir.
                   </p>
                   <Link
@@ -715,11 +751,13 @@ export default function BlackMarket() {
             "
           >
             <Lock className="w-5 h-5" />
-            {canRedeem ? 'LIBERAR RESGATE' : 'RESGATE EXCLUSIVO ASSINANTES'}
+            {canRedeemPrizes ? 'LIBERAR RESGATE' : isPromoOnly ? 'UPGRADE PARA RESGATAR' : 'RESGATE EXCLUSIVO ASSINANTES'}
           </button>
           <p className="text-xs text-muted-foreground mt-3">
-            {canRedeem
+            {canRedeemPrizes
               ? 'O resgate será liberado quando a temporada oficial iniciar.'
+              : isPromoOnly
+              ? 'Faça upgrade para o Plano Iniciante e desbloqueie a troca de prêmios.'
               : 'Acumule BC agora e troque por prêmios após assinar um plano.'}
           </p>
         </motion.section>

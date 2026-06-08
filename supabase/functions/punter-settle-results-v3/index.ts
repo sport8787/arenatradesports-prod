@@ -741,8 +741,8 @@ serve(async (req) => {
 
       // ── BC Rewards ──────────────────────────────────────────────────
       // GREEN → premia por faixa de odd; RED → desconta 3 BC
-      // Entradas seguindo sinal aprovado (virtual_bets_punter) = 100%
-      // Entradas manuais (virtual_bets_manual) = 50%
+      // Hórus (virtual_bets_punter) = 100%; manual = 50%
+      // Plano Elite: multiplicador 1.3× (lido de user_subscriptions.bc_multiplier)
       try {
         const isHorus = table === "virtual_bets_punter";
         const oddNum = Number(b.odd) || 1;
@@ -759,10 +759,21 @@ serve(async (req) => {
         } else if (dbR === "red") {
           bcBase = -3;
         }
-        // Multiplicador: 100% para Hórus, 50% para manuais
-        const bcFinal = isHorus ? bcBase : Math.round(bcBase * 0.5);
+        // Multiplicador tipo entrada: Hórus 100%, manual 50%
+        let bcFinal = isHorus ? bcBase : Math.round(bcBase * 0.5);
+        // Multiplicador de plano: Elite = 1.3× (lido do banco para evitar race condition)
         if (bcFinal !== 0) {
-          // bc_balance pode ir negativo até 0 (não vai abaixo de 0 via SQL função)
+          const { data: subRow } = await sb
+            .from("user_subscriptions")
+            .select("bc_multiplier, plan")
+            .eq("user_id", b.user_id)
+            .maybeSingle();
+          const planMult = Number((subRow as any)?.bc_multiplier) || (((subRow as any)?.plan === "elite") ? 1.3 : 1.0);
+          if (planMult !== 1.0 && bcFinal > 0) {
+            bcFinal = Math.round(bcFinal * planMult);
+          }
+        }
+        if (bcFinal !== 0) {
           await sb.rpc("increment_bc_balance" as any, { p_user_id: b.user_id, p_amount: bcFinal });
           if (bcFinal > 0) {
             await sb.from("bc_rewards_log" as any).insert({
