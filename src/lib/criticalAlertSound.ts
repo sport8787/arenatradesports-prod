@@ -6,6 +6,34 @@
  */
 
 let audioCtx: AudioContext | null = null;
+let unlockListenerAdded = false;
+
+/**
+ * Desbloqueia o AudioContext no primeiro gesto do usuário.
+ * Browsers bloqueiam Web Audio até haver interação (click/tap/key).
+ * Chamar esta função no mount do app garante que o som funciona assim que
+ * o usuário tocar qualquer coisa — mesmo que o alerta dispare minutos depois.
+ */
+export function setupAudioUnlock() {
+  if (typeof window === 'undefined' || unlockListenerAdded) return;
+  unlockListenerAdded = true;
+
+  const unlock = () => {
+    try {
+      if (!audioCtx || audioCtx.state === 'closed') {
+        audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume().catch(() => {});
+      }
+    } catch { /* ignore */ }
+  };
+
+  // Qualquer gesto do usuário desbloqueia
+  ['click', 'touchstart', 'keydown', 'pointerdown'].forEach(evt => {
+    window.addEventListener(evt, unlock, { once: false, passive: true });
+  });
+}
 
 function getCtx(): AudioContext | null {
   try {
@@ -13,7 +41,12 @@ function getCtx(): AudioContext | null {
       audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
     if (audioCtx.state === 'suspended') {
+      // Tenta retomar — só funciona durante/após gesto do usuário
       audioCtx.resume().catch(() => {});
+    }
+    if (audioCtx.state === 'suspended') {
+      // Ainda suspeso: navegador bloqueou → retorna null para falhar silenciosamente
+      return null;
     }
     return audioCtx;
   } catch {

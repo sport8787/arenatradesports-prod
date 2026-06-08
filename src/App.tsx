@@ -33,6 +33,7 @@ import { RequireAdmin } from "@/components/RequireAdmin";
 import { getAudioCacheStats } from "./services/audioCacheService";
 import { getHorusCacheProgress } from "./services/horusCacheService";
 import { setupVisibilityManager } from "@/utils/visibilityManager";
+import { setupAudioUnlock } from "@/lib/criticalAlertSound";
 import SessionRecovery from "@/components/SessionRecovery";
 
 const HardRedirect = ({ to }: { to: string }) => {
@@ -153,6 +154,9 @@ const App = () => {
     // Captura UTMs (fbclid, utm_source, utm_campaign etc) no primeiro hit
     // e registra como super-properties no PostHog (vão em TODOS os eventos).
     captureUTMs();
+    // Desbloqueia Web Audio no primeiro gesto do usuário (click/tap/key).
+    // Sem isso os alarmes sonoros falham silenciosamente em Chrome/Safari.
+    setupAudioUnlock();
     // Substitui qualquer "recarregar a página" ao trocar de aba/F5/Ctrl+R
     // por revalidação silenciosa via evento app:revalidate.
     const teardown = setupVisibilityManager();

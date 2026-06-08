@@ -45,11 +45,15 @@ export function useApprovedAiSignalSound(enabled: boolean = true) {
 
       try {
         playAiSignalAlert();
+        // Notificação do navegador — aparece mesmo com aba em segundo plano
         if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-          new Notification('🤖 Sinal IA Aprovado', {
-            body: 'Mycroft aprovou um novo sinal ao vivo.',
-            tag: `mycroft-ia-aprovado-${id}`,
+          new Notification('🤖 Sinal Aprovado — IA Mycroft', {
+            body: 'A Inteligência Artificial aprovou um novo sinal ao vivo. Abra o Trader Sports.',
+            tag: `mycroft-ia-${id}`,
+            icon: '/favicon.ico',
             silent: false,
+            // @ts-ignore
+            vibrate: [60, 40, 60, 40, 60, 40, 180],
           });
         }
       } catch (err) {

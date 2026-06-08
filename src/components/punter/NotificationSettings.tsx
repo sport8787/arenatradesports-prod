@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, MessageCircle, Send, Loader2, Bell, ExternalLink } from 'lucide-react';
+import { Mail, MessageCircle, Send, Loader2, Bell, ExternalLink, Volume2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { useAlertSoundPrefs } from '@/hooks/useAlertSoundPrefs';
+import { playCriticalAlert, playAiSignalAlert } from '@/lib/criticalAlertSound';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +22,7 @@ export default function NotificationSettings({ userId }: NotificationSettingsPro
   const [testing, setTesting] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const { enabled: browserPushEnabled, isSupported: browserPushSupported, disablePush, requestPush } = usePushNotifications();
+  const soundPrefs = useAlertSoundPrefs();
 
   useEffect(() => {
     const load = async () => {
@@ -179,6 +182,64 @@ export default function NotificationSettings({ userId }: NotificationSettingsPro
             {browserPushSupported
               ? 'Desative aqui para parar os avisos repetidos de entrada aprovado neste navegador.'
               : 'Seu navegador atual não suporta notificações push.'}
+          </p>
+        </div>
+
+        {/* Alarmes Sonoros */}
+        <div className="border border-border rounded-lg p-3 space-y-3">
+          <div className="flex items-center gap-2">
+            <Volume2 className="w-4 h-4 text-primary" />
+            <div>
+              <p className="text-xs font-mono font-semibold text-foreground">Alarmes Sonoros</p>
+              <p className="text-[10px] font-mono text-muted-foreground">Toca quando app está aberto na aba ativa</p>
+            </div>
+          </div>
+
+          {/* Método Determinístico */}
+          <div className="flex items-center justify-between bg-muted/20 rounded p-2.5">
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-mono font-semibold text-warning">🔔 Método Determinístico</p>
+              <p className="text-[10px] font-mono text-muted-foreground">Sirene de urgência — 3 beeps</p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => { try { playCriticalAlert(); } catch { toast.error('Clique em qualquer lugar primeiro para desbloquear o áudio'); } }}
+                className="text-[9px] font-mono text-muted-foreground hover:text-foreground border border-border px-2 py-1 rounded transition-colors"
+                title="Ouvir prévia"
+              >
+                ▶ testar
+              </button>
+              <Switch
+                checked={soundPrefs.deterministico}
+                onCheckedChange={soundPrefs.setDeterministico}
+              />
+            </div>
+          </div>
+
+          {/* Sinais IA */}
+          <div className="flex items-center justify-between bg-muted/20 rounded p-2.5">
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-mono font-semibold text-primary">🤖 Sinais Aprovados pela IA</p>
+              <p className="text-[10px] font-mono text-muted-foreground">Arpejo sci-fi — 4 notas ascendentes</p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => { try { playAiSignalAlert(); } catch { toast.error('Clique em qualquer lugar primeiro para desbloquear o áudio'); } }}
+                className="text-[9px] font-mono text-muted-foreground hover:text-foreground border border-border px-2 py-1 rounded transition-colors"
+                title="Ouvir prévia"
+              >
+                ▶ testar
+              </button>
+              <Switch
+                checked={soundPrefs.ia}
+                onCheckedChange={soundPrefs.setIa}
+              />
+            </div>
+          </div>
+
+          <p className="text-[9px] font-mono text-muted-foreground leading-relaxed">
+            💡 Para receber alertas com o app em segundo plano ou fechado, ative também as{' '}
+            <span className="text-primary">Notificações do Navegador</span> acima.
           </p>
         </div>
 

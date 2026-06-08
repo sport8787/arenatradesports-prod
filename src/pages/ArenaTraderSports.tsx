@@ -30,6 +30,7 @@ import ActivePositions from '@/components/dashboard/ActivePositions';
 import CalibrationCard from '@/components/dashboard/CalibrationCard';
 import { useApprovedSignalSound } from '@/hooks/useApprovedSignalSound';
 import { useApprovedAiSignalSound } from '@/hooks/useApprovedAiSignalSound';
+import { useAlertSoundPrefs } from '@/hooks/useAlertSoundPrefs';
 
 import CompactMatchTable from '@/components/dashboard/CompactMatchTable';
 
@@ -228,9 +229,10 @@ export default function ArenaTraderSports() {
   const [onlyFavorites, setOnlyFavorites] = usePersistedState('arenaTraderSports.onlyFavorites', false);
   const { isMatchFavorite, favs } = useFavorites();
 
-  // Entradas sonoros realtime: determinístico (sirene) + Gemini IA (arpejo sci-fi distinto)
-  useApprovedSignalSound(true);
-  useApprovedAiSignalSound(true);
+  // Alarmes sonoros realtime — controlados pela preferência do usuário (localStorage)
+  const soundPrefs = useAlertSoundPrefs();
+  useApprovedSignalSound(soundPrefs.deterministico);
+  useApprovedAiSignalSound(soundPrefs.ia);
 
   useEffect(() => {
     if (!validStatusFilters.includes(statusFilter)) {

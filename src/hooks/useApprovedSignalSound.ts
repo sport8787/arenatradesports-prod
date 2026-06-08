@@ -51,15 +51,17 @@ export function useApprovedSignalSound(enabled: boolean = true) {
         playCriticalAlert();
         // Voz cirúrgica do Hórus Mentor (respeita modo do usuário)
         horusMentor.speak('opportunity_approved_trader').catch(() => {});
-        // Notificação visual leve (se permitida)
+        // Notificação do navegador — aparece mesmo com aba em segundo plano
         if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-          new Notification('🎯 Sinal Aprovado', {
-            body: 'Mycroft aprovou um novo sinal ao vivo.',
-            tag: `mycroft-aprovado-${id}`,
+          new Notification('🔔 Entrada Aprovada — Método Determinístico', {
+            body: 'Mycroft identificou uma entrada de alta convicção ao vivo. Abra o Trader Sports.',
+            tag: `mycroft-det-${id}`,
+            icon: '/favicon.ico',
             silent: false,
+            // @ts-ignore — vibrate não é tipado em todos os ambientes
+            vibrate: [180, 80, 180, 80, 250],
           });
         }
-
       } catch (err) {
         console.warn('[useApprovedSignalSound] erro ao tocar alerta:', err);
       }
