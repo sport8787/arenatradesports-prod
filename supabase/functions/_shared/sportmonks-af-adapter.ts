@@ -477,26 +477,34 @@ function _readStat(stats: any[], typeId: number, participantId: number, opts?: {
 // xG real da Sportmonks vive no include "xgfixture" (não em "statistics").
 // type_ids 5304/5305 representam expected goals (um por participante).
 // Fallback para 5321 (legacy) caso o plano antigo ainda devolva.
-function _readXg(fix: any, participantId: number): number {
+//
+// IMPORTANTE: usa Math.max (não +=) — se houver múltiplas entradas para o
+// mesmo participante (5304 e 5305 ou valores por período), evita duplicação.
+// O maior valor é o acumulado mais recente.
+//
+// forHome: true = buscando xG do time da casa, false = visitante.
+// Necessário para fallback por location quando participant_id está ausente.
+function _readXg(fix: any, participantId: number, forHome: boolean): number {
   const rows = Array.isArray(fix?.xgfixture) ? fix.xgfixture : [];
-  let total = 0;
-  let found = false;
+  let best = -1;
   for (const r of rows) {
     const tid = Number(r.type_id);
     if (tid !== 5304 && tid !== 5305 && tid !== 5321) continue;
+    const pid = Number(r.participant_id ?? 0);
     const loc = String(r.location || "").toLowerCase();
-    const pid = Number(r.participant_id);
-    const matchByPid = pid === participantId;
-    // Quando não vier participant_id, decide pelo location vs id do participante
-    if (matchByPid || (!pid && loc)) {
-      const v = Number(r.data?.value ?? 0);
-      if (Number.isFinite(v) && v >= 0 && v <= 10) {
-        total += v;
-        found = true;
-      }
+
+    // Prioridade 1: match por participant_id (mais confiável)
+    const matchByPid = pid > 0 && pid === participantId;
+    // Prioridade 2: sem participant_id → usa location (home/away) para distinguir times
+    const matchByLoc = pid === 0 && (forHome ? loc === "home" : loc === "away");
+
+    if (!matchByPid && !matchByLoc) continue;
+    const v = Number(r.data?.value ?? 0);
+    if (Number.isFinite(v) && v >= 0 && v <= 10) {
+      best = Math.max(best, v); // acumulado mais recente = valor máximo
     }
   }
-  return found ? Number(total.toFixed(2)) : 0;
+  return best >= 0 ? Number(best.toFixed(2)) : 0;
 }
 
 export async function getLiveStatsSM(homeName: string, awayName: string): Promise<SMLiveStats | null> {
@@ -535,8 +543,8 @@ export async function getLiveStatsSM(homeName: string, awayName: string): Promis
     return {
       found: true,
       source: "sportmonks",
-      xg_home: _readXg(fix, home.id),
-      xg_away: _readXg(fix, away.id),
+      xg_home: _readXg(fix, home.id, true),
+      xg_away: _readXg(fix, away.id, false),
       shots_total_home: _readStat(stats, 41, home.id, { max: 40 }),
       shots_total_away: _readStat(stats, 41, away.id, { max: 40 }),
       // tid 86 = Shots On Goal real (valores pequenos 1-4). tid 42 é off-target/outro
