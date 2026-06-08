@@ -330,12 +330,50 @@ function dbResult(res: Resultado): "green" | "red" | "void" {
 // Ordem [Fase 2 migração]:
 //  1) Futodds /matches-ended (cobre 70-80% dos casos com gols/escanteios)
 //  2) Sportmonks (reforço com corners + status FT)
+//  3) live_matches local (fallback para ligas brasileiras não cobertas por Futodds/SM)
 // Mercados de jogador permanecem desabilitados; corners caem para Sportmonks.
 function marketIsCorners(market: string): boolean {
   return /escante|corner/i.test(market || "");
 }
+
+// Cache para live_matches (evita múltiplos round-trips ao DB por execução)
+const liveMatchesCache = new Map<string, FixtureResult | null>();
+async function buscarPorLiveMatches(
+  sb: ReturnType<typeof createClient>,
+  home: string,
+  away: string,
+): Promise<FixtureResult | null> {
+  const key = `${normalizeTeamName(home)}|${normalizeTeamName(away)}`;
+  if (liveMatchesCache.has(key)) return liveMatchesCache.get(key)!;
+
+  const { data } = await sb
+    .from("live_matches")
+    .select("home_team, away_team, score_home, score_away, status")
+    .in("status", ["finished", "FT", "ft", "ended"])
+    .limit(500);
+
+  // Carrega todos os finalizados em cache de uma vez para evitar N+1
+  if (data) {
+    for (const m of data) {
+      if (m.score_home == null || m.score_away == null) continue;
+      const k = `${normalizeTeamName(m.home_team)}|${normalizeTeamName(m.away_team)}`;
+      if (!liveMatchesCache.has(k)) {
+        liveMatchesCache.set(k, {
+          homeTeam: m.home_team,
+          awayTeam: m.away_team,
+          goalsHome: Number(m.score_home),
+          goalsAway: Number(m.score_away),
+          status: "FT",
+        });
+      }
+    }
+  }
+  return liveMatchesCache.get(key) ?? null;
+}
+
 async function resolveFixtureForSettlement(
   home: string, away: string, startIso: string, _market: string,
+  sb?: ReturnType<typeof createClient>,
 ): Promise<{ fx: FixtureResult | null; fixtureId?: number; fonte: string }> {
   let fx: FixtureResult | null = null;
   let fonte = "futodds-ended";
@@ -345,8 +383,6 @@ async function resolveFixtureForSettlement(
     const fdEnd = await buscarPorFutoddsEnded(home, away, startIso);
     if (fdEnd) fx = fdEnd;
   } catch (_) { /* ignore */ }
-
-
 
   // 2) Sportmonks reforço
   if (!fx) {
@@ -361,6 +397,14 @@ async function resolveFixtureForSettlement(
         };
         fonte = "sportmonks";
       }
+    } catch (_) { /* ignore */ }
+  }
+
+  // 3) live_matches local (fallback para ligas brasileiras não cobertas por Futodds/SM)
+  if (!fx && sb) {
+    try {
+      const lm = await buscarPorLiveMatches(sb, home, away);
+      if (lm) { fx = lm; fonte = "live_matches"; }
     } catch (_) { /* ignore */ }
   }
 
@@ -429,7 +473,7 @@ serve(async (req) => {
 
     try {
       // Resolver: Futodds → Sportmonks → Odds API (sem API-Football)
-      const resolved = await resolveFixtureForSettlement(home, away, startIso, s.market);
+      const resolved = await resolveFixtureForSettlement(home, away, startIso, s.market, sb);
       let fx = resolved.fx;
       const fixtureId = resolved.fixtureId; // sempre undefined (AF removida)
       let fonte = resolved.fonte;
@@ -527,7 +571,7 @@ serve(async (req) => {
 
     try {
       // Favorito não tem mercado de jogador/escanteios — Futodds resolve direto
-      const resolved = await resolveFixtureForSettlement(home, away, startIso, "favorito_pre");
+      const resolved = await resolveFixtureForSettlement(home, away, startIso, "favorito_pre", sb);
       let fx = resolved.fx;
       let fonte = resolved.fonte;
 
@@ -578,7 +622,7 @@ serve(async (req) => {
       const startIso = c?.match_date || s.created_at || new Date().toISOString();
 
       try {
-        const resolved = await resolveFixtureForSettlement(home, away, startIso, "eventos_raros_lay");
+        const resolved = await resolveFixtureForSettlement(home, away, startIso, "eventos_raros_lay", sb);
         let fx = resolved.fx;
         let fonte = resolved.fonte;
         if (!fx) {
@@ -637,7 +681,7 @@ serve(async (req) => {
     }
 
     try {
-      const resolved = await resolveFixtureForSettlement(home, away, startIso, b.market || "");
+      const resolved = await resolveFixtureForSettlement(home, away, startIso, b.market || "", sb);
       let fx = resolved.fx;
       const fixtureId = resolved.fixtureId;
       let fonte = resolved.fonte;
@@ -720,6 +764,7 @@ serve(async (req) => {
       af_dates_fetched: afDateCache.size,
       futodds_dates_fetched: fdEndedCache.size,
       sm_lookups_cached: smLookupCache.size,
+      lm_cache_size: liveMatchesCache.size,
       results,
     }, null, 2),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } },
