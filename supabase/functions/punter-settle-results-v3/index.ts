@@ -739,6 +739,44 @@ serve(async (req) => {
         updated_at: new Date().toISOString(),
       }).eq("id", b.id);
 
+      // ── BC Rewards ──────────────────────────────────────────────────
+      // GREEN → premia por faixa de odd; RED → desconta 3 BC
+      // Entradas seguindo sinal aprovado (virtual_bets_punter) = 100%
+      // Entradas manuais (virtual_bets_manual) = 50%
+      try {
+        const isHorus = table === "virtual_bets_punter";
+        const oddNum = Number(b.odd) || 1;
+        let bcBase = 0;
+        if (dbR === "green") {
+          // Escala: odd ≤1.3 → 3 BC; ≤1.6 → 5; ≤2.0 → 8; >2.0 → 12
+          if (oddNum <= 1.30) bcBase = 3;
+          else if (oddNum <= 1.60) bcBase = 5;
+          else if (oddNum <= 2.00) bcBase = 8;
+          else bcBase = 12;
+          // Bônus por lucro extra (pl > stake * 0.2)
+          const bonusPl = pl > (Number(b.stake) || 0) * 0.2 ? 3 : 0;
+          bcBase += bonusPl;
+        } else if (dbR === "red") {
+          bcBase = -3;
+        }
+        // Multiplicador: 100% para Hórus, 50% para manuais
+        const bcFinal = isHorus ? bcBase : Math.round(bcBase * 0.5);
+        if (bcFinal !== 0) {
+          // bc_balance pode ir negativo até 0 (não vai abaixo de 0 via SQL função)
+          await sb.rpc("increment_bc_balance" as any, { p_user_id: b.user_id, p_amount: bcFinal });
+          if (bcFinal > 0) {
+            await sb.from("bc_rewards_log" as any).insert({
+              user_id: b.user_id,
+              total_bc: bcFinal,
+              motivo: `GREEN na Arena Punter (${b.market})`,
+              source: table === "virtual_bets_punter" ? "punter_horus" : "punter_manual",
+              expires_at: new Date(Date.now() + 120 * 24 * 3600 * 1000).toISOString(),
+            }).then(() => {}).catch(() => {});
+          }
+        }
+      } catch (_) { /* BC reward failure is non-fatal */ }
+      // ────────────────────────────────────────────────────────────────
+
       settled++;
       results.push({ id: b.id, match: `${home} ${fx.goalsHome}-${fx.goalsAway} ${away}`, market: b.market, result: res, fonte, pnl: pl, source: table });
     } catch (e) {

@@ -7,11 +7,13 @@ import { useSubscription } from '@/hooks/useSubscription';
 
 // Catálogo de prêmios — espelha BlackMarket.tsx (ordenado por priceValue)
 const PRIZES = [
-  { id: 1, name: 'Vale-Presente R$ 50', priceValue: 50000, icon: Gift, badge: null },
-  { id: 2, name: '30 Dias de Assinatura Grátis', priceValue: 80000, icon: Calendar, badge: 'POPULAR' },
-  { id: 3, name: 'Vale-Presente R$ 100', priceValue: 100000, icon: Gift, badge: null },
-  { id: 4, name: 'Vale-Presente R$ 200', priceValue: 200000, icon: Gift, badge: null },
-  { id: 5, name: 'Upgrade Premium (Tudo Liberado)', priceValue: 250000, icon: Crown, badge: 'TOP' },
+  { id: 7, name: '7 Dias Premium Grátis', priceValue: 8000, icon: Calendar, badge: 'NOVO' },
+  { id: 2, name: '30 Dias Premium Grátis', priceValue: 25000, icon: Calendar, badge: 'POPULAR' },
+  { id: 1, name: 'Vale-Presente R$ 50', priceValue: 35000, icon: Gift, badge: null },
+  { id: 3, name: 'Vale-Presente R$ 100', priceValue: 70000, icon: Gift, badge: null },
+  { id: 4, name: 'Gift Card R$ 200', priceValue: 130000, icon: Gift, badge: null },
+  { id: 5, name: 'Premium VIP (Tudo Liberado)', priceValue: 150000, icon: Crown, badge: 'TOP' },
+  { id: 6, name: 'Camisa Oficial do Seu Time', priceValue: 180000, icon: Crown, badge: null },
 ];
 
 /**

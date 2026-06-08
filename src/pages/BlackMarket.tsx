@@ -11,11 +11,11 @@ import { toast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import LigaMycroftLeaderboard from '@/components/punter/LigaMycroftLeaderboard';
 
-import prizeGiftcard50 from '@/assets/prize-giftcard-50.jpg';
+import prizeGiftcard50 from '@/assets/prize-giftcard-50-v2.jpg';
 import prizeGiftcard100 from '@/assets/prize-giftcard-100.jpg';
 import prizeGiftcard200 from '@/assets/prize-giftcard-200.jpg';
 import prizeSub30d from '@/assets/prize-sub-30d.jpg';
-import prizePremiumUpgrade from '@/assets/prize-premium-upgrade.jpg';
+import prizePremiumUpgrade from '@/assets/prize-7d-premium.jpg';
 import prizeTrophy from '@/assets/prize-trophy.jpg';
 import prizeCamisaTime from '@/assets/prize-camisa-time.jpg';
 
@@ -31,14 +31,14 @@ interface PrizeCard {
   premiumOnly?: boolean;
 }
 
-// Vitrine recalibrada (mai/2026): preços calculados para um Premium disciplinado
-// resgatar o vale R$50 em ~60-75 dias. Itens digitais têm custo zero pra empresa.
+// Vitrine recalibrada (jun/2026): preços inflacionados ×10 para sustentabilidade da economia.
+// Um Premium disciplinado resgata o vale R$50 em ~1,5 ano — evita esgotamento rápido.
 const prizes: PrizeCard[] = [
   {
     id: 1,
     name: 'Vale-Presente R$ 50',
-    price: '3.500 BC',
-    priceValue: 3500,
+    price: '35.000 BC',
+    priceValue: 35000,
     image: prizeGiftcard50,
     description: 'Vale-presente digital de R$ 50 (lojas parceiras)',
     category: 'giftcard',
@@ -46,18 +46,18 @@ const prizes: PrizeCard[] = [
   {
     id: 7,
     name: '7 Dias Premium Grátis',
-    price: '800 BC',
-    priceValue: 800,
-    image: prizeSub30d,
-    description: 'Estende ou faz upgrade pra Premium por 7 dias. Custo zero pra você, valor real pra mim.',
+    price: '8.000 BC',
+    priceValue: 8000,
+    image: prizePremiumUpgrade,
+    description: 'Estende ou faz upgrade pra Premium por 7 dias.',
     category: 'subscription',
     badge: 'NOVO',
   },
   {
     id: 2,
     name: '30 Dias Premium Grátis',
-    price: '2.500 BC',
-    priceValue: 2500,
+    price: '25.000 BC',
+    priceValue: 25000,
     image: prizeSub30d,
     description: 'Estende ou faz upgrade pra Premium por 30 dias',
     category: 'subscription',
@@ -66,8 +66,8 @@ const prizes: PrizeCard[] = [
   {
     id: 3,
     name: 'Vale-Presente R$ 100',
-    price: '7.000 BC',
-    priceValue: 7000,
+    price: '70.000 BC',
+    priceValue: 70000,
     image: prizeGiftcard100,
     description: 'Vale-presente digital de R$ 100 (lojas parceiras)',
     category: 'giftcard',
@@ -75,8 +75,8 @@ const prizes: PrizeCard[] = [
   {
     id: 4,
     name: 'Gift Card R$ 200',
-    price: '13.000 BC',
-    priceValue: 13000,
+    price: '130.000 BC',
+    priceValue: 130000,
     image: prizeGiftcard200,
     description: 'Gift Card digital de R$ 200 (lojas parceiras)',
     category: 'giftcard',
@@ -84,9 +84,9 @@ const prizes: PrizeCard[] = [
   },
   {
     id: 5,
-    name: 'Premium VIIP (Tudo Liberado)',
-    price: '15.000 BC',
-    priceValue: 15000,
+    name: 'Premium VIP (Tudo Liberado)',
+    price: '150.000 BC',
+    priceValue: 150000,
     image: prizePremiumUpgrade,
     description: 'Faz upgrade do seu plano atual para Premium por 30 dias',
     category: 'subscription',
@@ -95,8 +95,8 @@ const prizes: PrizeCard[] = [
   {
     id: 6,
     name: 'Camisa Oficial do Seu Time',
-    price: '18.000 BC',
-    priceValue: 18000,
+    price: '180.000 BC',
+    priceValue: 180000,
     image: prizeCamisaTime,
     description: 'Camisa oficial original do clube de futebol que você escolher (tamanho e modelo da temporada atual). Entrega em todo o Brasil.',
     category: 'season',
@@ -327,8 +327,8 @@ export default function BlackMarket() {
         {/* Painel de Progresso do Trial — projeção até o primeiro resgate */}
         {!subLoading && !!user && isTrial && (() => {
           const balance = userCoins;
-          const cheapestPrize = 800; // 7 Dias Premium Grátis
-          const valePrize = 3500;     // Vale R$ 50
+          const cheapestPrize = 8000; // 7 Dias Premium Grátis
+          const valePrize = 35000;    // Vale R$ 50
           const day = new Date().getUTCDate();
           const dailyPace = day > 0 ? creditedThisMonth / day : 0;
           // Após assinar Premium, o multiplicador cai (2.5x → 1.3x) e o cap sobe (600 → 2000).
@@ -384,7 +384,7 @@ export default function BlackMarket() {
                   <div>
                     <div className="flex items-center justify-between text-[11px] mb-1">
                       <span className="text-muted-foreground">
-                        🎯 7 Dias Premium Grátis <span className="text-foreground font-medium">(800 BC)</span>
+                        🎯 7 Dias Premium Grátis <span className="text-foreground font-medium">(8.000 BC)</span>
                       </span>
                       <span className="font-mono text-foreground">{cheapPct}%</span>
                     </div>
@@ -398,7 +398,7 @@ export default function BlackMarket() {
                   <div>
                     <div className="flex items-center justify-between text-[11px] mb-1">
                       <span className="text-muted-foreground">
-                        💸 Vale-Presente R$ 50 <span className="text-foreground font-medium">(3.500 BC)</span>
+                        💸 Vale-Presente R$ 50 <span className="text-foreground font-medium">(35.000 BC)</span>
                       </span>
                       <span className="font-mono text-foreground">{valePct}%</span>
                     </div>
