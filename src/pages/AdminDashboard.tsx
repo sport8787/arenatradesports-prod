@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useAdmin } from '@/hooks/useAdmin';
 import { Button } from '@/components/ui/button';
@@ -31,16 +31,16 @@ export default function AdminDashboard() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild size="sm" className="bg-primary text-primary-foreground">
-              <a href="/admin/hub">🧭 Hub Admin</a>
+              <Link to="/admin/hub">🧭 Hub Admin</Link>
             </Button>
             <Button asChild size="sm" variant="outline">
-              <a href="/admin/metricas-conversao">📊 Métricas de Conversão</a>
+              <Link to="/admin/metricas-conversao">📊 Métricas de Conversão</Link>
             </Button>
             <Button asChild variant="outline" size="sm">
-              <a href="/admin/auditoria-sinais">⚖️ Auditoria de Sinais</a>
+              <Link to="/admin/auditoria-sinais">⚖️ Auditoria de Sinais</Link>
             </Button>
             <Button asChild variant="outline" size="sm">
-              <a href="/admin/mycroft-chat-access">🔒 Tentativas Chat Mycroft</a>
+              <Link to="/admin/mycroft-chat-access">🔒 Tentativas Chat Mycroft</Link>
             </Button>
           </div>
         </div>
