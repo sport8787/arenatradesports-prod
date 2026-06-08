@@ -1756,14 +1756,18 @@ export default function PunterPage() {
               const wasAutoPlaced = hasHorusBet;
               const kellyProb = signal.recommendation.estimated_probability
                 ?? (signal.recommendation.fair_odd > 0 ? (1 / signal.recommendation.fair_odd) * 100 : (signal.recommendation.confidence || 55));
+              // Mycroft's recommended stake % (AI output) — used as cap for Kelly
+              const mycroftMaxStake = signal.recommendation.stake_percentage || 3;
               const kelly = bankroll ? calculateKellyStake({
                 probability: kellyProb,
                 odd: signal.recommendation.odd,
                 bankroll: bankroll.balance,
                 fraction: 0.25,
+                maxStake: mycroftMaxStake,           // cap by Mycroft's category recommendation
+                minStake: Math.max(1, mycroftMaxStake * 0.5), // min = half the recommended %
               }) : null;
               const kellyStake = kelly?.stakeAmount || 0;
-              const kellyPercent = kelly?.stakePercent || 3;
+              const kellyPercent = kelly?.stakePercent || mycroftMaxStake;
 
               // Get real bet stake from pending bets if Hórus already entered (match + market)
               const realBet = pendingBets.find((b: any) =>
@@ -2165,11 +2169,11 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
                   variant="secondary"
                   size="sm"
                   className="h-10 px-2 font-mono text-[10px] gap-1.5 whitespace-nowrap border border-primary/40 bg-primary/10 hover:bg-primary/20"
-                  title={`Stake sugerida pelo Hórus (4-5% da banca): R$ ${horusStake.toFixed(2)}`}
+                  title={`Stake sugerida por Kelly/${stakePercent}% (recomendação Mycroft): R$ ${horusStake.toFixed(2)}`}
                 >
                   <Copy className="w-3 h-3" />
                   <span className="flex flex-col items-start leading-tight">
-                    <span className="text-[8px] uppercase tracking-wider text-primary/80">Hórus · 4-5%</span>
+                    <span className="text-[8px] uppercase tracking-wider text-primary/80">Kelly · {stakePercent}%</span>
                     <span className="font-bold">R$ {horusStake.toFixed(2)}</span>
                   </span>
                 </Button>
