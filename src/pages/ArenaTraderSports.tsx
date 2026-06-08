@@ -541,7 +541,7 @@ export default function ArenaTraderSports() {
               </GoldButton>
               <GoldButton size="sm" variant="outline" onClick={() => navigate('/sinais-alavanca')}>
                 <TrendingUp className="w-4 h-4 mr-1" />
-                Entradas Alavanca
+                Under 4.5
               </GoldButton>
               <GoldButton size="sm" variant="outline" onClick={() => navigate('/arena-trader-sports/performance')}>
                 <TrendingUp className="w-4 h-4 mr-1" />
