@@ -515,7 +515,7 @@ export default function LandingPage() {
               <div>
                 <div className="text-lg font-bold text-white">Quer testar antes de assinar?</div>
                 <div className="text-sm text-gray-300 mt-1">
-                  <strong className="text-white">Day Pass de 24h por R$ 9,90</strong> — libera tudo (Punter + Trader Sports + Hórus) por um dia inteiro.
+                  <strong className="text-white">Day Pass de 24h por R$ 9,90</strong> — libera <strong className="text-yellow-400">tudo</strong>: Punter + Trader Sports + Hórus + Chat Mycroft ao vivo + Criação de Métodos + Alavancagem e muito mais, por um dia inteiro.
                 </div>
               </div>
             </div>
@@ -786,7 +786,7 @@ const PRICING_PLANS = [
 
 const FAQ = [
   { question: "Como funciona o acesso após o pagamento?", answer: "Acesso liberado em segundos após a confirmação do pagamento. Você recebe os dados de login por e-mail e já pode entrar nas arenas Punter, Trader Sports (Profissional+) e Elite (Chat AO VIVO + integração com Exchange)." },
-  { question: "Posso testar antes de assinar um plano mensal?", answer: "Sim. Oferecemos um Day Pass de 24h por R$ 9,90 que libera todas as áreas (Punter + Trader Sports + Hórus). É a forma mais barata de conhecer a plataforma na prática antes de escolher um plano." },
+  { question: "Posso testar antes de assinar um plano mensal?", answer: "Sim. O Day Pass de 24h por R$ 9,90 libera tudo — Arena Punter, Arena Live (Trader Sports), Hórus (bets virtuais automáticos), Chat Mycroft ao vivo, Criação de Métodos, Alavancagem, Eventos Raros, Sherlock e muito mais. É exatamente igual ao Plano Elite, mas por apenas um dia. A forma mais barata de conhecer tudo na prática antes de escolher seu plano." },
   { question: "Qual a diferença entre Iniciante, Profissional e Elite?", answer: "Iniciante (R$ 87,90): acesso a 1 arena à sua escolha (Punter ou Live) + métodos globais do Mycroft + Liga Mycroft com resgate de prêmios. Profissional (R$ 147,00): destrava as 2 arenas, o Trader Sports ao vivo, o Método dos Ciclos e métodos personalizados. Elite (R$ 249,90): tudo do Profissional + Chat AO VIVO dentro de cada jogo, integração com Exchange e multiplicador 1.3× de BluffCoins. O Trader Financeiro (WIN/WDO/BTC) acompanha o Elite em Beta." },
   { question: "Vocês são mais um canal de palpites?", answer: "Não. Somos uma plataforma técnica de análise estatística com IA. Cada operação fica registrada no painel de auditoria com timestamp, odd, edge e resultado. A diferença é o método, não a promessa." },
   { question: "Vocês garantem retorno financeiro?", answer: "Não. Nenhuma plataforma séria pode garantir resultado em operações esportivas. O que oferecemos é método, modelo estatístico e painel auditável. Resultados passados não garantem resultados futuros. Em caso de insatisfação nos primeiros 7 dias, devolvemos integralmente o valor da assinatura." },

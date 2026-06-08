@@ -24,12 +24,16 @@ declare global {
 }
 
 const DAY_PASS_INCLUDES = [
-  'Acesso completo por 24 horas',
-  'Arena Punter (entradas pré-jogo)',
-  'Arena Live (Trader Sports ao vivo)',
-  'Push e Telegram VIP',
-  'Liquidações com ROI 7d / 30d',
-  'Ideal para testar o sistema sem compromisso',
+  'Arena Punter (análises pré-jogo)',
+  'Arena Live — Trader Sports ao vivo',
+  'Hórus — bets virtuais automáticos',
+  'Chat Mycroft ao vivo dentro de cada jogo',
+  'Criação de Métodos personalizados',
+  'Alavancagem + Sinais Alavanca',
+  'Asset Score, Kelly, Sherlock',
+  'Eventos Raros (LAY Goleada, 2x2…)',
+  'Notificações push e Telegram VIP',
+  'Ideal para testar tudo antes de escolher um plano',
 ];
 
 const PLANS = [
@@ -173,7 +177,7 @@ export default function Paywall() {
                 <Badge variant="outline" className="text-yellow-400 border-yellow-400/40 text-[10px]">24H</Badge>
               </div>
               <div className="text-sm text-muted-foreground mt-1">
-                Libera todas as arenas por um dia. Ideal para conhecer o sistema antes de escolher um plano.
+                Libera <strong className="text-foreground">tudo</strong> por 24 horas — igual ao Plano Elite, mas por um dia. A forma mais barata de conhecer o sistema na prática.
               </div>
               <ul className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0.5">
                 {DAY_PASS_INCLUDES.map((item) => (
