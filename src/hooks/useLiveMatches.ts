@@ -139,7 +139,9 @@ export function useLiveMatches() {
         const minute = Number(match.minute || 0);
         const looksLikeSecondHalf = period.includes('second') || period.includes('2nd') || period.includes('2t') || period.includes('2º');
         const looksLikeEndedByClock = minute >= 90 && looksLikeSecondHalf;
-        const mycroftSettled = !!match.mycroft_analyses?.result;
+        const mycroftSettled = Array.isArray(match.mycroft_analyses)
+          ? match.mycroft_analyses.some((a: any) => !!a.result)
+          : !!match.mycroft_analyses?.result;
 
         // Jogo 90'+ em 2T não deve continuar em Ao Vivo só porque a análise tocou o registro.
         // Se o feed real não atualizou recentemente, escondemos da UI imediatamente.
@@ -149,7 +151,19 @@ export function useLiveMatches() {
         return true;
       })
       .map((match: any) => {
-        const analysis = match.mycroft_analyses || null;
+        // mycroft_analyses(*) retorna array (relação via match_id).
+        // Precisamos do registro apontado por mycroft_analysis_id, ou o mais recente.
+        const rawAnalysis = match.mycroft_analyses;
+        let analysis: any = null;
+        if (Array.isArray(rawAnalysis)) {
+          analysis = rawAnalysis.find((a: any) => a.id === match.mycroft_analysis_id)
+            ?? rawAnalysis.sort((a: any, b: any) =>
+                new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
+              )[0]
+            ?? null;
+        } else {
+          analysis = rawAnalysis ?? null;
+        }
         const { mycroft_analyses, ...rest } = match;
         return { ...rest, mycroft_analysis: analysis } as LiveMatch;
       });

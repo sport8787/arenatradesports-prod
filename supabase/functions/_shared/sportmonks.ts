@@ -167,9 +167,33 @@ function extractStats(fixture: any): NormalizedStats {
 }
 
 function extractMinute(fixture: any): number | null {
-  const periods = fixture.periods || [];
-  const live = periods.find((p: any) => p.ticking) || periods[periods.length - 1];
-  return live?.minutes ?? null;
+  const periods: any[] = fixture.periods || [];
+  if (periods.length === 0) return null;
+
+  const tickingIdx = periods.findIndex((p: any) => p.ticking);
+
+  if (tickingIdx >= 0) {
+    // Soma minutos de todos os períodos anteriores (encerrados) + minutos do período atual
+    let cumulative = 0;
+    for (let i = 0; i < tickingIdx; i++) {
+      cumulative += Number(periods[i].minutes ?? periods[i].length ?? 45);
+    }
+    cumulative += Number(periods[tickingIdx].minutes ?? 0);
+    return cumulative > 0 ? cumulative : null;
+  }
+
+  // Nenhum período em andamento (HT ou pré-jogo): usa o último período disponível
+  const last = periods[periods.length - 1];
+  if (!last) return null;
+
+  // Se é o 1º período encerrado, o placar cumulativo é só seus próprios minutos
+  const periodIdx = periods.length - 1;
+  let cumulative = 0;
+  for (let i = 0; i < periodIdx; i++) {
+    cumulative += Number(periods[i].minutes ?? periods[i].length ?? 45);
+  }
+  cumulative += Number(last.minutes ?? 0);
+  return cumulative > 0 ? cumulative : null;
 }
 
 function mapStateToShort(stateName: string): { short: string; long: string } {
@@ -271,15 +295,25 @@ export function normalizeFixture(smFixture: any, leagueMap: Map<number, number>)
   const currentScores = scores.filter(
     (s: any) => (s.description || "").toUpperCase() === "CURRENT",
   );
-  const curHome = currentScores.find((s: any) => s.score?.participant === "home");
-  const curAway = currentScores.find((s: any) => s.score?.participant === "away");
+  // Critério de match: score.participant="home"/"away" OU participant_id == home/away ID
+  const homeId = home?.id ? Number(home.id) : -1;
+  const awayId = away?.id ? Number(away.id) : -2;
+  const matchesParticipant = (s: any, side: "home" | "away"): boolean => {
+    const byStr = (s.score?.participant || "").toLowerCase() === side;
+    const byId = side === "home"
+      ? (homeId > 0 && Number(s.participant_id ?? -1) === homeId)
+      : (awayId > 0 && Number(s.participant_id ?? -1) === awayId);
+    return byStr || byId;
+  };
+  const curHome = currentScores.find((s: any) => matchesParticipant(s, "home"));
+  const curAway = currentScores.find((s: any) => matchesParticipant(s, "away"));
   // Fallback determinístico: 2ND_HALF (jogo no 2º tempo) → FT → 1ST_HALF.
-  const pickFallback = (participant: "home" | "away") => {
+  const pickFallback = (side: "home" | "away") => {
     const byDesc = (desc: string) =>
       scores.find(
         (s: any) =>
           (s.description || "").toUpperCase() === desc &&
-          s.score?.participant === participant,
+          matchesParticipant(s, side),
       );
     return byDesc("2ND_HALF") || byDesc("FT") || byDesc("1ST_HALF");
   };
