@@ -436,18 +436,21 @@ serve(async (req) => {
 
       if (!fx) {
         notFound++;
-        // Marca como VOID para não ficar pendente para sempre
-        await sb.from("punter_sinais").update({
-          resultado: "void",
-          status: "settled",
-          profit_loss: 0,
-          settled_at: new Date().toISOString(),
-          resulted_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          fonte_liquidacao: "nao_encontrado",
-          void_reason: "Jogo não encontrado em Futodds ou Sportmonks",
-        }).eq("id", s.id);
-        results.push({ id: s.id, status: "void_not_found", match: `${home} x ${away}` });
+        // Só voia após 48h — evita falso-void quando Futodds/Sportmonks falha temporariamente
+        const ageHours = (Date.now() - new Date(startIso).getTime()) / 36e5;
+        if (ageHours > 48) {
+          await sb.from("punter_sinais").update({
+            resultado: "void",
+            status: "settled",
+            profit_loss: 0,
+            settled_at: new Date().toISOString(),
+            resulted_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            fonte_liquidacao: "nao_encontrado",
+            void_reason: "Jogo não encontrado em Futodds ou Sportmonks após 48h",
+          }).eq("id", s.id);
+        }
+        results.push({ id: s.id, status: "fixture_not_found", match: `${home} x ${away}`, ageHours: Math.round(ageHours), voided: ageHours > 48 });
         continue;
       }
 
@@ -715,6 +718,7 @@ serve(async (req) => {
       not_found: notFound,
       unsupported,
       af_dates_fetched: afDateCache.size,
+      futodds_dates_fetched: fdEndedCache.size,
       sm_lookups_cached: smLookupCache.size,
       results,
     }, null, 2),

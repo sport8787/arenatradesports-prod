@@ -70,11 +70,13 @@ serve(async (req) => {
       const matchName = `${analysis.home_team} vs ${analysis.away_team}`;
       const normalizedMatchId = String(sig.match_id).replace(/\+00:00/g, 'Z');
 
-      // Buscar quais user_ids JÁ apostaram neste match (consulta única por sinal)
+      // Buscar quais user_ids JÁ apostaram neste match+market (consulta única por sinal)
+      // Filtra por market para permitir Over 1.5, Over 2.5 e Vitória coexistirem no mesmo jogo
       const { data: existing } = await supabase
         .from('virtual_bets_punter')
         .select('user_id')
         .eq('match_id', normalizedMatchId)
+        .eq('market', sig.market)
         .in('status', ['pending', 'green', 'red']);
 
       const userIdsWithBet = new Set((existing || []).map(b => b.user_id));

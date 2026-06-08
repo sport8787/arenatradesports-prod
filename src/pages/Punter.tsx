@@ -675,8 +675,10 @@ export default function PunterPage() {
       return false;
     }
 
-    // Build match_id for bet storage — ALWAYS normalize +00:00 → Z to prevent duplicates
-    const rawMatchId = `${signal.match.home_team}_${signal.match.away_team}_${signal.match.commence_time}`.replace(/\s+/g, '_');
+    // Build match_id for bet storage — include market to allow multiple markets per match
+    // ALWAYS normalize +00:00 → Z to prevent duplicates
+    const marketSlug = (signal.recommendation.market || '').toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_');
+    const rawMatchId = `${signal.match.home_team}_${signal.match.away_team}_${signal.match.commence_time}_${marketSlug}`.replace(/\s+/g, '_');
     const matchId = rawMatchId.replace(/\+00:00/g, 'Z');
     
     // For fresh analysis signals, skip the punter_sinais lookup (signal already approved by AI)
@@ -733,16 +735,17 @@ export default function PunterPage() {
 
     const matchName = `${signal.match.home_team} vs ${signal.match.away_team}`;
 
-    // Check if Hórus already bet on this match (any status — prevents re-betting on re-analysis)
-    // Check both canonical and constructed match_id to be safe
+    // Check if Hórus already bet on this match+market (any status — prevents re-betting on re-analysis)
+    // Filter by market too so Over 1.5, Over 2.5, and Vitória can coexist for the same match
     const { data: existingBets } = await supabase
       .from('virtual_bets_punter')
       .select('id')
       .eq('user_id', user.id)
+      .eq('market', signal.recommendation.market)
       .or(`match_id.eq.${canonicalMatchId},match_id.eq.${matchId}`)
       .in('status', ['pending', 'green', 'red']);
 
-    if (existingBets && existingBets.length > 0) return false; // Already bet
+    if (existingBets && existingBets.length > 0) return false; // Already bet on this market
 
     // Calculate asset score for storage
     const assetScoreResult = calculateAssetScore({
