@@ -40,7 +40,7 @@ META PRINCIPAL: Aprovar apenas 15-25% dos jogos analisados.
 WIN RATE ALVO: ≥ 60%
 EDGE MÍNIMO: 4% (flexível conforme tier)
 PROBABILIDADE MÍNIMA: variável por mercado (ver abaixo)
-ODD MÁXIMA: 3.50 (com exceções para underdog com fundamentos)
+ODD MÁXIMA: 3.20 (Fora ≤ 2.50, Empate ≤ 2.80 — sem exceções)
 ROI ESPERADO: 15-20% ao mês
 
 ═══════════════════════════════════════════════
@@ -56,7 +56,7 @@ VETAR IMEDIATAMENTE se qualquer condição for verdadeira:
 
 FILTRO 1 — PROBABILIDADE REAL (variável por mercado)
 Mercados comuns e suas probabilidades mínimas:
-• 1X2 (Casa/Fora/Empate): mínimo 42% (empates 38%)
+• 1X2 (Casa/Fora): mínimo 42% | Empate: mínimo 48%
 • Over 2.5: mínimo 45%
 • Under 2.5: mínimo 48% (exige defesas sólidas)
 • BTTS Sim: mínimo 48%
@@ -66,8 +66,10 @@ Mercados comuns e suas probabilidades mínimas:
 Se a probabilidade real estiver abaixo do mínimo do mercado → VETAR
 
 FILTRO 2 — ODD MÁXIMA (por mercado)
-• 1X2 Casa/Fora/Over 2.5/BTTS: odd ≤ 3.20
-• Underdog (odds 3.21 - 3.50): permitido APENAS se probabilidade real ≥ 40% e edge ≥ 8%
+• 1X2 Casa/Over 2.5/BTTS: odd ≤ 3.00
+• 1X2 Fora: odd ≤ 2.50 (hard cap — não aceitar exceções)
+• 1X2 Empate: odd ≤ 2.80 (hard cap — não aceitar exceções)
+• Underdog excepcional (3.01 - 3.20): APENAS Casa, prob real ≥ 50% e edge ≥ 10%
 • Under 2.5: odd ≤ 2.80
 • Over/Under 0.5 HT: odd ≤ 4.00 (desde que prob ≥ 38%)
 • Escanteios: odd ≤ 2.20
@@ -105,8 +107,10 @@ BTTS:
 • Se um time tem média < 0.8 gols marcados: VETAR
 
 1X2 — CASA/FORA:
-• Empate: prob mínima 35% (e edge ≥ 6%)
-• Fora: se odd > 2.80, exige prob mínima 42% e edge ≥ 7%
+• Empate: prob mínima 48% (e edge ≥ 8%) | odd máxima 2.80
+• Fora: odd máxima 2.50, prob mínima 48% e edge ≥ 7%
+• VETO ABSOLUTO: Empate + odd > 3.00 → VETAR independente de qualquer fator
+• VETO ABSOLUTO: Fora + odd > 2.60 → VETAR independente de qualquer fator
 • Proibido aprovar Casa e Fora do mesmo jogo
 
 FILTRO 7 — BASELINE SHARP (adaptado)
@@ -126,13 +130,13 @@ TIER 1 — FORTE (⚡):
 
 TIER 2 — BOM (✅):
 - Probabilidade ≥ 48%, Edge ≥ 5%, Confiança ≥ 70%
-- Odds 1.40 - 3.20
+- Odds 1.40 - 3.00
 - Stake: 3% da banca
 - Thesis: "boa vantagem identificada"
 
 TIER 3 — MODERADO (🎯):
 - Probabilidade ≥ 42%, Edge ≥ 4%, Confiança ≥ 65%
-- Odds 1.35 - 3.50 (underdog excepcional)
+- Odds 1.35 - 3.20 (underdog excepcional Casa only)
 - Stake: 2% da banca
 - Thesis: "vantagem positiva, porém margem menor — stake reduzido"
 
@@ -158,12 +162,39 @@ MERCADOS VÁLIDOS
 1X2, Over/Under (0.5 HT, 1.5, 2.5, 3.5), BTTS, Escanteios (Over/Under), Cartões Amarelos
 
 ═══════════════════════════════════════════════
+HIERARQUIA DE MERCADOS (prioridade de análise)
+═══════════════════════════════════════════════
+TIER A (máxima prioridade — maior ROI histórico):
+1. BTTS Sim — quando ambos times marcam ≥ 60% dos jogos
+2. Handicap Asiático — favorito casa com linha -0.5/-1 e odd 1.75-2.10
+3. Favorito Casa (1X2) — odd 1.45-2.50, prob ≥ 55%
+4. Over 1.5 — jogo de ritmo alto, prob ≥ 65%
+5. Over 2.5 — ambas equipes com ataque sólido, prob ≥ 52%
+
+TIER B (boa rentabilidade se bem filtrado):
+6. Under 2.5 — defesas sólidas, médias baixas
+7. Over 3.5 — ataque explosivo bilateral
+
+TIER C (aprovar somente com edge alto ≥ 8%):
+8. Empate — APENAS quando prob ≥ 48%, odd ≤ 2.80, e há forte tendência histórica de equilíbrio
+9. Visitante — APENAS quando prob ≥ 48%, odd ≤ 2.50, time visitante claramente superior
+
+PROIBIDO PRIORIZAR:
+- Escanteios e Cartões Amarelos como mercado principal (aceitar apenas como sinal secundário)
+- Empate com odd > 3.00 ou prob < 48%
+- Visitante com odd > 2.50 ou prob < 48%
+
+═══════════════════════════════════════════════
 VETO OBRIGATÓRIO CONSOLIDADO
 ═══════════════════════════════════════════════
+- VETO ABSOLUTO: Mercado "Empate" + odd > 3.00 (independente de qualquer outro fator)
+- VETO ABSOLUTO: Mercado "Visitante/Fora" + odd > 2.60 (independente de qualquer outro fator)
+- VETO ABSOLUTO: Empate com prob < 48%
+- VETO ABSOLUTO: Visitante/Fora com prob < 48%
 - Odds simuladas ou fabricadas
 - Menos de 2 casas reais
 - Probabilidade abaixo do mínimo do mercado
-- Odd acima do limite do mercado + exceções
+- Odd acima do limite do mercado
 - Edge < 4% para qualquer mercado
 - Confiança < 65%
 - EV negativo
@@ -192,11 +223,11 @@ function inferTier(a: any): number {
 
 // Configuração calibrável (carregada da tabela punter_calibration)
 let CALIB = {
-  min_probability: 30, min_edge: 4, min_confidence: 65,
-  odd_min: 1.35, odd_max: 4.50, tolerance_pp: 2,
-  tier1: { minEdge: 7, minConf: 78, maxStake: 5, minProb: 50 },
-  tier2: { minEdge: 5, minConf: 70, maxStake: 3.5, minProb: 40 },
-  tier3: { minEdge: 4, minConf: 65, maxStake: 2.5, minProb: 32 },
+  min_probability: 42, min_edge: 4, min_confidence: 65,
+  odd_min: 1.35, odd_max: 3.20, tolerance_pp: 2,
+  tier1: { minEdge: 7, minConf: 78, maxStake: 5, minProb: 55 },
+  tier2: { minEdge: 5, minConf: 70, maxStake: 3.5, minProb: 48 },
+  tier3: { minEdge: 4, minConf: 65, maxStake: 2.5, minProb: 42 },
 }
 
 async function loadCalibration(supabase: any) {
@@ -222,6 +253,23 @@ async function loadCalibration(supabase: any) {
 
 function validateAnalysis(a: any): ValidationResult {
   if (a.verdict === 'VETADO') return { valid: false, reason: a.veto_reason || 'Vetado pelo modelo' }
+
+  // ═══ HARD-VETO por mercado — regras absolutas, não sobrescrevíveis por tier/CALIB ═══
+  const market = (a.market ?? '').toLowerCase()
+  const isEmpate  = market.includes('empate') || market.includes('draw') || market.includes('x')
+  const isVisitante = market.includes('visitante') || market.includes('fora') || market.includes('away') || market.includes('2')
+
+  if (isEmpate) {
+    if (a.odd > 3.00) return { valid: false, reason: `HARD-VETO: Empate com odd ${a.odd} > 3.00` }
+    if ((a.estimated_probability ?? 0) < 48) return { valid: false, reason: `HARD-VETO: Empate com prob ${a.estimated_probability}% < 48%` }
+    if ((a.edge_percentage ?? 0) < 8) return { valid: false, reason: `HARD-VETO: Empate exige edge ≥ 8% (atual: ${a.edge_percentage}%)` }
+  }
+  if (isVisitante) {
+    if (a.odd > 2.60) return { valid: false, reason: `HARD-VETO: Visitante com odd ${a.odd} > 2.60` }
+    if ((a.estimated_probability ?? 0) < 48) return { valid: false, reason: `HARD-VETO: Visitante com prob ${a.estimated_probability}% < 48%` }
+  }
+  // ════════════════════════════════════════════════════════════════════════════
+
   if (!a.estimated_probability || a.estimated_probability < CALIB.min_probability) {
     return { valid: false, reason: `Probabilidade insuficiente: ${a.estimated_probability ?? 0}% (mínimo ${CALIB.min_probability}%)` }
   }

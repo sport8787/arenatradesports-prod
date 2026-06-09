@@ -30,7 +30,7 @@ const DATA_SOURCE: 'sportmonks' = 'sportmonks'
 const SUPABASE_URL      = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SVC_KEY  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 // API_FOOTBALL_KEY removida em Fase 2 (18/05/2026) — fonte única: Sportmonks via adapter.
-const ODDS_API_KEY      = Deno.env.get('ODDS_API_KEY') ?? ''
+const ODDS_API_KEY      = Deno.env.get('THE_ODDS_API_KEY') ?? Deno.env.get('ODDS_API_KEY') ?? ''
 const TELEGRAM_TOKEN    = Deno.env.get('TELEGRAM_BOT_TOKEN') ?? ''
 const TELEGRAM_CHAT     = Deno.env.get('TELEGRAM_CHAT_ID') ?? ''
 
@@ -792,7 +792,7 @@ async function mirrorOne(analise: Analise, marketKey: 'vitoria'|'over15'|'over25
       home_team: analise.homeTeam,
       away_team: analise.awayTeam,
       market: label,
-      odd: odd,
+      odd: oddFinal,
       confidence: Math.min(100, Math.max(0, Math.round(score))),
       verdict: 'APROVADO',
       commence_time: analise.matchDate,
