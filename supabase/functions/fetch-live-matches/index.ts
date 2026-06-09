@@ -5,6 +5,7 @@ import { resilientFetch } from "../_shared/resilientFetch.ts";
 import { getLiveMatches, getFixtureStats } from "../_shared/liveProvider.ts";
 import { getUpcomingFixturesSM } from "../_shared/sportmonks-af-adapter.ts";
 import { extractOdds1X2 } from "../_shared/sportmonks.ts";
+import { getApiFootballLiveOdds } from "../_shared/apiFootballProvider.ts";
 import { getAllowedLeagueIds } from "../_shared/leaguesRegistry.ts";
 
 // Provedores ao vivo: Futodds (primário) + Sportmonks (fallback). API-Football REMOVIDA em 16/05/2026.
@@ -281,25 +282,70 @@ serve(async (req) => {
       liveFixtures,
       STATS_CONCURRENCY,
       async (f: any) => {
-        const r = await getFixtureStats({ sm_id: f.fixture.sm_id, raw: f._raw, _source: f._source });
+        const r = await getFixtureStats({
+          sm_id: f.fixture.sm_id,
+          af_id: f._source === "apifootball" ? String(f.fixture.id) : undefined,
+          raw: f._raw,
+          _source: f._source,
+        });
         if (!r.stats) return null;
         const s: any = r.stats;
+
+        const sotH = Number(s.shots_on_target_home ?? 0);
+        const sotA = Number(s.shots_on_target_away ?? 0);
+        const stH  = Number(s.shots_total_home ?? sotH);
+        const stA  = Number(s.shots_total_away ?? sotA);
+
+        // === xG avançado — prioridade: real SM/AF → sintético (SoT-based) ===
+        let xgH: number | null = (s.xG_home != null && s.xG_home > 0) ? s.xG_home : null;
+        let xgA: number | null = (s.xG_away != null && s.xG_away > 0) ? s.xG_away : null;
+        let xgEstimated = false;
+
+        if ((xgH == null || xgH === 0) && (xgA == null || xgA === 0) && (sotH + sotA) >= 2) {
+          // Fallback sintético calibrado StatsBomb/Understat: SoT×0.32 + off-target×0.05
+          xgH = Math.round((sotH * 0.32 + Math.max(0, stH - sotH) * 0.05) * 100) / 100;
+          xgA = Math.round((sotA * 0.32 + Math.max(0, stA - sotA) * 0.05) * 100) / 100;
+          xgEstimated = true;
+          console.log(`[FetchLive] xG sintético ${f.teams?.home?.name} vs ${f.teams?.away?.name}: ${xgH}-${xgA} (SoT ${sotH}-${sotA})`);
+        }
+
+        // === Pressão sintética (SM: dangerous_attacks; AF: shots-based) ===
+        const daH = Number(s.dangerous_attacks_home ?? 0);
+        const daA = Number(s.dangerous_attacks_away ?? 0);
+        const posH = Number(s.possession_home ?? 50);
+        const posA = Number(s.possession_away ?? 50);
+        const totalDa = daH + daA;
+        const totalSot = sotH + sotA;
+        // Score ponderado: dangerous_attacks (peso 0.6) + SoT (peso 0.3) + posse (peso 0.1)
+        const pressH = totalDa > 0
+          ? Math.round(((daH / Math.max(1, totalDa)) * 0.6 + (totalSot > 0 ? sotH / Math.max(1, totalSot) : 0.5) * 0.3 + (posH / 100) * 0.1) * 100)
+          : Math.round((totalSot > 0 ? sotH / Math.max(1, totalSot) : 0.5) * 0.7 * 100 + (posH / 100) * 0.3 * 100);
+        const pressA = 100 - pressH;
+
         return {
-          attacks_home: s.attacks_home,
-          attacks_away: s.attacks_away,
-          // Usar dangerous_attacks reais do adapter; só cair em attacks se realmente faltar
-          dangerous_attacks_home: (s.dangerous_attacks_home ?? 0) > 0 ? s.dangerous_attacks_home : (s.attacks_home ?? 0),
-          dangerous_attacks_away: (s.dangerous_attacks_away ?? 0) > 0 ? s.dangerous_attacks_away : (s.attacks_away ?? 0),
-          possession_home: s.possession_home,
-          possession_away: s.possession_away,
-          shots_home: s.shots_on_target_home,
-          shots_away: s.shots_on_target_away,
-          shots_total_home: s.shots_total_home,
-          shots_total_away: s.shots_total_away,
-          shots_on_target_home: s.shots_on_target_home,
-          shots_on_target_away: s.shots_on_target_away,
-          xG_home: s.xG_home ?? 0,
-          xG_away: s.xG_away ?? 0,
+          attacks_home: s.attacks_home ?? 0,
+          attacks_away: s.attacks_away ?? 0,
+          dangerous_attacks_home: daH > 0 ? daH : (s.attacks_home ?? 0),
+          dangerous_attacks_away: daA > 0 ? daA : (s.attacks_away ?? 0),
+          possession_home: posH,
+          possession_away: posA,
+          shots_home: sotH,
+          shots_away: sotA,
+          shots_total_home: stH,
+          shots_total_away: stA,
+          shots_on_target_home: sotH,
+          shots_on_target_away: sotA,
+          corners_home: s.corners_home ?? 0,
+          corners_away: s.corners_away ?? 0,
+          fouls_home: s.fouls_home ?? 0,
+          fouls_away: s.fouls_away ?? 0,
+          cards_home: s.cards_home ?? 0,
+          cards_away: s.cards_away ?? 0,
+          xG_home: xgH ?? 0,
+          xG_away: xgA ?? 0,
+          xg_estimated: xgEstimated,
+          // Pressão sintética (usada no gráfico quando Futodds indisponível)
+          pressure_indices: { home: pressH, away: pressA, total: 100 },
           _source: r.source,
         } as any;
       },
@@ -346,13 +392,23 @@ serve(async (req) => {
         updated_at: new Date().toISOString(),
       };
 
-      // Odds 1X2 ao vivo (Sportmonks)
+      // Odds 1X2 ao vivo — Sportmonks primary, API-Football fallback
       let oddsLive: any = null;
-      if (fixture._source === 'sportmonks' && fixture._raw && lifecycleStatus === 'live') {
-        try {
-          oddsLive = extractOdds1X2(fixture._raw);
-        } catch (e) {
-          console.warn(`[FetchLive] odds extract fail ${fixtureId}: ${(e as Error)?.message}`);
+      if (lifecycleStatus === 'live') {
+        if (fixture._source === 'sportmonks' && fixture._raw) {
+          try {
+            oddsLive = extractOdds1X2(fixture._raw);
+          } catch (e) {
+            console.warn(`[FetchLive] SM odds extract fail ${fixtureId}: ${(e as Error)?.message}`);
+          }
+        }
+        // Fallback: API-Football live odds (Copa do Mundo e ligas AF)
+        if (!oddsLive && fixture._source === 'apifootball') {
+          try {
+            oddsLive = await getApiFootballLiveOdds(Number(fixtureId));
+          } catch (e) {
+            console.warn(`[FetchLive] AF odds fail ${fixtureId}: ${(e as Error)?.message}`);
+          }
         }
       }
 

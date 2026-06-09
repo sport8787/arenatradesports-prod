@@ -95,6 +95,8 @@ const mapLiveMatchToMatch = (lm: LiveMatch): Match => {
       corners_away: s.corners_away ?? undefined,
       xG_home: s.xG_home ?? undefined,
       xG_away: s.xG_away ?? undefined,
+      xg_estimated: (s as any).xg_estimated ?? false,
+      xg_unavailable: (s as any).xg_unavailable ?? false,
     } : null,
     planName: lm.mycroft_analysis?.fundamentation?.plan_name ?? null,
     market: lm.mycroft_analysis?.market ?? null,

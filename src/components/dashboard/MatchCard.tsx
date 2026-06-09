@@ -214,7 +214,14 @@ export default function MatchCard({ match, index, onAnalysisClick }: MatchCardPr
     effectiveStatus === 'LABAREDA' ||
     effectiveStatus === 'opportunity';
   const { data: pressureData, loading: pressureLoading, error: pressureError } = useMatchPressure(
-    showPressureChart ? { home: match.home, away: match.away } : { home: '', away: '' },
+    showPressureChart ? {
+      home: match.home,
+      away: match.away,
+      currentPressure: match.healthStats?.pressure_indices
+        ? { home: match.healthStats.pressure_indices.home, away: match.healthStats.pressure_indices.away }
+        : undefined,
+      currentMinute: match.minute ?? undefined,
+    } : { home: '', away: '' },
     30000,
   );
 

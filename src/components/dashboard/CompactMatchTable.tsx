@@ -148,8 +148,8 @@ export default function CompactMatchTable({ matches, onRowClick }: CompactMatchT
                     {m.stats?.shots_home != null ? `${m.stats.shots_home}-${m.stats.shots_away ?? 0}` : '—'}
                   </td>
                   <td className="px-3 py-2 text-center text-muted-foreground">
-                    {m.stats?.xG_home != null
-                      ? `${m.stats.xG_home.toFixed(1)}-${(m.stats.xG_away ?? 0).toFixed(1)}`
+                    {m.stats?.xG_home != null && m.stats.xG_home > 0
+                      ? `${m.stats.xG_home.toFixed(2)}-${(m.stats.xG_away ?? 0).toFixed(2)}${(m.stats as any)?.xg_estimated ? ' ˜' : ''}`
                       : '—'}
                   </td>
                   <td className="px-3 py-2 text-center" onClick={(e) => e.stopPropagation()}>

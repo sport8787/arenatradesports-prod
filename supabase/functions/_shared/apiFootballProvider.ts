@@ -128,11 +128,30 @@ export async function getApiFootballStats(fixtureId: number): Promise<any | null
     const hStats: any[] = homeTeam?.statistics ?? [];
     const aStats: any[] = awayTeam?.statistics ?? [];
 
+    const shotsH = parse(hStats, "Total Shots");
+    const shotsA = parse(aStats, "Total Shots");
+    const sotH   = parse(hStats, "Shots on Goal");
+    const sotA   = parse(aStats, "Shots on Goal");
+
+    // xG real do AF (disponível em ligas selecionadas — Copa do Mundo incluída)
+    // API-Football usa o tipo "expected_goals" com valor decimal ex: "0.67"
+    let xgH = parse(hStats, "expected_goals");
+    let xgA = parse(aStats, "expected_goals");
+    // Fallback sintético quando AF não fornece xG: SoT×0.32 + off-target×0.05
+    // (calibrado por StatsBomb/Understat — mesmo modelo usado no SM adapter)
+    if (xgH === 0 && xgA === 0 && (sotH + sotA) >= 2) {
+      xgH = Math.round((sotH * 0.32 + Math.max(0, shotsH - sotH) * 0.05) * 100) / 100;
+      xgA = Math.round((sotA * 0.32 + Math.max(0, shotsA - sotA) * 0.05) * 100) / 100;
+      console.log(`[apiFootball] xG sintético fixture=${fixtureId}: home=${xgH} away=${xgA} (SoT ${sotH}-${sotA})`);
+    }
+
     return {
-      shots_home: parse(hStats, "Total Shots"),
-      shots_away: parse(aStats, "Total Shots"),
-      shots_on_target_home: parse(hStats, "Shots on Goal"),
-      shots_on_target_away: parse(aStats, "Shots on Goal"),
+      shots_home: shotsH,
+      shots_away: shotsA,
+      shots_total_home: shotsH,
+      shots_total_away: shotsA,
+      shots_on_target_home: sotH,
+      shots_on_target_away: sotA,
       possession_home: parse(hStats, "Ball Possession"),
       possession_away: parse(aStats, "Ball Possession"),
       corners_home: parse(hStats, "Corner Kicks"),
@@ -149,10 +168,54 @@ export async function getApiFootballStats(fixtureId: number): Promise<any | null
       passes_accurate_away: parse(aStats, "Passes accurate"),
       attacks_home: 0,
       attacks_away: 0,
+      xG_home: xgH || null,
+      xG_away: xgA || null,
       source: "apifootball",
     };
   } catch (e) {
     console.warn(`[apiFootball] stats fail fixture=${fixtureId}: ${(e as Error).message}`);
+    return null;
+  }
+}
+
+/**
+ * Busca odds 1X2 ao vivo para um fixture específico via API-Football /odds/live.
+ * Retorna no shape OddsLive1X2 (compatível com Sportmonks extractOdds1X2).
+ */
+export async function getApiFootballLiveOdds(fixtureId: number): Promise<{
+  home: number | null; draw: number | null; away: number | null;
+  bookmaker: string | null; updated_at: string;
+} | null> {
+  try {
+    const json = await afFetch(`/odds/live?fixture=${fixtureId}`);
+    const entries: any[] = json?.response ?? [];
+    if (entries.length === 0) return null;
+
+    // Busca o mercado "Match Winner" (1X2) em qualquer bookmaker disponível
+    for (const entry of entries) {
+      for (const bk of (entry.bookmakers ?? [])) {
+        for (const bet of (bk.bets ?? [])) {
+          const name = (bet.name || "").toLowerCase();
+          if (!name.includes("match winner") && !name.includes("1x2") && !name.includes("fulltime result")) continue;
+          const vals: any[] = bet.values ?? [];
+          const home = vals.find((v: any) => (v.value || "").toLowerCase() === "home");
+          const draw = vals.find((v: any) => (v.value || "").toLowerCase() === "draw");
+          const away = vals.find((v: any) => (v.value || "").toLowerCase() === "away");
+          if (home || draw || away) {
+            return {
+              home: home ? parseFloat(home.odd) : null,
+              draw: draw ? parseFloat(draw.odd) : null,
+              away: away ? parseFloat(away.odd) : null,
+              bookmaker: bk.name ?? null,
+              updated_at: new Date().toISOString(),
+            };
+          }
+        }
+      }
+    }
+    return null;
+  } catch (e) {
+    console.warn(`[apiFootball] odds fail fixture=${fixtureId}: ${(e as Error).message}`);
     return null;
   }
 }

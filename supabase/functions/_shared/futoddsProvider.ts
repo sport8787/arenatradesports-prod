@@ -1,11 +1,18 @@
 // futoddsProvider — Adapter Futodds → shape "API-Football compatível".
-// Provedor PRIMÁRIO para tudo ao vivo (placar, stats, pressão, eventos).
+// Provedor SECUNDÁRIO: usado quando Sportmonks não cobre a liga.
 // Base: https://csv.futodds.com/functions/v1, Auth: Bearer <FUTODDS_API_KEY>
+//
+// ⚠️ FUTODDS_DISABLED=true desativa completamente (use quando a subscription vencer).
 
 import { resilientFetch } from "./resilientFetch.ts";
 import type { NormalizedStats } from "./sportmonks.ts";
 
 const FUTODDS_BASE = "https://csv.futodds.com/functions/v1";
+
+/** true quando a subscription Futodds está inativa — retorna dados vazios silenciosamente. */
+function isFutoddsDisabled(): boolean {
+  return (Deno.env.get("FUTODDS_DISABLED") || "").toLowerCase() === "true";
+}
 
 function authHeaders() {
   const key = Deno.env.get("FUTODDS_API_KEY");
@@ -127,6 +134,10 @@ export interface FutoddsLiveResult {
 
 /** Busca jogos ao vivo Betfair (com pressão e stats por janela). */
 export async function getFutoddsLive(): Promise<FutoddsLiveResult> {
+  if (isFutoddsDisabled()) {
+    console.log("[futoddsProvider] FUTODDS_DISABLED=true — retornando lista vazia");
+    return { fixtures: [], source: "futodds", count: 0 };
+  }
   const j = await fdGet("/matches-betfair-live");
   const data: any[] = Array.isArray(j?.data) ? j.data : [];
   const fixtures = data.map(toAfFixture);

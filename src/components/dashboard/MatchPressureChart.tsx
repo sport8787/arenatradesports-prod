@@ -25,7 +25,16 @@ export interface PressureData {
   form: PressureForm;
 }
 
-interface FetchArgs { home: string; away: string; commenceTime?: string; fixtureId?: number; }
+interface FetchArgs {
+  home: string;
+  away: string;
+  commenceTime?: string;
+  fixtureId?: number;
+  /** Pressão atual sintética dos stats (fallback quando SM e Futodds indisponíveis) */
+  currentPressure?: { home?: number; away?: number };
+  /** Minuto atual do jogo (para posicionar o ponto sintético na timeline) */
+  currentMinute?: number;
+}
 
 // Cache em memória por chave (home::away::fixtureId) com TTL de 30s.
 // Evita chamar futodds-pressure múltiplas vezes para o mesmo jogo quando
@@ -74,16 +83,36 @@ export function useMatchPressure(args: FetchArgs, refreshMs = 60000) {
         }
 
         if (!resp) {
+          // Fallback sintético: usa pressão computada dos stats (dangerous_attacks/SoT)
+          // quando SM e Futodds estão indisponíveis (ex: Futodds expirado)
+          const pressH = args.currentPressure?.home ?? 50;
+          const pressA = args.currentPressure?.away ?? (100 - pressH);
+          const minute = args.currentMinute ?? 45;
+          const hasSyntheticPressure = args.currentPressure != null
+            && (args.currentPressure.home ?? 0) > 0;
+
+          // Monta timeline sintética com pontos a cada 5 minutos até o minuto atual
+          // usando o valor de pressão como estimativa plana (snapshot atual)
+          const syntheticTimeline: PressurePoint[] = hasSyntheticPressure
+            ? Array.from({ length: Math.ceil(minute / 5) + 1 }, (_, i) => ({
+                minute: Math.min(i * 5, minute),
+                home: pressH,
+                away: pressA,
+              }))
+            : [];
+
           resp = {
             fixtureId: args.fixtureId ?? 0,
             source: "trends",
             header: {
               home: { id: 0, name: args.home, logo: "" },
               away: { id: 0, name: args.away, logo: "" },
-              score: { home: 0, away: 0 }, state: "NS", minute: 0,
+              score: { home: 0, away: 0 }, state: "NS", minute,
             },
-            timeline: [], events: [], form: { home: [], away: [] },
-            _fallback: "estimator_no_data",
+            timeline: syntheticTimeline,
+            events: [],
+            form: { home: [], away: [] },
+            _fallback: hasSyntheticPressure ? "synthetic_stats" : "estimator_no_data",
           };
         }
         return resp as PressureData;

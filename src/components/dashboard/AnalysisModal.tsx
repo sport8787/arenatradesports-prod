@@ -208,7 +208,11 @@ export default function AnalysisModal({ match, analysis, isOpen, onClose, bankro
   const showStatsBlock = hasRealStats || isAdmin;
   const statRows = showStatsBlock ? [
     { label: 'Ataques perigosos', home: stats?.attacks_home ?? '-', away: stats?.attacks_away ?? '-' },
-    { label: 'xG', home: stats?.xG_home ?? '-', away: stats?.xG_away ?? '-' },
+    {
+      label: (stats as any)?.xg_estimated ? 'xG (est.)' : (stats as any)?.xg_unavailable ? 'xG (N/D)' : 'xG',
+      home: stats?.xG_home != null && stats.xG_home > 0 ? stats.xG_home.toFixed(2) : '-',
+      away: stats?.xG_away != null && stats.xG_away > 0 ? stats.xG_away.toFixed(2) : '-',
+    },
     { label: 'Posse', home: stats?.possession_home != null ? `${stats!.possession_home}%` : '-', away: stats?.possession_away != null ? `${stats!.possession_away}%` : '-' },
     { label: 'Chutes ao gol', home: stats?.shots_home ?? '-', away: stats?.shots_away ?? '-' },
   ] : [];
