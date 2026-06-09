@@ -30,6 +30,7 @@ import PunterHeroBanner from '@/components/punter/PunterHeroBanner';
 import ExchangeEdgeBadge from '@/components/punter/ExchangeEdgeBadge';
 import SteamBadge from '@/components/punter/SteamBadge';
 import SportmonksPredictionBadge from '@/components/punter/SportmonksPredictionBadge';
+import SmPredictionsPanel from '@/components/punter/SmPredictionsPanel';
 import PunterViewModeToggle from '@/components/punter/PunterViewModeToggle';
 import { usePunterViewMode } from '@/hooks/usePunterViewMode';
 import CopySignalActions from '@/components/signals/CopySignalActions';
@@ -2237,6 +2238,13 @@ function SignalCard({ signal, onPlaceBetManual, bankroll, manualBankroll, isNew,
                       divergencePp={signal.recommendation.sportmonks_divergence_pp ?? null}
                       sherlockAlert={signal.recommendation.sherlock_alert ?? false}
                       className="mt-1"
+                    />
+                    <SmPredictionsPanel
+                      matchId={mid}
+                      homeTeam={signal.match.home_team}
+                      awayTeam={signal.match.away_team}
+                      commenceTime={signal.match.commence_time}
+                      className="mt-2"
                     />
                   </>
                 );
