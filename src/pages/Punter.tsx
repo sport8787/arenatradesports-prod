@@ -492,10 +492,13 @@ export default function PunterPage() {
     if (!user || !bankroll) return;
 
     // punter_sinais é unificada — dados do match estão no próprio registro
+    // Usa banca manual do usuário (manual_bankroll) como base para o cálculo de stake.
+    // A banca do Hórus (user_bankroll) é exclusiva para entradas automatizadas do bot.
+    const bancaBase = (manualBankroll?.balance ?? 0) > 0 ? manualBankroll!.balance : bankroll.balance;
     const stakePercent = signal.stake_percentage || signal.stake_percentage_original || 3;
-    const stakeAmount = Math.round(bankroll.balance * (stakePercent / 100) * 100) / 100;
+    const stakeAmount = Math.round(bancaBase * (stakePercent / 100) * 100) / 100;
 
-    if (stakeAmount <= 0 || stakeAmount > bankroll.balance) {
+    if (stakeAmount <= 0 || stakeAmount > bancaBase) {
       toast.error('Saldo insuficiente para confirmar esta entrada');
       return;
     }
@@ -1759,10 +1762,16 @@ export default function PunterPage() {
                 ?? (signal.recommendation.fair_odd > 0 ? (1 / signal.recommendation.fair_odd) * 100 : (signal.recommendation.confidence || 55));
               // Mycroft's recommended stake % (AI output) — used as cap for Kelly
               const mycroftMaxStake = signal.recommendation.stake_percentage || 3;
-              const kelly = bankroll ? calculateKellyStake({
+              // Stake sugerida usa banca MANUAL do usuário (não a banca do Hórus).
+              // O Hórus tem sua própria banca (user_bankroll) separada da banca do usuário (manual_bankroll).
+              // A sugestão Kelly exibida no card deve refletir a capacidade financeira do usuário.
+              const kellyBase = (manualBankroll?.balance ?? 0) > 0
+                ? manualBankroll!.balance
+                : (bankroll?.balance ?? 0);
+              const kelly = kellyBase > 0 ? calculateKellyStake({
                 probability: kellyProb,
                 odd: signal.recommendation.odd,
-                bankroll: bankroll.balance,
+                bankroll: kellyBase,
                 fraction: 0.25,
                 maxStake: mycroftMaxStake,           // cap by Mycroft's category recommendation
                 minStake: Math.max(1, mycroftMaxStake * 0.5), // min = half the recommended %
