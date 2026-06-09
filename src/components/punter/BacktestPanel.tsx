@@ -185,6 +185,7 @@ export default function BacktestPanel({ onClose }: Props) {
   const [growthProjections, setGrowthProjections] = useState<GrowthProjection[]>([]);
   const [results, setResults] = useState<BacktestResult[]>([]);
   const [leagueName, setLeagueName] = useState('');
+  const [syntheticOddsWarning, setSyntheticOddsWarning] = useState<string | null>(null);
   const [showBets, setShowBets] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'montecarlo' | 'breakdown' | 'bets'>('overview');
 
@@ -246,6 +247,7 @@ export default function BacktestPanel({ onClose }: Props) {
       setGrowthProjections(data.growth_projections || []);
       setResults(data.results || []);
       setLeagueName(data.league);
+      setSyntheticOddsWarning(data.synthetic_odds_warning || null);
       setUsedSource(data.data_source || '');
       toast.success(`Backtest concluído (${data.data_source || 'fonte ?'}): ${data.metrics.total_approved} entradas simuladas`);
     } catch (err: any) {
@@ -412,6 +414,13 @@ export default function BacktestPanel({ onClose }: Props) {
         <AnimatePresence>
           {metrics && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+              {/* Synthetic Odds Warning */}
+              {syntheticOddsWarning && (
+                <div className="flex gap-2 rounded-md border border-yellow-500/40 bg-yellow-500/10 p-3 text-xs text-yellow-400">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-yellow-500" />
+                  <span>{syntheticOddsWarning}</span>
+                </div>
+              )}
               {/* Summary Banner */}
               <Card className={cn("border", metrics.roi_total >= 0 ? 'border-success/40 bg-success/5' : 'border-destructive/40 bg-destructive/5')}>
                 <CardContent className="p-4">

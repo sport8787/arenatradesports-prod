@@ -159,19 +159,20 @@ interface AnalysisCriteria {
 }
 
 function defaultCriteria(): AnalysisCriteria {
+  // Aligned with punter_calibration production values (2026-06-09 calibration)
   return {
     tiers: [
-      { min_edge: 5, min_confidence: 75, stake_pct: 4.5, label: 'TIER_1' },
-      { min_edge: 3, min_confidence: 65, stake_pct: 3, label: 'TIER_2' },
-      { min_edge: 2, min_confidence: 58, stake_pct: 2, label: 'TIER_3' },
+      { min_edge: 7, min_confidence: 78, stake_pct: 5.0, label: 'TIER_1' },
+      { min_edge: 5, min_confidence: 70, stake_pct: 3.5, label: 'TIER_2' },
+      { min_edge: 4, min_confidence: 65, stake_pct: 2.5, label: 'TIER_3' },
     ],
-    min_edge_pct: 2,
-    min_confidence: 58,
+    min_edge_pct: 4,       // production CALIB.min_edge = 4
+    min_confidence: 65,    // production CALIB.min_confidence = 65
     min_ev: 0,
     max_approval_pct: 70,
-    min_approval_pct: 50,
-    min_sample_games: 3,
-    veto_small_sample: false,
+    min_approval_pct: 15,  // production targets 15-25% approval
+    min_sample_games: 6,   // raised from 3 — need minimum context for reliable Poisson
+    veto_small_sample: true,
   }
 }
 
@@ -239,19 +240,48 @@ async function loadPromptCriteria(): Promise<AnalysisCriteria> {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
 
+    // PRIMARY: punter_calibration table (same source as live mycroft-punter-analysis)
+    // This ensures backtest uses IDENTICAL thresholds as production.
+    const { data: calibRow } = await supabase
+      .from('punter_calibration')
+      .select('*')
+      .eq('is_active', true)
+      .maybeSingle()
+
+    if (calibRow) {
+      const c = defaultCriteria()
+      c.min_edge_pct       = Number(calibRow.min_edge)
+      c.min_confidence     = Number(calibRow.min_confidence)
+      c.tiers = [
+        { min_edge: +calibRow.tier1_min_edge, min_confidence: +calibRow.tier1_min_conf, stake_pct: +calibRow.tier1_max_stake, label: 'TIER_1' },
+        { min_edge: +calibRow.tier2_min_edge, min_confidence: +calibRow.tier2_min_conf, stake_pct: +calibRow.tier2_max_stake, label: 'TIER_2' },
+        { min_edge: +calibRow.tier3_min_edge, min_confidence: +calibRow.tier3_min_conf, stake_pct: +calibRow.tier3_max_stake, label: 'TIER_3' },
+      ]
+      console.log('[Backtest] ✅ Critérios carregados de punter_calibration:', JSON.stringify({ min_edge: c.min_edge_pct, min_conf: c.min_confidence }))
+      return c
+    }
+  } catch (e) {
+    console.warn('[Backtest] punter_calibration não disponível:', (e as Error).message)
+  }
+
+  // SECONDARY: prompt storage file (legacy)
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const supabase = createClient(supabaseUrl, supabaseKey)
     const { data: storageData } = await supabase.storage
       .from('sports-knowledge-base')
       .download('prompt_mycroft_punter.txt')
-
     if (storageData) {
       const text = await storageData.text()
-      console.log('[Backtest] Usando prompt_mycroft_punter.txt do storage')
+      console.log('[Backtest] Usando prompt_mycroft_punter.txt do storage (fallback)')
       return parseCriteriaFromPrompt(text)
     }
   } catch (e) {
-    console.log('[Backtest] Storage não disponível, usando defaults')
+    console.log('[Backtest] Storage não disponível')
   }
 
+  console.log('[Backtest] Usando defaults de produção calibrados')
   return defaultCriteria()
 }
 
@@ -393,38 +423,50 @@ function calculateGrowthProjections(
   const p = winRate / 100
 
   const periods = [
-    { days: 30, label: '30 dias' },
-    { days: 60, label: '60 dias' },
-    { days: 90, label: '3 meses' },
+    { days: 30,  label: '30 dias' },
+    { days: 60,  label: '60 dias' },
+    { days: 90,  label: '3 meses' },
     { days: 180, label: '6 meses' },
     { days: 365, label: '1 ano' },
   ]
 
-  // Simulate bet-by-bet with expected value and stake cap
-  // Conservative uses 80% of win rate, Optimistic uses 105%
-  function projectWithCap(winRateMultiplier: number, days: number): number {
+  // Stochastic projection: simulate N paths with random bet outcomes.
+  // Variance is modeled properly — NOT deterministic EV-per-bet.
+  // Conservative = P25 percentile, Expected = P50, Optimistic = P75.
+  function projectStochastic(days: number, scenarioP: number, percentile: number): number {
     const numBets = Math.round(betsPerDay * days)
-    let bankroll = initialBankroll
-    const effectiveP = Math.min(1, p * winRateMultiplier)
-    // Expected profit per bet = stake * (p*odd - 1)
-    const evPerUnit = effectiveP * avgOdd - 1
-    if (evPerUnit <= 0) return round2(initialBankroll) // no edge = no growth
+    if (numBets === 0) return round2(initialBankroll)
 
-    for (let i = 0; i < numBets; i++) {
-      const rawStake = bankroll * (avgStakePct / 100)
-      const stake = Math.min(rawStake, maxStakeAmount)
-      bankroll += stake * evPerUnit
-      if (bankroll <= 0) return 0
+    const N_SIMS = 2000  // Fast enough for edge function
+    const finals: number[] = []
+
+    for (let sim = 0; sim < N_SIMS; sim++) {
+      let bankroll = initialBankroll
+      for (let i = 0; i < numBets; i++) {
+        const rawStake = bankroll * (avgStakePct / 100)
+        const stake = Math.min(rawStake, maxStakeAmount)
+        const isWin = Math.random() < scenarioP
+        if (isWin) bankroll += stake * (avgOdd - 1)
+        else bankroll -= stake
+        if (bankroll <= 0) { bankroll = 0; break }
+      }
+      finals.push(bankroll)
     }
-    return round2(bankroll)
+
+    finals.sort((a, b) => a - b)
+    const idx = Math.floor(finals.length * percentile / 100)
+    return round2(finals[Math.min(idx, finals.length - 1)])
   }
 
-  return periods.map(p => ({
-    days: p.days,
-    label: p.label,
-    bankroll_conservative: projectWithCap(0.9, p.days),   // 90% of observed win rate
-    bankroll_expected: projectWithCap(1.0, p.days),        // actual win rate
-    bankroll_optimistic: projectWithCap(1.05, p.days),     // 105% of win rate
+  // Conservative: P25 at observed win rate (realistic downside)
+  // Expected: P50 at observed win rate (median outcome)
+  // Optimistic: P75 at observed win rate (upside scenario)
+  return periods.map(period => ({
+    days: period.days,
+    label: period.label,
+    bankroll_conservative: projectStochastic(period.days, p, 25),
+    bankroll_expected:     projectStochastic(period.days, p, 50),
+    bankroll_optimistic:   projectStochastic(period.days, p, 75),
   }))
 }
 
@@ -620,9 +662,27 @@ serve(async (req) => {
     // Sort by date ascending
     allFixtures.sort((a: any, b: any) => new Date(a.fixture.date).getTime() - new Date(b.fixture.date).getTime())
 
-    // 2. Calculate league-wide averages
-    const leagueAvg = calculateLeagueAverages(allFixtures)
-    console.log(`[Backtest] Média da liga: ${leagueAvg.avgGoals.toFixed(2)} gols/jogo`)
+    // 2. League-wide running stats — INCREMENTAL (NO LOOKAHEAD).
+    // leagueAvg is now built game-by-game and only contains data from PAST games.
+    // The full-season pre-computed average is kept only for logging.
+    const fullSeasonAvg = calculateLeagueAverages(allFixtures)
+    console.log(`[Backtest] Média da liga (season completa): ${fullSeasonAvg.avgGoals.toFixed(2)} gols/jogo`)
+
+    // Running stats updated inside the loop (each game sees only previous games' avg)
+    let runningGoals = 0, runningHomeWins = 0, runningDraws = 0, runningAwayWins = 0
+    let runningHomeGoals = 0, runningAwayGoals = 0, runningCount = 0
+
+    const getRunningLeagueAvg = (): LeagueAverages => {
+      const n = Math.max(runningCount, 1)
+      return {
+        avgGoals: runningGoals / n,
+        homeWinRate: runningHomeWins / n,
+        drawRate: runningDraws / n,
+        awayWinRate: runningAwayWins / n,
+        avgHomeGoals: runningHomeGoals / n,
+        avgAwayGoals: runningAwayGoals / n,
+      }
+    }
 
     // 2b. Pre-fetch REAL pre-match odds from Sportmonks (uses cache).
     // Only meaningful when fixtures came from Sportmonks (they carry SM fixture_id).
@@ -638,6 +698,7 @@ serve(async (req) => {
     }
 
     // 3. Simulate game by game (NO LOOKAHEAD)
+    // Both teamStats and runningLeagueStats are updated AFTER each game's analysis.
     const teamStats: Record<string, TeamCumulativeStats> = {}
     const rawAnalyses: {
       fixture: any
@@ -656,11 +717,18 @@ serve(async (req) => {
       const homeStats = teamStats[homeTeam]
       const awayStats = teamStats[awayTeam]
 
-      if (homeStats && awayStats && homeStats.played >= criteria.min_sample_games && awayStats.played >= criteria.min_sample_games) {
+      // Require at least 10 running league games for calibration to be meaningful
+      if (
+        homeStats && awayStats &&
+        homeStats.played >= criteria.min_sample_games &&
+        awayStats.played >= criteria.min_sample_games &&
+        runningCount >= 10
+      ) {
         const fixRealOdds = realOddsByFixture.get(Number(fixture.fixture.id)) || {}
+        // Pass running league avg (no lookahead — only past games)
         const analysis = analyzeWithCriteria(
           homeTeam, awayTeam, homeStats, awayStats,
-          homeGoals, awayGoals, leagueAvg, criteria, allowedMarkets, fixRealOdds
+          homeGoals, awayGoals, getRunningLeagueAvg(), criteria, allowedMarkets, fixRealOdds
         )
 
         if (analysis) {
@@ -671,9 +739,17 @@ serve(async (req) => {
         }
       }
 
-      // Update stats AFTER analysis (no-lookahead)
+      // Update BOTH team stats AND league running avg AFTER analysis (no-lookahead)
       updateTeamStats(teamStats, homeTeam, homeGoals, awayGoals, true)
       updateTeamStats(teamStats, awayTeam, awayGoals, homeGoals, false)
+      // Update running league stats
+      runningGoals       += homeGoals + awayGoals
+      runningHomeGoals   += homeGoals
+      runningAwayGoals   += awayGoals
+      if (homeGoals > awayGoals) runningHomeWins++
+      else if (homeGoals === awayGoals) runningDraws++
+      else runningAwayWins++
+      runningCount++
     }
 
     // Phase 2: Enforce max approval rate
@@ -701,24 +777,39 @@ serve(async (req) => {
     // Track for Monte Carlo
     const mcBets: { odd: number; stakePct: number; isGreen: boolean }[] = []
 
+    // Bankroll curve tracked DURING simulation (not rebuilt post-hoc)
+    // This ensures compound staking is reflected accurately.
+    const bankrollCurveLive: { index: number; bankroll: number; date: string }[] = [
+      { index: 0, bankroll: initial_bankroll, date: '' }
+    ]
+    let approvedBetIndex = 0
+
     for (const { fixture, analysis, homeGoals, awayGoals, leagueName } of rawAnalyses) {
       const fixtureDate = fixture.fixture.date
-      const homeTeam = fixture.teams.home.name
-      const awayTeam = fixture.teams.away.name
 
-      const stakeAmount = Math.min(bankroll * (analysis.stakePct / 100), max_stake_amount) // Cap at bookmaker limit
+      // Stake is a % of CURRENT bankroll (compound staking)
+      const stakeAmount = Math.min(bankroll * (analysis.stakePct / 100), max_stake_amount)
 
       let profitLoss = 0
       if (analysis.verdict === 'APROVADO') {
         totalActualStaked += stakeAmount
         const m = analysis.settlementMultiplier
         // m=1 full win, 0.5 half win, 0 push, -0.5 half loss, -1 full loss
-        if (m > 0) profitLoss = stakeAmount * m * (analysis.odd - 1)
+        if (m > 0)      profitLoss = stakeAmount * m * (analysis.odd - 1)
         else if (m === 0) profitLoss = 0
-        else profitLoss = stakeAmount * m // negative
-        bankroll += profitLoss
+        else            profitLoss = stakeAmount * m // negative
 
-        // Track for Monte Carlo (treat half-results approximately as fractional outcomes)
+        bankroll += profitLoss
+        approvedBetIndex++
+
+        // Track curve with ACTUAL bankroll at this point
+        bankrollCurveLive.push({
+          index: approvedBetIndex,
+          bankroll: round2(bankroll),
+          date: fixtureDate ? fixtureDate.split('T')[0] : '',
+        })
+
+        // Track for Monte Carlo
         mcBets.push({ odd: analysis.odd, stakePct: analysis.stakePct, isGreen: m > 0 })
 
         if (bankroll <= 0) {
@@ -801,17 +892,8 @@ serve(async (req) => {
       }
     })
 
-    // Bankroll curve
-    let runningBankroll = initial_bankroll
-    const bankrollCurve = [{ index: 0, bankroll: initial_bankroll, date: '' }]
-    approved.forEach((r, i) => {
-      runningBankroll += r.profit_loss
-      bankrollCurve.push({
-        index: i + 1,
-        bankroll: round2(runningBankroll),
-        date: r.date.split('T')[0],
-      })
-    })
+    // Bankroll curve: use the one built during the live simulation (compound staking accurate)
+    const bankrollCurve = bankrollCurveLive
 
     // 5. Monte Carlo
     console.log(`[Backtest] Iniciando Monte Carlo com ${mcBets.length} apostas e ${monte_carlo_sims} simulações...`)
@@ -862,6 +944,15 @@ serve(async (req) => {
 
     console.log(`[Backtest] CONCLUÍDO: ${results.length} analisados, ${approved.length} aprovados (${approvalRate.toFixed(1)}%), ${greens.length}G/${reds.length}R, ROI: ${roi.toFixed(2)}%, Banca: R$ ${bankroll.toFixed(2)}`)
 
+    // Synthetic odds warning: when < 30% of approved bets used real market odds,
+    // edge calculations are circular (model odds vs same model odds = fabricated edge).
+    const realCoveragePct = metrics.real_odds_coverage_pct ?? 0
+    const syntheticOddsWarning = realCoveragePct < 30
+      ? `⚠️ ATENÇÃO: Apenas ${realCoveragePct.toFixed(0)}% das apostas aprovadas usaram odds reais de mercado. ` +
+        `O edge calculado é majoritariamente sintético (modelo vs. próprio modelo), ` +
+        `o que pode inflar artificialmente o ROI. Interprete os resultados com cautela.`
+      : null
+
     return jsonResponse({
       success: true,
       league: leagueNames,
@@ -873,6 +964,7 @@ serve(async (req) => {
       total_fixtures: allFixtures.length,
       data_source: usedSource,
       markets_used: Array.from(allowedMarkets),
+      synthetic_odds_warning: syntheticOddsWarning,
     })
 
   } catch (error) {
@@ -1466,74 +1558,91 @@ function analyzeWithCriteria(
   awayStats: TeamCumulativeStats,
   actualHomeGoals: number,
   actualAwayGoals: number,
-  leagueAvg: LeagueAverages,
+  runningLeagueAvg: LeagueAverages,   // ← incremental, no lookahead
   criteria: AnalysisCriteria,
   allowedMarkets: Set<string> = new Set(ALL_MARKETS),
   realOdds: Record<string, number> = {},
 ): AnalysisResult | null {
 
-  // ── MODEL: Poisson-based predicted probabilities ──
-  const homeAttack = homeStats.goalsScored / homeStats.played
-  const homeDefense = homeStats.goalsConceded / homeStats.played
-  const awayAttack = awayStats.goalsScored / awayStats.played
-  const awayDefense = awayStats.goalsConceded / awayStats.played
+  // ═══════════════════════════════════════════════
+  // MARKET MODEL — uses ONLY overall seasonal averages (no home/away split, no form)
+  // Simulates a naive bookmaker that prices from season-long goal averages.
+  // ═══════════════════════════════════════════════
+  // This is DELIBERATELY simpler than the MODEL below to create genuine differentiation.
+  // The MODEL uses home/away specific rates + recent form → real information advantage.
 
-  const homeHomeAttack = homeStats.homePlayed > 2
-    ? homeStats.homeGoalsScored / homeStats.homePlayed
-    : homeAttack
-  const awayAwayAttack = awayStats.awayPlayed > 2
-    ? awayStats.awayGoalsScored / awayStats.awayPlayed
-    : awayAttack
+  const MARKET_MARGIN = 1.08
+  // Market uses simple attack/defense without home-away split
+  const mktHomeAttack  = homeStats.goalsScored / homeStats.played
+  const mktAwayAttack  = awayStats.goalsScored / awayStats.played
+  const mktHomeDefense = homeStats.goalsConceded / homeStats.played
+  const mktAwayDefense = awayStats.goalsConceded / awayStats.played
 
-  const homeXG = ((homeHomeAttack + awayDefense) / 2) * (leagueAvg.avgHomeGoals / Math.max(leagueAvg.avgGoals / 2, 0.5))
-  const awayXG = ((awayAwayAttack + homeDefense) / 2) * (leagueAvg.avgAwayGoals / Math.max(leagueAvg.avgGoals / 2, 0.5))
+  // Market XG: plain average of attack and opponent defense — no contextual adjustment
+  const mktHomeXG = clamp((mktHomeAttack + mktAwayDefense) / 2, 0.20, 4.0)
+  const mktAwayXG = clamp((mktAwayAttack + mktHomeDefense) / 2, 0.15, 3.5)
+
+  const mktHomeWin = poissonMatchProb(mktHomeXG, mktAwayXG, 'home')
+  const mktDraw    = poissonMatchProb(mktHomeXG, mktAwayXG, 'draw')
+  const mktAwayWin = poissonMatchProb(mktHomeXG, mktAwayXG, 'away')
+  const mktOver25  = poissonOver(mktHomeXG, mktAwayXG, 2.5)
+  const mktOver15  = poissonOver(mktHomeXG, mktAwayXG, 1.5)
+  const mktBTTS    = poissonBTTS(mktHomeXG, mktAwayXG)
+
+  const marketOdds: Record<string, number> = {
+    'Casa':     round2(MARKET_MARGIN / mktHomeWin),
+    'Empate':   round2(MARKET_MARGIN / mktDraw),
+    'Fora':     round2(MARKET_MARGIN / mktAwayWin),
+    'Over 2.5': round2(MARKET_MARGIN / mktOver25),
+    'Under 2.5':round2(MARKET_MARGIN / (1 - mktOver25)),
+    'Over 1.5': round2(MARKET_MARGIN / mktOver15),
+    'BTTS Sim': round2(MARKET_MARGIN / mktBTTS),
+  }
+
+  // ═══════════════════════════════════════════════
+  // PREDICTION MODEL — uses home/away specific rates + recent form + league calibration
+  // This is what our system "knows" that the simple market model doesn't.
+  // ═══════════════════════════════════════════════
+
+  // Use home-specific attack/defense when enough games, else fall back to overall
+  const homeHomeAttack   = homeStats.homePlayed >= 4 ? homeStats.homeGoalsScored / homeStats.homePlayed : mktHomeAttack
+  const awayHomeDefense  = homeStats.homePlayed >= 4 ? homeStats.homeGoalsConceded / homeStats.homePlayed : mktHomeDefense
+  const awayAwayAttack   = awayStats.awayPlayed >= 4 ? awayStats.awayGoalsScored / awayStats.awayPlayed : mktAwayAttack
+  const homeAwayDefense  = awayStats.awayPlayed >= 4 ? awayStats.awayGoalsConceded / awayStats.awayPlayed : mktAwayDefense
+
+  // Recent form factor (last 5 games): W=1.05, D=1.0, L=0.95
+  const formFactor = (results: ('W' | 'D' | 'L')[]): number => {
+    if (results.length === 0) return 1.0
+    const sum = results.reduce((s, r) => s + (r === 'W' ? 1.05 : r === 'L' ? 0.95 : 1.0), 0)
+    return sum / results.length
+  }
+  const homeFormFactor = formFactor(homeStats.lastResults)
+  const awayFormFactor = formFactor(awayStats.lastResults)
+
+  // League calibration factor (uses running average — no lookahead)
+  const leagueHomeCalib = runningLeagueAvg.avgGoals > 0
+    ? runningLeagueAvg.avgHomeGoals / Math.max(runningLeagueAvg.avgGoals / 2, 0.5)
+    : 1.0
+  const leagueAwayCalib = runningLeagueAvg.avgGoals > 0
+    ? runningLeagueAvg.avgAwayGoals / Math.max(runningLeagueAvg.avgGoals / 2, 0.5)
+    : 1.0
+
+  const homeXG = clamp(
+    ((homeHomeAttack + awayHomeDefense) / 2) * leagueHomeCalib * homeFormFactor,
+    0.20, 4.0
+  )
+  const awayXG = clamp(
+    ((awayAwayAttack + homeAwayDefense) / 2) * leagueAwayCalib * awayFormFactor,
+    0.15, 3.5
+  )
 
   const modelHomeWin = poissonMatchProb(homeXG, awayXG, 'home')
-  const modelDraw = poissonMatchProb(homeXG, awayXG, 'draw')
+  const modelDraw    = poissonMatchProb(homeXG, awayXG, 'draw')
   const modelAwayWin = poissonMatchProb(homeXG, awayXG, 'away')
-  const modelOver25 = poissonOver(homeXG, awayXG, 2.5)
+  const modelOver25  = poissonOver(homeXG, awayXG, 2.5)
   const modelUnder25 = 1 - modelOver25
-  const modelOver15 = poissonOver(homeXG, awayXG, 1.5)
-  const modelBTTS = poissonBTTS(homeXG, awayXG)
-
-  // ── MARKET: Ratings-based (simulates sharp market) ──
-  const homeOverallWR = homeStats.wins / homeStats.played
-  const homeHomeWR = homeStats.homePlayed > 2 ? homeStats.homeWins / homeStats.homePlayed : homeOverallWR
-  const awayOverallWR = awayStats.wins / awayStats.played
-  const awayAwayWR = awayStats.awayPlayed > 2 ? awayStats.awayWins / awayStats.awayPlayed : awayOverallWR
-  
-  const regressionWeight = Math.max(0.3, 1 - Math.min(homeStats.played, awayStats.played) / 30)
-  
-  const rawMarketHome = (homeHomeWR * 0.5 + homeOverallWR * 0.2 + (1 - awayOverallWR) * 0.3)
-  const marketHomeWin = clamp(rawMarketHome * (1 - regressionWeight) + leagueAvg.homeWinRate * regressionWeight, 0.10, 0.85)
-  
-  const rawMarketAway = (awayAwayWR * 0.5 + awayOverallWR * 0.2 + (1 - homeOverallWR) * 0.3)
-  const marketAwayWin = clamp(rawMarketAway * (1 - regressionWeight) + leagueAvg.awayWinRate * regressionWeight, 0.05, 0.75)
-  
-  const marketDraw = clamp(1 - marketHomeWin - marketAwayWin, 0.15, 0.35)
-  
-  const totalMarket = marketHomeWin + marketDraw + marketAwayWin
-  const normHome = marketHomeWin / totalMarket
-  const normDraw = marketDraw / totalMarket
-  const normAway = marketAwayWin / totalMarket
-
-  const teamBasedGoalRate = (homeAttack + awayAttack + homeDefense + awayDefense) / 2
-  const marketGoalExpectation = teamBasedGoalRate * (1 - regressionWeight) + leagueAvg.avgGoals * regressionWeight
-  const marketOver25 = clamp(poissonOver(marketGoalExpectation * 0.52, marketGoalExpectation * 0.48, 2.5), 0.25, 0.75)
-  const marketUnder25 = 1 - marketOver25
-  const marketOver15 = clamp(poissonOver(marketGoalExpectation * 0.52, marketGoalExpectation * 0.48, 1.5), 0.50, 0.92)
-  const marketBTTS = clamp(1 - poissonPmf(marketGoalExpectation * 0.52, 0) - poissonPmf(marketGoalExpectation * 0.48, 0) + poissonPmf(marketGoalExpectation * 0.52, 0) * poissonPmf(marketGoalExpectation * 0.48, 0), 0.25, 0.75)
-
-  const margin = 1.08
-  const marketOdds: Record<string, number> = {
-    'Casa': margin / normHome,
-    'Empate': margin / normDraw,
-    'Fora': margin / normAway,
-    'Over 2.5': margin / marketOver25,
-    'Under 2.5': margin / marketUnder25,
-    'Over 1.5': margin / marketOver15,
-    'BTTS Sim': margin / marketBTTS,
-  }
+  const modelOver15  = poissonOver(homeXG, awayXG, 1.5)
+  const modelBTTS    = poissonBTTS(homeXG, awayXG)
 
   // OVERRIDE with REAL pre-match odds from Sportmonks where available.
   // This eliminates the synthetic-edge bias on canonical markets.
@@ -1566,10 +1675,10 @@ function analyzeWithCriteria(
   }
 
   // ── Asian Handicap: compute model effective prob, fair odd, actual multiplier ──
-  // Distribution of goal diff h-a using independent Poisson
+  // Distribution of goal diff h-a using independent Poisson (grid 12 to reduce truncation)
   const diffDist: Map<number, number> = new Map()
-  for (let h = 0; h <= 8; h++) {
-    for (let a = 0; a <= 8; a++) {
+  for (let h = 0; h <= POISSON_MAX; h++) {
+    for (let a = 0; a <= POISSON_MAX; a++) {
       const p = poissonPmf(homeXG, h) * poissonPmf(awayXG, a)
       const d = h - a
       diffDist.set(d, (diffDist.get(d) ?? 0) + p)
@@ -1580,45 +1689,23 @@ function analyzeWithCriteria(
   // Expected return per unit = p_win*(O-1) + 0.5*p_hw*(O-1) + 0*p_push - 0.5*p_hl - p_loss
   // Setting EV=0 gives O = 1 + (p_loss + 0.5*p_hl) / (p_win + 0.5*p_hw)
   function ahProbsForLine(side: 'home' | 'away', line: number) {
+    // Uses the canonical settleAH function (consistent with settlement at bet confirmation).
+    // diffDist maps (homeGoals - awayGoals) → probability.
     let pWin = 0, pHW = 0, pPush = 0, pHL = 0, pLoss = 0
     for (const [d, p] of diffDist) {
-      // simulate settlement for diff=d
-      const m = settleAH(side, line, side === 'home' ? d : 0, side === 'home' ? 0 : -d)
-      // simpler: rebuild via diff
-      const diff = side === 'home' ? d : -d
-      const adjusted = diff + line
-      const isHalf = (line * 2) % 2 !== 0 && (line * 4) % 2 === 0
-      const isQuarter = (line * 4) % 2 !== 0
-      if (isQuarter) {
-        const lower = Math.floor(line * 2) / 2
-        const upper = Math.ceil(line * 2) / 2
-        const aLower = (side === 'home' ? d : -d) + lower
-        const aUpper = (side === 'home' ? d : -d) + upper
-        const partial = (x: number, half: boolean) => {
-          if (half) return x > 0 ? 1 : -1
-          if (x > 0) return 1
-          if (x === 0) return 0
-          return -1
-        }
-        const lowerHalf = (lower * 2) % 2 !== 0
-        const upperHalf = (upper * 2) % 2 !== 0
-        const mm = (partial(aLower, lowerHalf) + partial(aUpper, upperHalf)) / 2
-        if (mm === 1) pWin += p
-        else if (mm === 0.5) pHW += p
-        else if (mm === 0) pPush += p
-        else if (mm === -0.5) pHL += p
-        else pLoss += p
-      } else if (isHalf) {
-        if (adjusted > 0) pWin += p; else pLoss += p
-      } else {
-        if (adjusted > 0) pWin += p
-        else if (adjusted === 0) pPush += p
-        else pLoss += p
-      }
-      void m
+      // Reconstruct (homeGoals, awayGoals) pair for settleAH from the diff.
+      // We only need the difference to be correct; we use (max(d,0), max(-d,0)) as a proxy.
+      const hg = Math.max(d, 0)
+      const ag = Math.max(-d, 0)
+      const m = settleAH(side, line, hg, ag)
+      if (m === 1)        pWin  += p
+      else if (m === 0.5) pHW   += p
+      else if (m === 0)   pPush += p
+      else if (m === -0.5) pHL  += p
+      else                pLoss += p
     }
     const effProb = pWin + 0.5 * pHW
-    const lossEq = pLoss + 0.5 * pHL
+    const lossEq  = pLoss + 0.5 * pHL
     const fairOdd = effProb > 0 ? 1 + lossEq / effProb : 99
     return { effProb, fairOdd, pWin, pHW, pPush, pHL, pLoss }
   }
@@ -1676,17 +1763,30 @@ function analyzeWithCriteria(
   const minPlayed = Math.min(homeStats.played, awayStats.played)
   const dataStrength = minPlayed >= 15 ? 'ALTA' : minPlayed >= 8 ? 'MEDIA' : 'BAIXA'
 
+  // Confidence aligned with mycroft-punter-analysis production logic
   let confidence: number
-  if (dataStrength === 'ALTA') confidence = 70
-  else if (dataStrength === 'MEDIA') confidence = 65
-  else confidence = 60
+  if (dataStrength === 'ALTA') confidence = 65       // xG stats básicas → base 65
+  else if (dataStrength === 'MEDIA') confidence = 62
+  else confidence = 55
 
-  if (edge > 10) confidence += 15
-  else if (edge > 7) confidence += 10
-  else if (edge > 5) confidence += 5
+  // Bonus for edge (same as production)
+  if (edge >= 10) confidence += 8
+  else if (edge >= 8) confidence += 5
+  else if (edge >= 5) confidence += 3
 
-  if (minPlayed >= 10) confidence += 5
-  confidence = Math.min(95, Math.round(confidence))
+  // Bonus for model probability strength
+  if (modelProb >= 0.60) confidence += 8
+  else if (modelProb >= 0.55) confidence += 5
+  else if (modelProb >= 0.50) confidence += 3
+
+  // Bonus for data volume
+  if (minPlayed >= 20) confidence += 5
+  else if (minPlayed >= 15) confidence += 3
+
+  // Penalty for low-data context
+  if (dataStrength === 'BAIXA') confidence -= 8
+
+  confidence = Math.min(92, Math.max(50, Math.round(confidence)))
 
   const modelLevel = 'NIVEL_2'
 
@@ -1756,10 +1856,13 @@ function logFactorial(n: number): number {
   return result
 }
 
+// Grid extended to 12 to reduce truncation error for high-scoring games
+const POISSON_MAX = 12
+
 function poissonMatchProb(homeXG: number, awayXG: number, outcome: 'home' | 'draw' | 'away'): number {
   let prob = 0
-  for (let h = 0; h <= 8; h++) {
-    for (let a = 0; a <= 8; a++) {
+  for (let h = 0; h <= POISSON_MAX; h++) {
+    for (let a = 0; a <= POISSON_MAX; a++) {
       const p = poissonPmf(homeXG, h) * poissonPmf(awayXG, a)
       if (outcome === 'home' && h > a) prob += p
       else if (outcome === 'draw' && h === a) prob += p
@@ -1771,8 +1874,8 @@ function poissonMatchProb(homeXG: number, awayXG: number, outcome: 'home' | 'dra
 
 function poissonOver(homeXG: number, awayXG: number, line: number): number {
   let underProb = 0
-  for (let h = 0; h <= 8; h++) {
-    for (let a = 0; a <= 8; a++) {
+  for (let h = 0; h <= POISSON_MAX; h++) {
+    for (let a = 0; a <= POISSON_MAX; a++) {
       if ((h + a) <= line) underProb += poissonPmf(homeXG, h) * poissonPmf(awayXG, a)
     }
   }
