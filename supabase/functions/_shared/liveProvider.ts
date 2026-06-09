@@ -1,6 +1,6 @@
-// liveProvider — Sportmonks primário (Pro Advanced + Odds & Predictions) → Futodds fallback.
-// API-Football REMOVIDA do projeto (decisão usuário Fase 1).
-// Mantém o shape "API-Football compatível" para não quebrar consumers existentes.
+// liveProvider — API-Football (Copa do Mundo) + Sportmonks (primário) + Futodds (fallback).
+// Hierarquia: API-Football tem prioridade para as ligas configuradas em API_FOOTBALL_LEAGUES
+// (padrão: league_id=1 Copa do Mundo). Sportmonks cobre demais ligas. Futodds preenche lacunas.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import {
@@ -12,6 +12,7 @@ import {
   type NormalizedStats,
 } from "./sportmonks.ts";
 import { getFutoddsLive, extractFutoddsStats } from "./futoddsProvider.ts";
+import { getApiFootballLive, getApiFootballStats } from "./apiFootballProvider.ts";
 
 const PRIMARY = (Deno.env.get("LIVE_PROVIDER_PRIMARY") || "sportmonks").toLowerCase();
 
@@ -38,7 +39,7 @@ async function getLeagueMap(): Promise<Map<number, number>> {
 
 export interface LiveResult {
   fixtures: any[];           // API-Football compatible shape (legacy)
-  source: "futodds" | "sportmonks";
+  source: "futodds" | "sportmonks" | "apifootball";
   fallback_reason?: string;
   count: number;
 }
@@ -47,6 +48,11 @@ async function tryFutodds(): Promise<LiveResult> {
   const r = await getFutoddsLive();
   console.log(`[liveProvider] source=futodds count=${r.count}`);
   return { fixtures: r.fixtures, source: "futodds", count: r.count };
+}
+
+async function tryApiFootball(): Promise<{ fixtures: any[]; leagues: number[] }> {
+  const r = await getApiFootballLive();
+  return { fixtures: r.fixtures, leagues: r.leagues };
 }
 
 async function trySportmonks(): Promise<LiveResult> {
@@ -91,23 +97,27 @@ function fixtureKey(f: any): string {
 
 
 async function mergeProviders(): Promise<LiveResult> {
-  const [smR, fdR] = await Promise.allSettled([trySportmonks(), tryFutodds()]);
+  // Busca os 3 provedores em paralelo — API-Football tem chave? tenta. Falha silenciosa.
+  const hasAfKey = !!Deno.env.get("API_FOOTBALL_KEY");
+  const [smR, fdR, afR] = await Promise.allSettled([
+    trySportmonks(),
+    tryFutodds(),
+    hasAfKey ? tryApiFootball() : Promise.reject(new Error("API_FOOTBALL_KEY not set")),
+  ]);
+
   const sm = smR.status === "fulfilled" ? smR.value.fixtures : [];
   const fd = fdR.status === "fulfilled" ? fdR.value.fixtures : [];
+  const af = afR.status === "fulfilled" ? afR.value.fixtures : [];
+  const afLeagues = afR.status === "fulfilled" ? new Set(afR.value.leagues) : new Set<number>();
+
   const smErr = smR.status === "rejected" ? (smR.reason as Error)?.message : null;
   const fdErr = fdR.status === "rejected" ? (fdR.reason as Error)?.message : null;
+  const afErr = afR.status === "rejected" ? (afR.reason as Error)?.message : null;
 
-  if (!sm.length && !fd.length) {
-    throw new Error(`all_providers_empty: sm=${smErr ?? "0"} fd=${fdErr ?? "0"}`);
+  if (!sm.length && !fd.length && !af.length) {
+    throw new Error(`all_providers_empty: sm=${smErr ?? "0"} fd=${fdErr ?? "0"} af=${afErr ?? "0"}`);
   }
 
-  // Ligas que o Sportmonks cobriu nesta janela
-  const smLeagues = new Set<number>();
-  for (const f of sm) if (f?.league?.id != null) smLeagues.add(Number(f.league.id));
-
-  // Chave alternativa por times+data (sem league_id) — Futodds e Sportmonks usam league_ids
-  // distintos para o MESMO jogo, então dedup só por league_id deixa passar duplicata.
-  // xG vive na Sportmonks → SM SEMPRE vence; Futodds só entra se o jogo não existe no SM.
   function teamDayKey(f: any): string {
     const h = normTeam(f?.teams?.home?.name);
     const a = normTeam(f?.teams?.away?.name);
@@ -115,27 +125,48 @@ async function mergeProviders(): Promise<LiveResult> {
     return `${h}|${a}|${d}`;
   }
 
-
   const seen = new Set<string>();
-  const smTeamDay = new Set<string>();
   const merged: any[] = [];
+
+  // === 1) API-Football — PRIORIDADE MÁXIMA para suas ligas (Copa do Mundo etc.) ===
+  // Estes jogos NÃO serão substituídos por SM ou Futodds mesmo se aparecerem lá.
+  const afTeamDay = new Set<string>();
+  let addedFromAf = 0;
+  for (const f of af) {
+    const k = fixtureKey(f);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    afTeamDay.add(teamDayKey(f));
+    merged.push(f);
+    addedFromAf++;
+  }
+
+  // === 2) Sportmonks — cobre demais ligas; pula jogos já cobertos por AF ===
+  const smLeagues = new Set<number>();
+  const smTeamDay = new Set<string>();
   for (const f of sm) {
+    const lid = Number(f?.league?.id ?? -1);
+    // Se AF já cobre esta liga, SM é descartado para este jogo
+    if (afLeagues.has(lid)) continue;
+    // Dedup por time+dia (AF pode ter o mesmo jogo com league_id diferente)
+    if (afTeamDay.has(teamDayKey(f))) continue;
     const k = fixtureKey(f);
     if (seen.has(k)) continue;
     seen.add(k);
     smTeamDay.add(teamDayKey(f));
+    smLeagues.add(lid);
     merged.push(f);
   }
+
+  // === 3) Futodds — preenche ligas não cobertas por SM nem AF ===
   let addedFromFutodds = 0;
   let skippedDup = 0;
   const filledLeagues = new Set<number>();
   for (const f of fd) {
     const lid = Number(f?.league?.id ?? -1);
-    // Só adiciona Futodds para ligas que o Sportmonks NÃO trouxe
     if (smLeagues.has(lid)) continue;
-    // 🚫 DEDUP CROSS-PROVIDER: se SM já tem mesmo time+dia, Futodds é descartado
-    // (evita Fluminense com xG via SM + Fluminense sem xG via Futodds coexistindo).
-    if (smTeamDay.has(teamDayKey(f))) { skippedDup++; continue; }
+    if (afLeagues.has(lid)) continue;
+    if (smTeamDay.has(teamDayKey(f)) || afTeamDay.has(teamDayKey(f))) { skippedDup++; continue; }
     const k = fixtureKey(f);
     if (seen.has(k)) continue;
     seen.add(k);
@@ -149,12 +180,19 @@ async function mergeProviders(): Promise<LiveResult> {
   const smFriendlies = sm.filter((f: any) => isFriendlyName(f?.league?.name)).length;
   const fdFriendlies = fd.filter((f: any) => isFriendlyName(f?.league?.name)).length;
 
+  const dominantSource = addedFromAf > 0 && addedFromAf >= sm.length
+    ? "apifootball"
+    : (sm.length >= fd.length ? "sportmonks" : "futodds");
+
   console.log(
-    `[liveProvider] mode=merge sm=${sm.length} fd=${fd.length} → total=${merged.length} ` +
+    `[liveProvider] mode=merge af=${af.length}(+${addedFromAf}) sm=${sm.length} fd=${fd.length} → total=${merged.length} ` +
     `(futodds_added=${addedFromFutodds} skipped_dup=${skippedDup} leagues_filled=${[...filledLeagues].join(",") || "-"}) ` +
     `friendlies=sm:${smFriendlies}/fd:${fdFriendlies} ` +
-    `smErr=${smErr ?? "ok"} fdErr=${fdErr ?? "ok"}`,
+    `afErr=${afErr ?? "ok"} smErr=${smErr ?? "ok"} fdErr=${fdErr ?? "ok"}`,
   );
+  if (addedFromAf > 0) {
+    console.log(`[liveProvider] ⚽ API-Football cobriu ${addedFromAf} jogos (ligas: ${[...afLeagues].join(",")})`);
+  }
   if (smFriendlies > 0 && fdFriendlies === 0) {
     console.log(`[liveProvider] 🤝 amistosos cobertos só por Sportmonks (Futodds=0) — fallback ativo`);
   } else if (fdFriendlies > 0 && smFriendlies === 0) {
@@ -163,9 +201,12 @@ async function mergeProviders(): Promise<LiveResult> {
 
   return {
     fixtures: merged,
-    source: sm.length >= fd.length ? "sportmonks" : "futodds",
+    source: dominantSource as LiveResult["source"],
     count: merged.length,
-    fallback_reason: addedFromFutodds > 0 ? `futodds_filled_${addedFromFutodds}_fixtures` : undefined,
+    fallback_reason: [
+      addedFromAf > 0 ? `af_copa_${addedFromAf}` : null,
+      addedFromFutodds > 0 ? `futodds_filled_${addedFromFutodds}` : null,
+    ].filter(Boolean).join("+") || undefined,
   };
 }
 
@@ -208,11 +249,23 @@ export interface StatsResult {
 export async function getFixtureStats(
   fixtureRef: string | { sm_id?: number; af_id?: string; raw?: any; _source?: string },
 ): Promise<StatsResult> {
+  // === API-Football (Copa do Mundo) ===
+  if (typeof fixtureRef === "object" && fixtureRef._source === "apifootball" && fixtureRef.af_id) {
+    try {
+      const stats = await getApiFootballStats(Number(fixtureRef.af_id));
+      if (stats) return { stats, source: "apifootball" as any };
+    } catch (e) {
+      console.warn(`[liveProvider] apiFootball stats fail af_id=${fixtureRef.af_id}: ${(e as Error).message}`);
+    }
+  }
+
+  // === Futodds (stats inline no fixture) ===
   if (typeof fixtureRef === "object" && fixtureRef._source === "futodds" && (fixtureRef as any).raw) {
     const stats = extractFutoddsStats({ _futodds_stats: (fixtureRef as any).raw._futodds_stats ?? null });
     if (stats) return { stats, source: "futodds" };
   }
 
+  // === Sportmonks (raw inline) ===
   if (typeof fixtureRef === "object" && fixtureRef.raw && fixtureRef._source !== "futodds") {
     try {
       const stats = extractNormalizedStats(fixtureRef.raw);
@@ -222,6 +275,7 @@ export async function getFixtureStats(
     }
   }
 
+  // === Sportmonks (fetch por sm_id) ===
   if (typeof fixtureRef === "object" && fixtureRef.sm_id) {
     try {
       const f = await fetchFixtureById(fixtureRef.sm_id);
@@ -234,5 +288,5 @@ export async function getFixtureStats(
     }
   }
 
-  return { stats: null, source: null, fallback_reason: "no_sportmonks_data" };
+  return { stats: null, source: null, fallback_reason: "no_provider_data" };
 }

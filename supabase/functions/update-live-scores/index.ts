@@ -13,6 +13,8 @@ const LIVE_PROVIDER_PRIMARY = (Deno.env.get("LIVE_PROVIDER_PRIMARY") || "futodds
 
 // Whitelist de ligas permitidas (mesma do fetch-live-matches)
 const LIGAS_PERMITIDAS: Record<number, string> = {
+  // Copa do Mundo (API-Football league_id=1)
+  1:   "FIFA World Cup",
   // Europa — Top 5 + segundas divisões
   39:  "Premier League",
   40:  "Championship (Inglaterra — 2ª divisão)",
@@ -85,10 +87,9 @@ serve(async (req) => {
     providerUsed = lr.source;
     console.log(`[LiveScores] provider=${providerUsed} count=${allFixtures.length}${lr.fallback_reason ? ` fallback=${lr.fallback_reason}` : ''}`);
     
-    // Filtrar apenas ligas permitidas
-    // ⚠️ Futodds usa league_id do BetsAPI (espaço diferente da API-Football).
-    // Quando o provider for futodds, filtramos por NOME da liga (whitelist).
-    const isFutodds = providerUsed === "futodds";
+    // Filtrar apenas ligas permitidas — avaliado POR FIXTURE (modo merge mistura providers).
+    // ⚠️ Futodds usa league_id do BetsAPI (espaço diferente da API-Football/Sportmonks).
+    // Para fixtures Futodds filtramos por NOME. API-Football e Sportmonks: por league_id.
     const allowedNames = Object.values(LIGAS_PERMITIDAS).map((n) => n.toLowerCase());
     const matchesWhitelistByName = (name?: string) => {
       if (!name) return false;
@@ -102,10 +103,12 @@ serve(async (req) => {
     const fixtures = allFixtures.filter((f: any) => {
       const leagueId = f.league?.id;
       const leagueName = f.league?.name;
-      if (isFutodds) {
-        // Para futodds: aceita por nome OU se houver match_id já vivo no DB (deixa o downstream decidir).
+      const src = f._source ?? providerUsed;
+      if (src === "futodds") {
+        // Para futodds: aceita por nome (IDs são do BetsAPI, diferentes dos AF/SM).
         return matchesWhitelistByName(leagueName);
       }
+      // API-Football e Sportmonks: filtra por league_id
       return leagueId in LIGAS_PERMITIDAS && !LIGAS_BLOQUEADAS.includes(leagueId);
     });
     console.log(`[LiveScores] ✅ ${fixtures.length}/${allFixtures.length} jogos após filtro de ligas (provider=${providerUsed})`);
