@@ -154,6 +154,11 @@ serve(async (req) => {
     };
     const allowedNameSet = new Set(allowedRows.map(r => normName(r.name)));
     // === Filtro per-fixture com tracking de motivo de rejeição ===
+    // IMPORTANTE: fixtures vindos da Sportmonks (_source="sportmonks") são pré-filtrados
+    // pela própria assinatura SM — passam apenas pelo bloqueio explícito (LIGAS_BLOQUEADAS).
+    // O filtro trader_leagues é aplicado apenas a Futodds e API-Football que retornam ligas
+    // indiscriminadamente. Desta forma, todas as ligas do plano SM (incluindo amistosos,
+    // ligas adicionais, etc.) são exibidas automaticamente sem necessidade de cadastro manual.
     type RejectReason = "league_blocked" | "league_not_allowed" | "league_no_name";
     const fixtures: any[] = [];
     const rejected: Array<{ teams: string; league: string; league_id: any; source: string; status: string; reason: RejectReason }> = [];
@@ -174,16 +179,27 @@ serve(async (req) => {
         friendliesBySource[src] = (friendliesBySource[src] ?? 0) + 1;
       }
 
-      // 1) bloqueio explícito
+      // 1) bloqueio explícito — aplica a TODOS os provedores
       if (typeof leagueId === "number" && LIGAS_BLOQUEADAS.includes(leagueId)) {
         rejected.push({ teams, league: leagueName, league_id: leagueId, source: src, status, reason: "league_blocked" });
         continue;
       }
-      // 2) match por ID
+
+      // 2) Sportmonks: assinatura já filtra ligas — confiar plenamente no retorno da API.
+      //    Isso garante que amistosos, +30 ligas adicionais e novos torneios apareçam
+      //    sem precisar de cadastro manual em trader_leagues.
+      if (src === "sportmonks") {
+        fixtures.push(f);
+        if (isFriendly) friendliesKept++;
+        console.log(`[FetchLive] SM trust-pass: ${teams} | ${leagueName}#${leagueId}`);
+        continue;
+      }
+
+      // 3) API-Football / Futodds: requer match explícito em trader_leagues (por ID ou nome)
       if (typeof leagueId === "number" && allowedIds.has(leagueId)) {
         fixtures.push(f); if (isFriendly) friendliesKept++; continue;
       }
-      // 3) fallback por nome (com alias)
+      // Fallback por nome (com alias)
       const rawLn = normName(leagueName);
       if (!rawLn) {
         rejected.push({ teams, league: leagueName, league_id: leagueId, source: src, status, reason: "league_no_name" });

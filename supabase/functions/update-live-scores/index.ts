@@ -104,11 +104,16 @@ serve(async (req) => {
       const leagueId = f.league?.id;
       const leagueName = f.league?.name;
       const src = f._source ?? providerUsed;
+      // Sportmonks: a assinatura já filtra ligas — confiar plenamente.
+      // Isso garante amistosos e +30 ligas adicionais do plano SM apareçam.
+      if (src === "sportmonks") {
+        return !LIGAS_BLOQUEADAS.includes(leagueId);
+      }
       if (src === "futodds") {
         // Para futodds: aceita por nome (IDs são do BetsAPI, diferentes dos AF/SM).
         return matchesWhitelistByName(leagueName);
       }
-      // API-Football e Sportmonks: filtra por league_id
+      // API-Football: filtra por league_id
       return leagueId in LIGAS_PERMITIDAS && !LIGAS_BLOQUEADAS.includes(leagueId);
     });
     console.log(`[LiveScores] ✅ ${fixtures.length}/${allFixtures.length} jogos após filtro de ligas (provider=${providerUsed})`);
