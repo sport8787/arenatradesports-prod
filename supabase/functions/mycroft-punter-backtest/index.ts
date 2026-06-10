@@ -480,7 +480,8 @@ serve(async (req) => {
   }
 
   try {
-    const apiKey = '' // API-Football removida em Fase 2 (18/05/2026) — backtest usa arena_matches/Sportmonks/Futodds
+    // Backtest usa API-Football APENAS como último fallback histórico (não afeta análise live)
+    const apiKey = Deno.env.get('API_FOOTBALL_KEY') ?? Deno.env.get('API_FOOTBALL_KEY_BACKUP') ?? ''
 
     const body = await req.json()
     const {
@@ -1178,9 +1179,16 @@ async function fetchHistoricalFromSportmonksCached(
       break
     }
     const data: any[] = json?.data || []
+    if (page === 1) {
+      console.log(`[Backtest][SM-Cache] ${leagueKey}/${season} page1: ${data.length} items, subscription=${JSON.stringify(json?.subscription)?.slice(0,100)}`)
+      if (data.length > 0) console.log(`[Backtest][SM-Cache] sample fixture keys: ${Object.keys(data[0]).join(',')}`)
+    }
+    let skippedState = 0, skippedScore = 0
     for (const f of data) {
-      const stateName = f.state?.short_name || f.state?.name || ''
-      if (!/FT|AET|PEN_LIVE|FT_PEN/i.test(stateName)) continue
+      // Accept any finished-match state code
+      const stateName = (f.state?.short_name || f.state?.name || f.state?.state || '').toUpperCase()
+      const isFinished = /^(FT|AET|PEN|FT_PEN|AWARDED|FINISHED|AFTER_ET|AFTER_PEN|AP|COMPLETE)/.test(stateName)
+      if (!isFinished) { skippedState++; continue }
       const providerLeagueId = Number(f.league?.id)
       const providerLeagueName = String(f.league?.name || '')
       if (Number.isFinite(providerLeagueId) && providerLeagueId !== smId) continue
@@ -1191,21 +1199,23 @@ async function fetchHistoricalFromSportmonksCached(
       if (!home || !away) continue
       const scores = f.scores || []
       let gh: number | null = null, ga: number | null = null
-      for (const s of scores) {
-        const desc = String(s.description || '').toUpperCase()
-        if (desc !== 'CURRENT') continue
-        if (s.score?.participant === 'home') gh = s.score.goals
-        if (s.score?.participant === 'away') ga = s.score.goals
-      }
-      if (gh === null || ga === null) {
+      // Try multiple description patterns that Sportmonks uses
+      const priorities = ['CURRENT', 'FT', '2ND_HALF', 'FULLTIME', 'REGULAR']
+      for (const prio of priorities) {
+        if (gh !== null && ga !== null) break
         for (const s of scores) {
-          const desc = String(s.description || '').toUpperCase()
-          if (desc !== 'FT') continue
-          if (s.score?.participant === 'home' && gh === null) gh = s.score.goals
-          if (s.score?.participant === 'away' && ga === null) ga = s.score.goals
+          const desc = String(s.description || s.type?.code || '').toUpperCase()
+          if (desc !== prio) continue
+          if (s.score?.participant === 'home' && gh === null) gh = Number(s.score.goals ?? s.score.total)
+          if (s.score?.participant === 'away' && ga === null) ga = Number(s.score.goals ?? s.score.total)
         }
       }
-      if (gh === null || ga === null) continue
+      // Also try home_score/away_score direct fields (some SM plans return these)
+      if (gh === null && f.scores == null) {
+        gh = f.home_score ?? f.score_home ?? null
+        ga = f.away_score ?? f.score_away ?? null
+      }
+      if (gh === null || ga === null || !Number.isFinite(gh) || !Number.isFinite(ga)) { skippedScore++; continue }
       fetched.push({
         fixture: { id: f.id, date: f.starting_at || `${fromYmd}T00:00:00Z` },
         teams: { home: { name: home.name }, away: { name: away.name } },
@@ -1213,6 +1223,9 @@ async function fetchHistoricalFromSportmonksCached(
         league: { id: providerLeagueId, name: providerLeagueName, round: '' },
         _leagueName: leagueName,
       })
+    }
+    if (skippedState + skippedScore > 0) {
+      console.log(`[Backtest][SM-Cache] ${leagueKey} page${page}: ${fetched.length} ok, ${skippedState} skipped(state), ${skippedScore} skipped(score)`)
     }
     const hasMore = json?.pagination?.has_more ?? (data.length === 100)
     if (!hasMore) break
