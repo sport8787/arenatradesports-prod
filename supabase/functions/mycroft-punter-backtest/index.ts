@@ -484,6 +484,48 @@ serve(async (req) => {
     const apiKey = Deno.env.get('API_FOOTBALL_KEY') ?? Deno.env.get('API_FOOTBALL_KEY_BACKUP') ?? ''
 
     const body = await req.json()
+
+    // ── Diagnostic endpoint ──────────────────────────────────────────────
+    if (body.__diag_odds_api) {
+      const diagKey = Deno.env.get('THE_ODDS_API_KEY') ?? Deno.env.get('THE_ODDS_API') ?? ''
+      const diagResults: Record<string, any> = { key_present: !!diagKey, key_length: diagKey.length }
+      // Test 1: list sports (0 credits)
+      try {
+        const r = await fetch(`https://api.the-odds-api.com/v4/sports?apiKey=${diagKey}`)
+        diagResults.sports_status = r.status
+        const j = await r.json()
+        diagResults.sports_count = Array.isArray(j) ? j.length : 'not array'
+        const epl = Array.isArray(j) ? j.find((s: any) => s.key === 'soccer_epl') : null
+        diagResults.soccer_epl_found = !!epl
+      } catch (e) { diagResults.sports_error = (e as Error).message }
+      // Test 2: recent historical odds for a known past date (1 API call)
+      const testDate = '2025-10-01T12:00:00Z'
+      try {
+        const url = `https://api.the-odds-api.com/v4/historical/sports/soccer_epl/odds?apiKey=${diagKey}&date=${testDate}&regions=eu&markets=h2h&oddsFormat=decimal`
+        const r = await fetch(url)
+        diagResults.hist_epl_status = r.status
+        if (r.ok) {
+          const j = await r.json()
+          diagResults.hist_epl_events = (j?.data || []).length
+          diagResults.hist_epl_timestamp = j?.timestamp
+        } else {
+          diagResults.hist_epl_body = (await r.text()).slice(0, 200)
+        }
+      } catch (e) { diagResults.hist_epl_error = (e as Error).message }
+      // Test 3: simulate matching one EPL fixture to The Odds API response
+      if (diagResults.hist_epl_events > 0 && diagResults.hist_epl_status === 200) {
+        try {
+          const testUrl = `https://api.the-odds-api.com/v4/historical/sports/soccer_epl/odds?apiKey=${diagKey}&date=2025-10-01T12:00:00Z&regions=eu&markets=h2h&oddsFormat=decimal`
+          const r2 = await fetch(testUrl)
+          const j2 = await r2.json()
+          const events = j2?.data || []
+          diagResults.sample_event = events[0] ? { home: events[0].home_team, away: events[0].away_team, bkm_count: events[0].bookmakers?.length } : null
+        } catch (e) { diagResults.sample_event_err = (e as Error).message }
+      }
+      return jsonResponse({ success: true, diag: diagResults })
+    }
+    // ─────────────────────────────────────────────────────────────────────
+
     const {
       league,
       leagues: leaguesInput,
@@ -685,17 +727,46 @@ serve(async (req) => {
       }
     }
 
-    // 2b. Pre-fetch REAL pre-match odds from Sportmonks (uses cache).
-    // Only meaningful when fixtures came from Sportmonks (they carry SM fixture_id).
+    // 2b. Pre-fetch REAL pre-match odds.
+    // Priority: Sportmonks (when source=sportmonks) → The Odds API historical (always attempted when key present)
     let realOddsByFixture: Map<number, Record<string, number>> = new Map()
+
     if (usedSource === 'sportmonks' && Deno.env.get('SPORTMONKS_API_KEY')) {
       const ids = allFixtures.map((f: any) => Number(f.fixture.id)).filter((n: number) => Number.isFinite(n))
       console.log(`[Backtest] Buscando odds reais pré-jogo para ${ids.length} fixtures (Sportmonks)...`)
       realOddsByFixture = await fetchSportmonksOddsBatch(ids, dbClient)
       const withOdds = Array.from(realOddsByFixture.values()).filter(o => Object.keys(o).length > 0).length
-      console.log(`[Backtest] Odds reais: ${withOdds}/${ids.length} fixtures cobertas`)
-    } else {
-      console.log(`[Backtest] Odds reais NÃO disponíveis (fonte=${usedSource}). Backtest usará odds sintéticas (ROI estimado).`)
+      console.log(`[Backtest] Sportmonks odds: ${withOdds}/${ids.length} fixtures cobertas`)
+    }
+
+    // The Odds API — enriquece odds faltantes (ou todas, quando fonte=api_football)
+    const oddsApiKey = Deno.env.get('THE_ODDS_API_KEY') ?? Deno.env.get('THE_ODDS_API') ?? ''
+    if (oddsApiKey) {
+      const missingFixtures = allFixtures.filter((f: any) => {
+        const id = Number(f.fixture.id)
+        return !realOddsByFixture.has(id) || Object.keys(realOddsByFixture.get(id)!).length === 0
+      })
+      if (missingFixtures.length > 0) {
+        console.log(`[Backtest] The Odds API: buscando odds para ${missingFixtures.length} fixtures sem cobertura...`)
+        const oddsApiResult = await fetchOddsApiHistorical(
+          missingFixtures, validLeagues, dbClient, oddsApiKey
+        )
+        let enriched = 0
+        for (const [id, odds] of oddsApiResult.entries()) {
+          if (id === '__debug' as any) continue
+          if (Object.keys(odds).length > 0) {
+            realOddsByFixture.set(id, odds)
+            enriched++
+          }
+        }
+        console.log(`[Backtest] The Odds API: ${enriched}/${missingFixtures.length} fixtures enriquecidas com odds reais`)
+      }
+    }
+
+    const totalWithOdds = Array.from(realOddsByFixture.values()).filter(o => Object.keys(o).length > 0).length
+    console.log(`[Backtest] Odds reais totais: ${totalWithOdds}/${allFixtures.length} fixtures cobertas`)
+    if (totalWithOdds === 0) {
+      console.log(`[Backtest] Nenhuma odds real disponível — usando odds sintéticas (ROI estimado)`)
     }
 
     // 3. Simulate game by game (NO LOOKAHEAD)
@@ -966,6 +1037,7 @@ serve(async (req) => {
       data_source: usedSource,
       markets_used: Array.from(allowedMarkets),
       synthetic_odds_warning: syntheticOddsWarning,
+      real_odds_api_coverage: { fixtures_with_odds: totalWithOdds, total_fixtures: allFixtures.length },
     })
 
   } catch (error) {
@@ -1499,6 +1571,290 @@ function calculateLeagueAverages(fixtures: any[]): LeagueAverages {
     avgHomeGoals: homeGoals / n,
     avgAwayGoals: awayGoals / n,
   }
+}
+
+// ═══════════════════════════════════════════════
+// THE ODDS API — Historical pre-match odds
+// ═══════════════════════════════════════════════
+
+/**
+ * Fetches historical pre-match odds from The Odds API for a list of fixtures.
+ * Groups requests by (sport_key, date) to minimize API credit consumption.
+ * One API call per unique sport+date covers ALL matches on that date.
+ *
+ * Cache: stored in `odds_api_historical_cache` table (sport_key, event_date)
+ * to avoid re-fetching on subsequent backtest runs.
+ *
+ * Returns Map<fixture_id, marketLabel → decimal_odd>
+ */
+async function fetchOddsApiHistorical(
+  fixtures: any[],
+  validLeagues: Array<{ key: string; info: any }>,
+  dbClient: any,
+  apiKey: string,
+): Promise<Map<number, Record<string, number>>> {
+  const result = new Map<number, Record<string, number>>()
+  if (!apiKey || fixtures.length === 0) return result
+
+  // Helper: normalize team name for fuzzy matching
+  const norm = (s: string) =>
+    (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9\s]/g, '').trim().replace(/\s+/g, ' ')
+
+  // Build leagueKey → sportKey mapping (they're the same in The Odds API!)
+  // e.g. soccer_epl, soccer_brazil_campeonato, etc.
+  const leagueKeyToSport = new Map(validLeagues.map(l => [l.key, l.key]))
+
+  // Group fixtures by (sportKey, dateYMD)
+  // We fetch 1 day before match time to get pre-match odds
+  type GroupKey = string // `${sportKey}::${ymd}`
+  const groups = new Map<GroupKey, Array<{ fixture: any; fixtureId: number }>>()
+  let _noSportKey = 0
+
+  for (const f of fixtures) {
+    // Determine sport key for this fixture
+    const fixtureId = Number(f.fixture.id)
+    const leagueName = f._leagueName || f.league?.name || ''
+    let sportKey: string | null = null
+    for (const l of validLeagues) {
+      if (l.info.name === leagueName || l.info.aliases?.includes(leagueName.toLowerCase())) {
+        sportKey = leagueKeyToSport.get(l.key) ?? l.key
+        break
+      }
+    }
+    if (!sportKey) { _noSportKey++; continue }
+
+    const matchDate = new Date(f.fixture.date)
+    if (!isFinite(matchDate.getTime())) continue
+    const ymd = matchDate.toISOString().slice(0, 10)
+    const key: GroupKey = `${sportKey}::${ymd}`
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key)!.push({ fixture: f, fixtureId })
+  }
+
+  console.log(`[Backtest][OddsAPI] groups formed: ${groups.size} unique (sport,date), ${_noSportKey} fixtures sem sportKey`)
+  if (groups.size > 0) {
+    const sample = Array.from(groups.entries())[0]
+    console.log(`[Backtest][OddsAPI] sample group: key=${sample[0]}, fixtures=${sample[1].length}`)
+  }
+
+  // Try to load from cache first
+  const cacheTable = 'odds_api_historical_cache'
+  const cachedKeys = new Set<GroupKey>()
+  const allGroupKeys = Array.from(groups.keys())
+
+  // Load cache in batches to avoid huge IN clauses
+  const CACHE_BATCH = 100
+  for (let i = 0; i < allGroupKeys.length; i += CACHE_BATCH) {
+    const batchKeys = allGroupKeys.slice(i, i + CACHE_BATCH)
+    try {
+      const { data: rows } = await dbClient
+        .from(cacheTable)
+        .select('sport_key, event_date, events')
+        .in('cache_key', batchKeys)
+      if (rows) {
+        for (const row of rows) {
+          const key = `${row.sport_key}::${row.event_date}`
+          cachedKeys.add(key)
+          // Match events to fixtures in this group
+          const groupFixtures = groups.get(key) || []
+          for (const gf of groupFixtures) {
+            const homeNorm = norm(gf.fixture.teams?.home?.name)
+            const awayNorm = norm(gf.fixture.teams?.away?.name)
+            for (const ev of (row.events || [])) {
+              const evHome = norm(ev.home_team)
+              const evAway = norm(ev.away_team)
+              if (teamNamesMatch(homeNorm, evHome) && teamNamesMatch(awayNorm, evAway)) {
+                result.set(gf.fixtureId, ev.odds || {})
+                break
+              }
+            }
+          }
+        }
+      }
+    } catch (_e) { /* cache table may not exist yet */ }
+  }
+
+  // Fetch from API for groups not in cache
+  const missingGroups = allGroupKeys.filter(k => !cachedKeys.has(k))
+  console.log(`[Backtest][OddsAPI] cache: ${cachedKeys.size}/${allGroupKeys.length} groups, fetching ${missingGroups.length} from API`)
+
+  // Cap API calls per run to avoid Edge Function timeout.
+  // Cached results accumulate across runs — eventually full coverage.
+  const MAX_API_CALLS = 40
+  const DELAY_MS = 150
+  const cacheRows: any[] = []
+  let apiCallsMade = 0
+
+  for (const groupKey of missingGroups) {
+    if (apiCallsMade >= MAX_API_CALLS) {
+      console.log(`[Backtest][OddsAPI] atingiu limite de ${MAX_API_CALLS} chamadas — restantes ficarão sem odds nesta execução (cache acumula)`)
+      break
+    }
+
+    const [sportKey, ymd] = groupKey.split('::')
+    const groupFixtures = groups.get(groupKey) || []
+
+    // Fetch odds snapshot ~12h into the match day (good pre-match window)
+    const snapshotDate = `${ymd}T12:00:00Z`
+    // Note: no trailing slash — The Odds API is strict about URL format
+    // Use only h2h+totals for historical endpoint — btts/spreads cause 422 on many soccer leagues
+    // h2h = 1X2, totals = Over/Under
+    const url = `https://api.the-odds-api.com/v4/historical/sports/${sportKey}/odds` +
+      `?apiKey=${apiKey}&date=${snapshotDate}&regions=eu&markets=h2h,totals&oddsFormat=decimal`
+
+    let events: any[] = []
+    try {
+      const res = await fetch(url)
+      if (res.status === 422 || res.status === 404) {
+        // Sport/market not supported by The Odds API for this key — skip silently
+        continue
+      }
+      if (!res.ok) {
+        const body = await res.text().catch(() => '')
+        console.warn(`[Backtest][OddsAPI] HTTP ${res.status} for ${sportKey} ${ymd}: ${body.slice(0, 100)}`)
+        continue
+      }
+      apiCallsMade++
+      const json = await res.json()
+      events = json?.data || []
+
+      // Parse each event into our marketLabel → odd format
+      const parsedEvents: Array<{ home_team: string; away_team: string; odds: Record<string, number> }> = []
+      for (const ev of events) {
+        const odds = parseOddsApiEvent(ev)
+        parsedEvents.push({ home_team: ev.home_team, away_team: ev.away_team, odds })
+      }
+
+      // Match to our fixtures
+      for (const gf of groupFixtures) {
+        const homeNorm = norm(gf.fixture.teams?.home?.name)
+        const awayNorm = norm(gf.fixture.teams?.away?.name)
+        for (const pev of parsedEvents) {
+          if (teamNamesMatch(homeNorm, norm(pev.home_team)) && teamNamesMatch(awayNorm, norm(pev.away_team))) {
+            result.set(gf.fixtureId, pev.odds)
+            break
+          }
+        }
+      }
+
+      // Queue cache row
+      if (parsedEvents.length > 0) {
+        cacheRows.push({
+          cache_key: groupKey,
+          sport_key: sportKey,
+          event_date: ymd,
+          events: parsedEvents,
+          fetched_at: new Date().toISOString(),
+        })
+      }
+    } catch (e) {
+      console.warn(`[Backtest][OddsAPI] error ${sportKey} ${ymd}:`, (e as Error).message)
+    }
+
+    if (DELAY_MS > 0) await new Promise(r => setTimeout(r, DELAY_MS))
+  }
+
+  // Persist cache rows
+  if (cacheRows.length > 0) {
+    try {
+      await dbClient.from(cacheTable).upsert(cacheRows, { onConflict: 'cache_key' })
+      console.log(`[Backtest][OddsAPI] cached ${cacheRows.length} group(s)`)
+    } catch (e) {
+      console.warn(`[Backtest][OddsAPI] cache save failed:`, (e as Error).message)
+    }
+  }
+
+  return result
+}
+
+/**
+ * Parses a single The Odds API event object into our { marketLabel: odd } format.
+ * Handles h2h (1x2), totals (over/under), and btts markets.
+ */
+function parseOddsApiEvent(ev: any): Record<string, number> {
+  const buckets: Record<string, number[]> = {}
+  const push = (k: string, v: number) => {
+    if (!isFinite(v) || v <= 1) return
+    if (!buckets[k]) buckets[k] = []
+    buckets[k].push(v)
+  }
+  const med = (arr: number[]) => {
+    const s = arr.slice().sort((a, b) => a - b)
+    const mid = Math.floor(s.length / 2)
+    return s.length % 2 === 0 ? (s[mid - 1] + s[mid]) / 2 : s[mid]
+  }
+
+  for (const bkm of (ev.bookmakers || [])) {
+    for (const mkt of (bkm.markets || [])) {
+      const key = mkt.key // h2h, totals, btts
+      for (const out of (mkt.outcomes || [])) {
+        const name = (out.name || '').toLowerCase()
+        const val = Number(out.price)
+        if (key === 'h2h') {
+          if (name === 'home' || name === ev.home_team?.toLowerCase()) push('Casa', val)
+          else if (name === 'away' || name === ev.away_team?.toLowerCase()) push('Fora', val)
+          else if (name === 'draw') push('Empate', val)
+        } else if (key === 'totals') {
+          const point = String(out.point ?? '').trim()
+          if (point === '2.5') {
+            if (name === 'over') push('Over 2.5', val)
+            else if (name === 'under') push('Under 2.5', val)
+          } else if (point === '1.5') {
+            if (name === 'over') push('Over 1.5', val)
+          } else if (point === '3.5') {
+            if (name === 'over') push('Over 3.5', val)
+          }
+        } else if (key === 'btts') {
+          if (name === 'yes') push('BTTS Sim', val)
+          else if (name === 'no') push('BTTS Não', val)
+        } else if (key === 'spreads') {
+          // Asian Handicap — The Odds API uses 'spreads'
+          const point = Number(out.point)
+          if (isFinite(point)) {
+            const isHome = name === 'home' || name === ev.home_team?.toLowerCase()
+            const isAway = name === 'away' || name === ev.away_team?.toLowerCase()
+            const allowedLines = [-1.5, -1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1, 1.5]
+            if (allowedLines.includes(point) && isHome) push(`AH Casa ${point > 0 ? '+' : ''}${point}`, val)
+            if (allowedLines.includes(-point) && isAway) push(`AH Fora ${-point > 0 ? '+' : ''}{-point}`, val)
+          }
+        }
+      }
+    }
+  }
+
+  const result: Record<string, number> = {}
+  for (const [k, arr] of Object.entries(buckets)) {
+    result[k] = Math.round(med(arr) * 100) / 100
+  }
+  return result
+}
+
+/**
+ * Fuzzy team name matching: tolerates common suffixes, abbreviations, and accents.
+ * Returns true if names are likely the same club.
+ */
+function teamNamesMatch(a: string, b: string): boolean {
+  if (!a || !b) return false
+  if (a === b) return true
+  // Remove common suffixes
+  const strip = (s: string) => s.replace(/\b(fc|cf|sc|ac|as|ss|afc|bv|sv|fk|sk|nk|if|bf|bk)\b/g, '').trim()
+  const sa = strip(a), sb = strip(b)
+  if (sa === sb) return true
+  // Substring containment (one contains the other, min 5 chars)
+  if (sa.length >= 5 && sb.length >= 5) {
+    if (sa.includes(sb) || sb.includes(sa)) return true
+  }
+  // Token overlap: if all tokens of shorter name appear in longer
+  const ta = sa.split(' ').filter(t => t.length >= 3)
+  const tb = sb.split(' ').filter(t => t.length >= 3)
+  if (ta.length > 0 && tb.length > 0) {
+    const shorter = ta.length <= tb.length ? ta : tb
+    const longer  = ta.length <= tb.length ? tb : ta
+    const matches = shorter.filter(t => longer.some(lt => lt.startsWith(t) || t.startsWith(lt)))
+    if (matches.length >= shorter.length) return true
+  }
+  return false
 }
 
 // ═══════════════════════════════════════════════
