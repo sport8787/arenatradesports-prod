@@ -2317,10 +2317,26 @@ function analyzeWithCriteria(
     }
   }
 
-  // NOTE: No hard-veto rules by market type here.
-  // Those rules (Empate odd>3.0, Fora odd>2.60) belong to mycroft-punter-analysis
-  // (live/in-play trading). Arena Punter pré-live uses only the tier/edge/confidence
-  // criteria defined in punter_calibration — market-agnostic.
+  // ── HARD-VETO RULES BY MARKET ──
+  // Mirrors mycroft-punter-analysis (also pre-live) — both functions apply the same rules.
+  // Source: mycroft-punter-analysis/index.ts validateAnalysis(), lines 262-269.
+  if (verdict === 'APROVADO') {
+    if (market === 'Empate') {
+      if (marketOdd > 3.00) {
+        verdict = 'VETADO'; vetoReason = 'HARD-VETO: Empate odd > 3.00'
+      } else if (modelProb < 0.48) {
+        verdict = 'VETADO'; vetoReason = `HARD-VETO: Empate prob ${(modelProb*100).toFixed(0)}% < 48%`
+      } else if (edge < 8) {
+        verdict = 'VETADO'; vetoReason = `HARD-VETO: Empate exige edge ≥ 8% (atual ${edge.toFixed(1)}%)`
+      }
+    } else if (market === 'Fora') {
+      if (marketOdd > 2.60) {
+        verdict = 'VETADO'; vetoReason = 'HARD-VETO: Fora odd > 2.60'
+      } else if (modelProb < 0.48) {
+        verdict = 'VETADO'; vetoReason = `HARD-VETO: Fora prob ${(modelProb*100).toFixed(0)}% < 48%`
+      }
+    }
+  }
 
   return {
     market,
