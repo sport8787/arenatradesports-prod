@@ -65,7 +65,34 @@ const DEFAULT_LEAGUES = [
 ];
 
 const currentYear = new Date().getFullYear();
-const SEASONS = [currentYear - 1, currentYear - 2, currentYear - 3];
+
+function getTimeWindows() {
+  const today = new Date();
+  const todayYmd = today.toISOString().slice(0, 10);
+
+  // Last 3 months: today minus 90 days
+  const d3m = new Date(today);
+  d3m.setDate(d3m.getDate() - 90);
+  const from3m = d3m.toISOString().slice(0, 10);
+
+  // Last 6 months: today minus 180 days
+  const d6m = new Date(today);
+  d6m.setDate(d6m.getDate() - 180);
+  const from6m = d6m.toISOString().slice(0, 10);
+
+  const windows = [
+    { key: 'last_3m',  label: 'Últimos 3 meses', dateFrom: from3m,   dateTo: todayYmd },
+    { key: 'last_6m',  label: 'Últimos 6 meses', dateFrom: from6m,   dateTo: todayYmd },
+  ];
+
+  for (let yr = currentYear; yr >= currentYear - 3; yr--) {
+    const dateTo = `${yr}-12-31` > todayYmd ? todayYmd : `${yr}-12-31`;
+    windows.push({ key: `year_${yr}`, label: `Ano ${yr}`, dateFrom: `${yr}-01-01`, dateTo });
+  }
+  return windows;
+}
+
+const TIME_WINDOWS = getTimeWindows();
 
 interface BacktestMetrics {
   total_analyzed: number;
@@ -174,7 +201,7 @@ export default function BacktestPanel({ onClose }: Props) {
     { key: 'api_football', label: 'API-Football' },
   ];
   const [selectedLeagues, setSelectedLeagues] = useState<string[]>(DEFAULT_LEAGUES);
-  const [season, setSeason] = useState(SEASONS[0]);
+  const [selectedWindow, setSelectedWindow] = useState(TIME_WINDOWS[2].key); // default: current year
   const [initialBankroll, setInitialBankroll] = useState(10000);
   const [selectedMarkets, setSelectedMarkets] = useState<string[]>(ALL_MARKETS.map(m => m.key));
   const [dataSource, setDataSource] = useState<string>('auto');
@@ -230,10 +257,12 @@ export default function BacktestPanel({ onClose }: Props) {
     setResults([]);
     setUsedSource('');
     try {
+      const win = TIME_WINDOWS.find(w => w.key === selectedWindow) ?? TIME_WINDOWS[2];
       const { data, error } = await supabase.functions.invoke('mycroft-punter-backtest', {
         body: {
           leagues: selectedLeagues,
-          season,
+          date_from: win.dateFrom,
+          date_to: win.dateTo,
           initial_bankroll: initialBankroll,
           max_stake_amount: MAX_STAKE_CAP,
           markets: selectedMarkets,
@@ -311,12 +340,12 @@ export default function BacktestPanel({ onClose }: Props) {
             </div>
 
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Temporada</label>
-              <Select value={String(season)} onValueChange={v => setSeason(Number(v))}>
+              <label className="text-xs text-muted-foreground mb-1 block">Período</label>
+              <Select value={selectedWindow} onValueChange={setSelectedWindow}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {SEASONS.map(s => (
-                    <SelectItem key={s} value={String(s)}>{s}/{s + 1}</SelectItem>
+                  {TIME_WINDOWS.map(w => (
+                    <SelectItem key={w.key} value={w.key}>{w.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

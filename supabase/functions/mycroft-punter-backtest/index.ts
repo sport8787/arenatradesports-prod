@@ -143,6 +143,7 @@ interface BacktestResult {
 interface TierConfig {
   min_edge: number
   min_confidence: number
+  min_prob: number    // minimum model probability (0-100) for this tier
   stake_pct: number
   label: string
 }
@@ -151,6 +152,9 @@ interface AnalysisCriteria {
   tiers: TierConfig[]
   min_edge_pct: number
   min_confidence: number
+  min_probability: number  // global min model probability (0-100)
+  odd_min: number          // minimum accepted odd (e.g. 1.35)
+  odd_max: number          // maximum accepted odd (e.g. 3.20)
   min_ev: number
   max_approval_pct: number
   min_approval_pct: number
@@ -162,12 +166,15 @@ function defaultCriteria(): AnalysisCriteria {
   // Aligned with punter_calibration production values (2026-06-09 calibration)
   return {
     tiers: [
-      { min_edge: 7, min_confidence: 78, stake_pct: 5.0, label: 'TIER_1' },
-      { min_edge: 5, min_confidence: 70, stake_pct: 3.5, label: 'TIER_2' },
-      { min_edge: 4, min_confidence: 65, stake_pct: 2.5, label: 'TIER_3' },
+      { min_edge: 7, min_confidence: 78, min_prob: 55, stake_pct: 5.0, label: 'TIER_1' },
+      { min_edge: 5, min_confidence: 70, min_prob: 48, stake_pct: 3.5, label: 'TIER_2' },
+      { min_edge: 4, min_confidence: 65, min_prob: 42, stake_pct: 2.5, label: 'TIER_3' },
     ],
     min_edge_pct: 4,       // production CALIB.min_edge = 4
     min_confidence: 65,    // production CALIB.min_confidence = 65
+    min_probability: 42,   // production CALIB.min_probability = 42
+    odd_min: 1.35,         // production CALIB.odd_min = 1.35
+    odd_max: 3.20,         // production CALIB.odd_max = 3.20
     min_ev: 0,
     max_approval_pct: 70,
     min_approval_pct: 15,  // production targets 15-25% approval
@@ -252,12 +259,15 @@ async function loadPromptCriteria(): Promise<AnalysisCriteria> {
       const c = defaultCriteria()
       c.min_edge_pct       = Number(calibRow.min_edge)
       c.min_confidence     = Number(calibRow.min_confidence)
+      if (calibRow.min_probability != null) c.min_probability = Number(calibRow.min_probability)
+      if (calibRow.odd_min != null) c.odd_min = Number(calibRow.odd_min)
+      if (calibRow.odd_max != null) c.odd_max = Number(calibRow.odd_max)
       c.tiers = [
-        { min_edge: +calibRow.tier1_min_edge, min_confidence: +calibRow.tier1_min_conf, stake_pct: +calibRow.tier1_max_stake, label: 'TIER_1' },
-        { min_edge: +calibRow.tier2_min_edge, min_confidence: +calibRow.tier2_min_conf, stake_pct: +calibRow.tier2_max_stake, label: 'TIER_2' },
-        { min_edge: +calibRow.tier3_min_edge, min_confidence: +calibRow.tier3_min_conf, stake_pct: +calibRow.tier3_max_stake, label: 'TIER_3' },
+        { min_edge: +calibRow.tier1_min_edge, min_confidence: +calibRow.tier1_min_conf, min_prob: calibRow.tier1_min_prob != null ? +calibRow.tier1_min_prob : 55, stake_pct: +calibRow.tier1_max_stake, label: 'TIER_1' },
+        { min_edge: +calibRow.tier2_min_edge, min_confidence: +calibRow.tier2_min_conf, min_prob: calibRow.tier2_min_prob != null ? +calibRow.tier2_min_prob : 48, stake_pct: +calibRow.tier2_max_stake, label: 'TIER_2' },
+        { min_edge: +calibRow.tier3_min_edge, min_confidence: +calibRow.tier3_min_conf, min_prob: calibRow.tier3_min_prob != null ? +calibRow.tier3_min_prob : 42, stake_pct: +calibRow.tier3_max_stake, label: 'TIER_3' },
       ]
-      console.log('[Backtest] ✅ Critérios carregados de punter_calibration:', JSON.stringify({ min_edge: c.min_edge_pct, min_conf: c.min_confidence }))
+      console.log('[Backtest] ✅ Critérios carregados de punter_calibration:', JSON.stringify({ min_edge: c.min_edge_pct, min_conf: c.min_confidence, min_prob: c.min_probability, odd_min: c.odd_min, odd_max: c.odd_max }))
       return c
     }
   } catch (e) {
@@ -529,7 +539,9 @@ serve(async (req) => {
     const {
       league,
       leagues: leaguesInput,
-      season = new Date().getFullYear() - 1,
+      season,            // legacy field (kept for backward compat)
+      date_from: rawDateFrom,
+      date_to: rawDateTo,
       initial_bankroll = 10000,
       monte_carlo_sims = 10000,
       use_historical = true,
@@ -537,6 +549,22 @@ serve(async (req) => {
       markets: marketsInput,
       data_source = 'auto', // 'auto' | 'arena_matches' | 'sportmonks' | 'futodds' | 'api_football'
     } = body
+
+    // Compute date range.
+    // Priority: explicit date_from/date_to → else calendar year from `season` → else current year-1.
+    const todayYmd = new Date().toISOString().slice(0, 10)
+    let dateFrom: string
+    let dateTo: string
+    if (rawDateFrom && rawDateTo) {
+      dateFrom = rawDateFrom
+      dateTo = rawDateTo > todayYmd ? todayYmd : rawDateTo
+    } else {
+      const yr = season != null ? Number(season) : new Date().getFullYear() - 1
+      dateFrom = `${yr}-01-01`
+      dateTo = `${yr}-12-31` > todayYmd ? todayYmd : `${yr}-12-31`
+    }
+    // Derive year from dateFrom for cache keys and logging
+    const calendarYear = parseInt(dateFrom.slice(0, 4))
 
     // Normalize markets filter: default = all
     const allowedMarkets: Set<string> = new Set(
@@ -557,7 +585,7 @@ serve(async (req) => {
 
     const leagueNames = validLeagues.map(l => l.info.name).join(', ')
     const leagueNameSet = new Set(validLeagues.map(l => l.info.name))
-    console.log(`[Backtest] Ligas: ${leagueNames} | Temporada: ${season} | Fonte: ${data_source} | Mercados: ${Array.from(allowedMarkets).join(',')}`)
+    console.log(`[Backtest] Ligas: ${leagueNames} | Período: ${dateFrom} → ${dateTo} | Fonte: ${data_source} | Mercados: ${Array.from(allowedMarkets).join(',')}`)
     console.log(`[Backtest] Critérios: edge≥${criteria.min_edge_pct}%, confiança≥${criteria.min_confidence}%`)
 
     // 1. Try to load from arena_matches first (historical DB), then fallback to API
@@ -581,12 +609,12 @@ serve(async (req) => {
 
     if (use_historical && tryArenaMatches) {
       for (const l of validLeagues) {
-        const seasonStr = `${season}/${season + 1}`
         const { data: dbMatches } = await dbClient
           .from('arena_matches')
           .select('*')
           .eq('league', l.info.name)
-          .or(`season.eq.${seasonStr},season.eq.${season}`)
+          .gte('match_date', dateFrom)
+          .lte('match_date', dateTo)
           .not('score_home', 'is', null)
           .order('match_date', { ascending: true })
           .limit(1000)
@@ -624,7 +652,7 @@ serve(async (req) => {
         if (leaguesWithData.has(l.info.name)) continue
         try {
           const { fixtures: smFixtures, fromCache } = await fetchHistoricalFromSportmonksCached(
-            l.key, season, l.info.name, l.info.id, dbClient
+            l.key, calendarYear, l.info.name, l.info.id, dbClient, dateFrom, dateTo
           )
           if (smFixtures.length > 0) {
             if (usedSource === 'none') usedSource = 'sportmonks'
@@ -653,7 +681,7 @@ serve(async (req) => {
           const missingKeys = new Set(missingLeagues.map(l => l.key))
           console.log(`[Backtest] Futodds: tentando preencher ${missingLeagues.length} ligas faltantes (${missingLeagues.map(l => l.info.name).join(', ')})`)
         try {
-            const fdFixtures = await fetchHistoricalFromFutodds(season, missingKeys)
+            const fdFixtures = await fetchHistoricalFromFutodds(calendarYear, missingKeys, dateFrom, dateTo)
           if (fdFixtures.length > 0) {
             if (usedSource === 'none') usedSource = 'futodds'
             else if (usedSource !== 'futodds') usedSource = 'mixed'
@@ -676,7 +704,7 @@ serve(async (req) => {
     if (tryApiFootball && apiKey) {
       const missingLeagues = validLeagues.filter(l => !leaguesWithData.has(l.info.name))
       for (const l of missingLeagues) {
-        const fixtures = await fetchSeasonFixtures(l.info.id, season, apiKey)
+        const fixtures = await fetchSeasonFixtures(l.info.id, dateFrom, dateTo, apiKey)
         console.log(`[Backtest] API-Football ${l.info.name}: ${fixtures.length} jogos`)
         for (const f of fixtures) {
           fixtureLeagueMap.set(f.fixture.id, l.info.name)
@@ -1102,8 +1130,9 @@ function round2(n: number): number {
 // API-Football
 // ═══════════════════════════════════════════════
 
-async function fetchSeasonFixtures(leagueId: number, season: number, apiKey: string): Promise<any[]> {
-  const url = `https://v3.football.api-sports.io/fixtures?league=${leagueId}&season=${season}&status=FT`
+async function fetchSeasonFixtures(leagueId: number, dateFrom: string, dateTo: string, apiKey: string): Promise<any[]> {
+  // Use calendar date range instead of season — supports full year, 6m, 3m windows
+  const url = `https://v3.football.api-sports.io/fixtures?league=${leagueId}&from=${dateFrom}&to=${dateTo}&status=FT`
   const res = await fetch(url, { headers: { 'x-apisports-key': apiKey } })
   if (!res.ok) return []
   const data = await res.json()
@@ -1160,6 +1189,8 @@ async function fetchHistoricalFromSportmonksCached(
   leagueName: string,
   afId: number,
   dbClient: any,
+  overrideDateFrom?: string,  // calendar date range override (e.g. "2025-03-01")
+  overrideDateTo?: string,    // calendar date range override (e.g. "2025-06-01")
 ): Promise<{ fixtures: any[]; fromCache: boolean }> {
   const TOKEN = Deno.env.get('SPORTMONKS_API_KEY')
   if (!TOKEN) return { fixtures: [], fromCache: false }
@@ -1208,25 +1239,34 @@ async function fetchHistoricalFromSportmonksCached(
     return { fixtures: [], fromCache: false }
   }
 
-  // 2) Calcular janela incremental. Se já há cache, busca apenas do último
-  // dia do cache até hoje (mesmo dia para pegar jogos que terminaram após).
-  const seasonEnd = new Date(Math.min(new Date(`${season + 1}-12-31T00:00:00Z`).getTime(), Date.now()))
-  const toYmd = seasonEnd.toISOString().slice(0, 10)
+  // 2) Calcular janela de busca.
+  // Se dateFrom/dateTo foram passados (janela calendário ou rolling window), usa eles.
+  // Caso contrário, usa o comportamento legado (ano calendário completo).
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const windowEnd = overrideDateTo && overrideDateTo < todayStr ? overrideDateTo : todayStr
+  const windowStart = overrideDateFrom || `${season}-01-01`
+  const toYmd = windowEnd
   let fromYmd: string
   if (hadCache) {
+    // Para cache incremental: busca a partir do último fixture já cacheado
     const lastTs = cachedFixtures.reduce((mx: number, f: any) => {
       const t = new Date(f?.fixture?.date || 0).getTime()
       return isFinite(t) && t > mx ? t : mx
     }, 0)
-    const fromDate = lastTs > 0 ? new Date(lastTs) : new Date(`${season}-01-01T00:00:00Z`)
+    const fromDate = lastTs > 0 ? new Date(lastTs) : new Date(`${windowStart}T00:00:00Z`)
     fromYmd = fromDate.toISOString().slice(0, 10)
     if (fromYmd > toYmd) {
       console.log(`[Backtest][SM-Cache] ${leagueKey}/${season}: cache já cobre ${fromYmd} ≥ ${toYmd}`)
-      return { fixtures: cachedFixtures, fromCache: true }
+      // Filter cached fixtures to requested window before returning
+      const inWindow = cachedFixtures.filter((f: any) => {
+        const d = (f?.fixture?.date || '').slice(0, 10)
+        return d >= windowStart && d <= windowEnd
+      })
+      return { fixtures: inWindow, fromCache: true }
     }
     console.log(`[Backtest][SM-Cache] ${leagueKey}/${season}: incremental ${fromYmd} → ${toYmd}`)
   } else {
-    fromYmd = `${season}-01-01`
+    fromYmd = windowStart
     console.log(`[Backtest][SM-Cache] MISS ${leagueKey}/${season}: full scan ${fromYmd} → ${toYmd}`)
   }
 
@@ -1338,14 +1378,20 @@ async function fetchHistoricalFromSportmonksCached(
     console.warn(`[Backtest][SM-Cache] ${leagueKey}/${season}: 0 fixtures (não salvando cache vazio — Sportmonks pode não cobrir essa liga)`)
   }
 
-  return { fixtures: merged, fromCache: hadCache && added === 0 }
+  // Filter merged fixtures to the requested window (windowStart..windowEnd)
+  const inWindow = merged.filter((f: any) => {
+    const d = (f?.fixture?.date || '').slice(0, 10)
+    return d >= windowStart && d <= windowEnd
+  })
+  console.log(`[Backtest][SM-Cache] ${leagueKey}/${season}: ${merged.length} total, ${inWindow.length} within ${windowStart}→${windowEnd}`)
+  return { fixtures: inWindow, fromCache: hadCache && added === 0 }
 }
 
 // ═══════════════════════════════════════════════
 // FUTODDS — /matches-ended by date iteration
 // ═══════════════════════════════════════════════
 
-async function fetchHistoricalFromFutodds(season: number, allowedLeagueKeys: Set<string>): Promise<any[]> {
+async function fetchHistoricalFromFutodds(season: number, allowedLeagueKeys: Set<string>, overrideDateFrom?: string, overrideDateTo?: string): Promise<any[]> {
   const TOKEN = Deno.env.get('FUTODDS_API_KEY')
   if (!TOKEN) return []
   const fixtures: any[] = []
@@ -1353,7 +1399,18 @@ async function fetchHistoricalFromFutodds(season: number, allowedLeagueKeys: Set
   let dayCount = 0
   const MAX_DAYS = 400
 
-  for (const ymd of dateRangeOfSeason(season)) {
+  function* dateRangeFromTo(from: string, to: string): Generator<string> {
+    const todayNow = new Date().toISOString().slice(0, 10)
+    const end = to < todayNow ? to : todayNow
+    for (let d = new Date(`${from}T00:00:00Z`); d.toISOString().slice(0, 10) <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+      yield d.toISOString().slice(0, 10)
+    }
+  }
+  const iterRange = overrideDateFrom && overrideDateTo
+    ? dateRangeFromTo(overrideDateFrom, overrideDateTo)
+    : dateRangeOfSeason(season)
+
+  for (const ymd of iterRange) {
     if (dayCount++ >= MAX_DAYS) break
     try {
       const res = await fetch(`https://csv.futodds.com/functions/v1/matches-ended?date=${ymd}`, {
@@ -2108,7 +2165,8 @@ function analyzeWithCriteria(
   for (const [market, modelProb] of Object.entries(modelProbs)) {
     if (!allowedMarkets.has(market)) continue
     const marketOdd = marketOdds[market]
-    if (!marketOdd || marketOdd > 20 || marketOdd < 1.05) continue
+    // Apply odd range filter — same as production punter_calibration (odd_min/odd_max)
+    if (!marketOdd || marketOdd < criteria.odd_min || marketOdd > criteria.odd_max) continue
 
     const impliedProb = 1 / marketOdd
     const edge = ((modelProb - impliedProb) / impliedProb) * 100
@@ -2168,18 +2226,20 @@ function analyzeWithCriteria(
     vetoReason = 'EV negativo'
   } else if (edge < criteria.min_edge_pct) {
     vetoReason = `Edge ${edge.toFixed(1)}% < ${criteria.min_edge_pct}%`
+  } else if (modelProb * 100 < criteria.min_probability) {
+    vetoReason = `Prob ${(modelProb * 100).toFixed(0)}% < mín ${criteria.min_probability}%`
   } else if (confidence < criteria.min_confidence) {
     vetoReason = `Confiança ${confidence}% < ${criteria.min_confidence}%`
   } else {
     for (const tier of criteria.tiers) {
-      if (edge >= tier.min_edge && confidence >= tier.min_confidence) {
+      if (edge >= tier.min_edge && confidence >= tier.min_confidence && modelProb * 100 >= tier.min_prob) {
         matchedTier = tier.label
         tierStake = tier.stake_pct
         verdict = 'APROVADO'
         break
       }
     }
-    if (verdict === 'VETADO' && edge >= criteria.min_edge_pct && confidence >= criteria.min_confidence) {
+    if (verdict === 'VETADO' && edge >= criteria.min_edge_pct && confidence >= criteria.min_confidence && modelProb * 100 >= criteria.min_probability) {
       const lowestTier = criteria.tiers[criteria.tiers.length - 1]
       matchedTier = lowestTier.label
       tierStake = lowestTier.stake_pct
@@ -2187,6 +2247,28 @@ function analyzeWithCriteria(
     }
     if (verdict === 'VETADO') {
       vetoReason = 'Não atingiu critérios mínimos'
+    }
+  }
+
+  // ── HARD-VETO RULES BY MARKET (mirrors live mycroft-punter-analysis) ──
+  // These replicate the production validation rules that Gemini AI observes.
+  if (verdict === 'APROVADO') {
+    if (market === 'Empate') {
+      // Draw: very hard market — needs high edge, good probability, and tight odds
+      if (marketOdd > 3.00) {
+        verdict = 'VETADO'; vetoReason = 'Empate: odd > 3.00 (veto hard)'
+      } else if (modelProb < 0.48) {
+        verdict = 'VETADO'; vetoReason = `Empate: prob ${(modelProb*100).toFixed(0)}% < 48%`
+      } else if (edge < 8) {
+        verdict = 'VETADO'; vetoReason = `Empate: edge ${edge.toFixed(1)}% < 8% (mercado difícil)`
+      }
+    } else if (market === 'Fora') {
+      // Away win: volatile market — needs higher probability and tight odds
+      if (marketOdd > 2.60) {
+        verdict = 'VETADO'; vetoReason = 'Fora: odd > 2.60 (veto hard)'
+      } else if (modelProb < 0.48) {
+        verdict = 'VETADO'; vetoReason = `Fora: prob ${(modelProb*100).toFixed(0)}% < 48%`
+      }
     }
   }
 
