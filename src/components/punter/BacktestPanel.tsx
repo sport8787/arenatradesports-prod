@@ -112,6 +112,7 @@ interface BacktestMetrics {
   bets_per_day?: number;
   total_days?: number;
   tier_breakdown: { tier: string; count: number; greens: number; reds: number; hit_rate: number; roi: number; profit_loss: number }[];
+  roi_by_market?: { market: string; count: number; greens: number; reds: number; hit_rate: number; roi: number; profit_loss: number; avg_odd: number; used_real_odds_pct: number }[];
   roi_by_odd_range?: { range: string; count: number; greens: number; reds: number; hit_rate: number; roi: number; avg_odd: number }[];
   roi_by_league?: { league: string; count: number; greens: number; reds: number; hit_rate: number; roi: number; profit_loss: number }[];
   bankroll_curve: { index: number; bankroll: number; date: string }[];
@@ -708,6 +709,67 @@ export default function BacktestPanel({ onClose }: Props) {
               {/* TAB: Breakdown */}
               {activeTab === 'breakdown' && (
                 <div className="space-y-4">
+
+                  {/* ── ROI by Market (KEY diagnostic) ── */}
+                  {metrics.roi_by_market && metrics.roi_by_market.length > 0 && (
+                    <Card className="border-border">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-orbitron flex items-center gap-2">
+                          <Target className="w-4 h-4" /> ROI por Mercado
+                          <span className="text-[10px] text-muted-foreground font-normal ml-1">
+                            — identifica quais mercados destroem o ROI
+                          </span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="h-44">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={[...metrics.roi_by_market].sort((a, b) => b.roi - a.roi)}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                              <XAxis dataKey="market" tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} />
+                              <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
+                              <Tooltip
+                                contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: 11 }}
+                                formatter={(value: number, name: string) => [`${(value as number).toFixed(1)}%`, 'ROI']}
+                              />
+                              <Bar dataKey="roi" radius={[4, 4, 0, 0]}>
+                                {[...metrics.roi_by_market].sort((a, b) => b.roi - a.roi).map((entry, i) => (
+                                  <Cell key={i} fill={entry.roi >= 0 ? 'hsl(var(--success))' : 'hsl(var(--destructive))'} />
+                                ))}
+                              </Bar>
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                        <div className="mt-3 space-y-1.5">
+                          {[...metrics.roi_by_market].sort((a, b) => b.roi - a.roi).map((m, i) => (
+                            <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-secondary/20 border border-border/50">
+                              <div>
+                                <p className="text-xs font-bold text-foreground">{m.market}</p>
+                                <p className="text-[10px] text-muted-foreground">
+                                  {m.count} entradas • {m.greens}G/{m.reds}R • Acerto: {m.hit_rate}% • Odd méd: {m.avg_odd}
+                                  {m.used_real_odds_pct > 0 && (
+                                    <span className="text-cyan-400 ml-1">• {m.used_real_odds_pct}% odds reais</span>
+                                  )}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className={cn("font-orbitron font-bold text-sm", m.roi >= 0 ? 'text-success' : 'text-destructive')}>
+                                  {m.roi >= 0 ? '+' : ''}{m.roi.toFixed(1)}%
+                                </p>
+                                <p className={cn("text-[10px]", m.profit_loss >= 0 ? 'text-success' : 'text-destructive')}>
+                                  {m.profit_loss >= 0 ? '+' : ''}R$ {Math.abs(m.profit_loss).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-2 italic">
+                          💡 Mercados consistentemente negativos devem ser desativados no seletor de mercados acima.
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )}
+
                   {/* ROI by Odd Range */}
                   {metrics.roi_by_odd_range && metrics.roi_by_odd_range.length > 0 && (
                     <Card className="border-border">

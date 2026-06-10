@@ -106,6 +106,8 @@ interface TeamCumulativeStats {
   awayGoalsScored: number
   awayGoalsConceded: number
   lastResults: ('W' | 'D' | 'L')[]
+  lastGoalsScored: number[]    // last 5 goals scored (most recent first)
+  lastGoalsConceded: number[]  // last 5 goals conceded (most recent first)
 }
 
 interface BacktestResult {
@@ -974,6 +976,27 @@ serve(async (req) => {
       }
     }).filter(r => r.count > 0)
 
+    // ROI by market type (key diagnostic — identifies which markets destroy ROI)
+    const ALL_MARKET_NAMES = ['Casa', 'Empate', 'Fora', 'Over 2.5', 'Under 2.5', 'Over 1.5', 'BTTS Sim']
+    const roiByMarket = ALL_MARKET_NAMES.map(mk => {
+      const inMkt = approved.filter(r => r.market === mk)
+      const mkGreens = inMkt.filter(r => ['green','half_green'].includes(r.result as string)).length
+      const mkPL = inMkt.reduce((s, r) => s + r.profit_loss, 0)
+      const mkStaked = inMkt.reduce((s, r) => s + r.stake_amount, 0)
+      const mkAvgOdd = inMkt.length > 0 ? round2(inMkt.reduce((s, r) => s + r.odd, 0) / inMkt.length) : 0
+      return {
+        market: mk,
+        count: inMkt.length,
+        greens: mkGreens,
+        reds: inMkt.length - mkGreens,
+        hit_rate: inMkt.length > 0 ? round2(mkGreens / inMkt.length * 100) : 0,
+        roi: mkStaked > 0 ? round2(mkPL / mkStaked * 100) : 0,
+        profit_loss: round2(mkPL),
+        avg_odd: mkAvgOdd,
+        used_real_odds_pct: inMkt.length > 0 ? round2(inMkt.filter(r => r.used_real_odd).length / inMkt.length * 100) : 0,
+      }
+    }).filter(m => m.count > 0)
+
     // ROI by league
     const leagueSet = new Set(approved.map(r => r.league_name))
     const roiByLeague = Array.from(leagueSet).map(ln => {
@@ -1027,6 +1050,7 @@ serve(async (req) => {
       bets_per_day: totalDays > 0 ? round2(approved.length / totalDays) : 0,
       total_days: totalDays,
       tier_breakdown: tierBreakdown,
+      roi_by_market: roiByMarket,
       roi_by_odd_range: roiByOddRange,
       roi_by_league: roiByLeague,
       bankroll_curve: bankrollCurve,
@@ -1926,6 +1950,8 @@ function updateTeamStats(stats: Record<string, TeamCumulativeStats>, team: strin
       homeWins: 0, homePlayed: 0, homeGoalsScored: 0, homeGoalsConceded: 0,
       awayWins: 0, awayPlayed: 0, awayGoalsScored: 0, awayGoalsConceded: 0,
       lastResults: [],
+      lastGoalsScored: [],
+      lastGoalsConceded: [],
     }
   }
   const s = stats[team]
@@ -1952,6 +1978,12 @@ function updateTeamStats(stats: Record<string, TeamCumulativeStats>, team: strin
 
   s.lastResults.push(result)
   if (s.lastResults.length > 5) s.lastResults.shift()
+
+  // Track last 5 goals for recency-weighted xG
+  s.lastGoalsScored.unshift(goalsFor)
+  if (s.lastGoalsScored.length > 5) s.lastGoalsScored.pop()
+  s.lastGoalsConceded.unshift(goalsAgainst)
+  if (s.lastGoalsConceded.length > 5) s.lastGoalsConceded.pop()
 }
 
 // ═══════════════════════════════════════════════
@@ -2030,17 +2062,52 @@ function analyzeWithCriteria(
   // This is what our system "knows" that the simple market model doesn't.
   // ═══════════════════════════════════════════════
 
-  // Use home-specific attack/defense when enough games, else fall back to overall
-  const homeHomeAttack   = homeStats.homePlayed >= 4 ? homeStats.homeGoalsScored / homeStats.homePlayed : mktHomeAttack
-  const awayHomeDefense  = homeStats.homePlayed >= 4 ? homeStats.homeGoalsConceded / homeStats.homePlayed : mktHomeDefense
-  const awayAwayAttack   = awayStats.awayPlayed >= 4 ? awayStats.awayGoalsScored / awayStats.awayPlayed : mktAwayAttack
-  const homeAwayDefense  = awayStats.awayPlayed >= 4 ? awayStats.awayGoalsConceded / awayStats.awayPlayed : mktAwayDefense
+  // ── RECENCY-WEIGHTED xG helper ──
+  // Blends full-season rate (stable) with last-5 rate (recent signal).
+  // Weights: season 50% + last5 50% when last5 has ≥3 games; else 80%/20%.
+  const recencyBlend = (seasonRate: number, last5: number[], minGames = 3): number => {
+    if (last5.length < minGames) return seasonRate
+    // Exponential decay: most recent game counts twice as much as 5th game
+    const weights = [3, 2.5, 2, 1.5, 1]
+    let wSum = 0, wGoals = 0
+    for (let i = 0; i < last5.length; i++) {
+      const w = weights[i] ?? 1
+      wGoals += last5[i] * w
+      wSum += w
+    }
+    const recent5Rate = wGoals / wSum
+    const blend = last5.length >= 4 ? 0.50 : 0.20   // more weight when enough data
+    return seasonRate * (1 - blend) + recent5Rate * blend
+  }
 
-  // Recent form factor (last 5 games): W=1.05, D=1.0, L=0.95
+  // Home-specific attack/defense, enriched with recency
+  const homeHomeAttack  = homeStats.homePlayed >= 4
+    ? recencyBlend(homeStats.homeGoalsScored / homeStats.homePlayed, homeStats.lastGoalsScored)
+    : mktHomeAttack
+  const awayHomeDefense = homeStats.homePlayed >= 4
+    ? recencyBlend(homeStats.homeGoalsConceded / homeStats.homePlayed, homeStats.lastGoalsConceded)
+    : mktHomeDefense
+  const awayAwayAttack  = awayStats.awayPlayed >= 4
+    ? recencyBlend(awayStats.awayGoalsScored / awayStats.awayPlayed, awayStats.lastGoalsScored)
+    : mktAwayAttack
+  const homeAwayDefense = awayStats.awayPlayed >= 4
+    ? recencyBlend(awayStats.awayGoalsConceded / awayStats.awayPlayed, awayStats.lastGoalsConceded)
+    : mktAwayDefense
+
+  // Form factor — position-weighted (most recent game = highest weight)
+  // W=1.12 / D=1.0 / L=0.88 — stronger than before (was ±5%, now ±12%)
   const formFactor = (results: ('W' | 'D' | 'L')[]): number => {
     if (results.length === 0) return 1.0
-    const sum = results.reduce((s, r) => s + (r === 'W' ? 1.05 : r === 'L' ? 0.95 : 1.0), 0)
-    return sum / results.length
+    // weights: most recent first [3, 2, 1.5, 1, 0.5]
+    const weights = [3, 2, 1.5, 1, 0.5]
+    let wSum = 0, wScore = 0
+    for (let i = 0; i < results.length; i++) {
+      const w = weights[i] ?? 0.5
+      const score = results[i] === 'W' ? 1.12 : results[i] === 'L' ? 0.88 : 1.0
+      wScore += score * w
+      wSum += w
+    }
+    return wScore / wSum
   }
   const homeFormFactor = formFactor(homeStats.lastResults)
   const awayFormFactor = formFactor(awayStats.lastResults)
@@ -2250,27 +2317,10 @@ function analyzeWithCriteria(
     }
   }
 
-  // ── HARD-VETO RULES BY MARKET (mirrors live mycroft-punter-analysis) ──
-  // These replicate the production validation rules that Gemini AI observes.
-  if (verdict === 'APROVADO') {
-    if (market === 'Empate') {
-      // Draw: very hard market — needs high edge, good probability, and tight odds
-      if (marketOdd > 3.00) {
-        verdict = 'VETADO'; vetoReason = 'Empate: odd > 3.00 (veto hard)'
-      } else if (modelProb < 0.48) {
-        verdict = 'VETADO'; vetoReason = `Empate: prob ${(modelProb*100).toFixed(0)}% < 48%`
-      } else if (edge < 8) {
-        verdict = 'VETADO'; vetoReason = `Empate: edge ${edge.toFixed(1)}% < 8% (mercado difícil)`
-      }
-    } else if (market === 'Fora') {
-      // Away win: volatile market — needs higher probability and tight odds
-      if (marketOdd > 2.60) {
-        verdict = 'VETADO'; vetoReason = 'Fora: odd > 2.60 (veto hard)'
-      } else if (modelProb < 0.48) {
-        verdict = 'VETADO'; vetoReason = `Fora: prob ${(modelProb*100).toFixed(0)}% < 48%`
-      }
-    }
-  }
+  // NOTE: No hard-veto rules by market type here.
+  // Those rules (Empate odd>3.0, Fora odd>2.60) belong to mycroft-punter-analysis
+  // (live/in-play trading). Arena Punter pré-live uses only the tier/edge/confidence
+  // criteria defined in punter_calibration — market-agnostic.
 
   return {
     market,
@@ -2349,7 +2399,7 @@ function emptyMetrics() {
     greens: 0, reds: 0, hit_rate: 0, roi_total: 0, yield_pct: 0,
     net_profit: 0, max_drawdown: 0, final_bankroll: 0,
     initial_bankroll: 0, avg_odd: 0, bets_per_day: 0, total_days: 0,
-    tier_breakdown: [], roi_by_odd_range: [], roi_by_league: [], bankroll_curve: [],
+    tier_breakdown: [], roi_by_market: [], roi_by_odd_range: [], roi_by_league: [], bankroll_curve: [],
   }
 }
 
