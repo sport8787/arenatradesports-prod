@@ -62,7 +62,7 @@ export async function buscarProvaSocial(dias = 7): Promise<ProvaSocial> {
   return { greens: greens || 172, total: total || 236, wr, destaque };
 }
 
-export function blocoProvaSocial(ps: ProvaSocial, titulo = "📊 Últimos 7 dias — Arena Trader Sports"): string {
+export function blocoProvaSocial(ps: ProvaSocial, titulo = "📊 Últimos 7 dias — Arena Live"): string {
   return `
 <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;"><tr><td style="background:linear-gradient(135deg,#0d1f3c,#1a3a5c);border-radius:12px;padding:24px;text-align:center;">
 <p style="color:#C49A00;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin:0 0 14px;">${titulo}</p>

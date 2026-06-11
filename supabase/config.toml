@@ -122,3 +122,12 @@ verify_jwt = true
 
 [functions.seo-rodada-brasileirao]
 verify_jwt = false
+
+[functions.punter-copa-odds-sync]
+verify_jwt = false
+
+[functions.copa-fixtures-sync]
+verify_jwt = false
+
+[functions.mycroft-punter-copa]
+verify_jwt = false

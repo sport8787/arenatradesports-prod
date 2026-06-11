@@ -70,9 +70,11 @@ function buildMessage(b: BetToSend): string {
 
 ${isGreen ? "✅ Sinal confirmado ao vivo — banca cresce!" : "📉 Acontece. O processo continua vencedor."}
 
-📲 Grupo VIP gratuito: t.me/oraculo_mycroft
+📲 Grupo VIP gratuito: t.me/oraculo_mycroft_live
 🔗 oraculo-mycroft.com`;
 }
+
+let lastTelegramError: string | null = null;
 
 async function sendTelegram(
   token: string, chatId: string, text: string, attempt = 1,
@@ -89,7 +91,9 @@ async function sendTelegram(
     await new Promise((r) => setTimeout(r, wait));
     return sendTelegram(token, chatId, text, attempt + 1);
   }
-  console.error("[live-telegram-results] Telegram erro:", res.status, await res.text().catch(() => ""));
+  const errBody = await res.text().catch(() => "");
+  lastTelegramError = `status=${res.status} chat=${chatId} body=${errBody}`;
+  console.error("[live-telegram-results] Telegram erro:", lastTelegramError);
   return false;
 }
 
@@ -263,6 +267,8 @@ Deno.serve(async (req) => {
       sent,
       mycroft_analyses: sentMycroft.length,
       live_sinais: sentLive.length,
+      chat_id_live: CHAT_ID_LIVE ?? null,
+      telegram_error: lastTelegramError,
     }),
     { headers: { ...cors, "Content-Type": "application/json" } },
   );

@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Activity, Target, LineChart, Trophy, LogOut, Settings2,
-  Lock, Zap, Play, X, Volume2, VolumeX,
+  Lock, Zap, Play, X, Volume2, VolumeX, ChevronRight,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -344,6 +344,37 @@ export default function Index() {
             })}
           </div>
         </section>
+
+        {/* ESPECIAL COPA DO MUNDO 2026 */}
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.12 }}
+          className="mb-6"
+        >
+          <button
+            onClick={() => navigate('/punter/copa')}
+            className="group w-full relative rounded-2xl border-2 border-yellow-500/50 bg-gradient-to-br from-green-900/50 via-black/60 to-yellow-900/40 p-5 sm:p-6 text-left transition hover:scale-[1.01] hover:shadow-xl hover:border-yellow-400/70 hover:shadow-yellow-500/10"
+          >
+            <span className="absolute top-4 right-4 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wider bg-yellow-500 text-black">
+              🏆 ESPECIAL
+            </span>
+            <div className="flex items-center gap-4">
+              <div className="text-4xl flex-shrink-0">🇧🇷</div>
+              <div>
+                <div className="text-lg sm:text-xl font-black text-yellow-400 font-mono tracking-tight leading-tight">
+                  ESPECIAL COPA DO MUNDO 2026
+                </div>
+                <div className="text-xs sm:text-sm text-white/60 mt-1 leading-relaxed">
+                  Sinais pré-live do Mycroft para cada jogo · Edge matemático · Validação IA · Rumo ao Hexa
+                </div>
+              </div>
+            </div>
+            <div className="mt-3 flex items-center gap-1.5 text-yellow-400/70 text-[11px] font-mono group-hover:text-yellow-400 transition-colors">
+              Ver entradas Copa <ChevronRight className="w-3.5 h-3.5" />
+            </div>
+          </button>
+        </motion.section>
 
         {/* CTA Day Pass — exibido apenas para usuários sem assinatura */}
         {isNewUser && (

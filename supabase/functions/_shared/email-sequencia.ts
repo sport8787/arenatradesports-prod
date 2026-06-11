@@ -13,7 +13,7 @@ export const REPLY_TO = "israel@oraculo-mycroft.com";
 
 export const SITE_URL = "https://oraculo-mycroft.com";
 export const ASSINAR_URL = "https://oraculo-mycroft.com/oferta-especial";
-export const TELEGRAM_URL = "https://t.me/oraculomycroft";
+export const TELEGRAM_URL = "https://t.me/oraculo_mycroft_live";
 
 export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

@@ -295,12 +295,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 4) Persistir
+    // 4a) Persistir aprovados
     for (const s of final) {
       const { error } = await supabase
         .from("punter_copa_signals")
-        .upsert(s, { onConflict: "fixture_id,market,selection" });
-      if (error) console.error("[copa-punter] insert:", error.message);
+        .upsert({ ...s, status: "APROVADO" }, { onConflict: "fixture_id,market,selection" });
+      if (error) console.error("[copa-punter] insert aprovado:", error.message);
       else {
         await sendTelegram(
           `🏆 <b>COPA 2026 — ${s.phase.toUpperCase()}</b>\n` +
@@ -311,6 +311,33 @@ Deno.serve(async (req) => {
           `${s.rationale}`
         );
       }
+    }
+
+    // 4b) Persistir vetados — para exibição na página Copa com motivo
+    const vetados = results.filter((r: any) => !r.approved && r.vetos?.length > 0);
+    for (const r of vetados as any[]) {
+      // Busca fixture para nome dos times
+      const fx = (fixtures || []).find((f: any) => f.fixture_id === r.fixture_id);
+      if (!fx) continue;
+      const vetadoRow = {
+        fixture_id: r.fixture_id,
+        home: fx.home,
+        away: fx.away,
+        commence_time: fx.commence_time,
+        phase: fx.phase,
+        market: "Handicap Asiático",
+        selection: null,
+        vetos: r.vetos,
+        status: "VETADO",
+        copa_badge: true,
+        ve_pct: r.ve ?? null,
+        confidence: r.confidence ?? null,
+      };
+      // Upsert por fixture_id+market+selection (selection=null → usa fixture_id+market)
+      const { error } = await supabase
+        .from("punter_copa_signals")
+        .upsert(vetadoRow, { onConflict: "fixture_id,market,selection" });
+      if (error) console.error("[copa-punter] insert vetado:", error.message);
     }
 
     const vetoCounts: Record<string, number> = {};

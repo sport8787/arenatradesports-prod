@@ -175,9 +175,9 @@ function buildTelegramMessage(p: Payload): string {
   );
 }
 
-// Grupo público dedicado a sinais ao vivo da Arena Trader Sports.
+// Grupo público dedicado a sinais ao vivo da Arena Live.
 // O bot @oaraculomycroftfutebol_bot precisa ser membro/admin desse grupo.
-const TRADER_SPORTS_LIVE_CHAT = '@oraculo_mycroft_trader';
+const TRADER_SPORTS_LIVE_CHAT = '@oraculo_mycroft_live';
 
 async function dispatchOne(
   text: string,
@@ -295,6 +295,16 @@ Deno.serve(async (req) => {
       telegram_sent: telegramOk,
       push_sent: true, // o cliente dispara o push localmente
     });
+
+    // Marca telegram_worthy=true para que live-telegram-results envie o resultado (GREEN/RED)
+    if (telegramOk && (payload.event_type === 'APROVADO' || payload.event_type === 'LABAREDA')) {
+      await supabase
+        .from('mycroft_analyses')
+        .update({ telegram_worthy: true })
+        .eq('match_id', payload.match_id)
+        .eq('market', payload.market)
+        .is('result', null);
+    }
 
     if (telegramOk && (payload.event_type === 'APROVADO' || payload.event_type === 'LABAREDA')) {
       const { error: syncErr } = await supabase.rpc('sync_live_sinal_from_notification', {

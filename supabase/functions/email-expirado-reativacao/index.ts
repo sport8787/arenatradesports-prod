@@ -20,8 +20,8 @@ function html(nome: string, ps: ProvaSocial): string {
   const primeiro = nome.split(" ")[0] || "Trader";
   const body = `
 <p style="color:#444;font-size:15px;line-height:1.8;margin:0 0 16px;">Olá, <strong>${primeiro}</strong>.</p>
-<p style="color:#444;font-size:15px;line-height:1.8;margin:0 0 16px;">Sou o Israel, CEO do Oráculo Mycroft. Percebi que seu trial encerrou há alguns dias e queria te escrever pessoalmente.</p>
-<p style="color:#444;font-size:15px;line-height:1.8;margin:0 0 24px;">Não vou te mandar mais um e-mail cheio de promoções. Quero entender o que aconteceu — e te mostrar o que o sistema continua entregando enquanto você está fora:</p>
+<p style="color:#444;font-size:15px;line-height:1.8;margin:0 0 16px;">Sou o Israel, CEO do Oráculo Mycroft. Você entrou na plataforma há mais de uma semana e ainda não assinou. Queria te escrever pessoalmente antes de seguir em frente.</p>
+<p style="color:#444;font-size:15px;line-height:1.8;margin:0 0 24px;">Não vou te mandar mais um e-mail cheio de promoções. Quero entender o que aconteceu — e te mostrar o que o sistema continua entregando enquanto você está com acesso limitado:</p>
 
 ${blocoProvaSocial(ps)}
 ${blocoCardDestaque(ps)}
@@ -63,9 +63,9 @@ Deno.serve(async (req) => {
     for (const u of usuarios) {
       const r = await enviarResend({
         to: u.email,
-        subject: `${u.primeiro_nome}, uma pergunta rápida sobre seu trial`,
+        subject: `${u.primeiro_nome}, você entrou há 10 dias e ainda não assinou — posso perguntar por quê?`,
         html: html(u.full_name, ps),
-        text: `Olá ${u.primeiro_nome}, sou o Israel, CEO do Oráculo Mycroft. ${ps.greens} greens em 7 dias enquanto você esteve fora. Responde esse e-mail — eu leio. Reativar: ${ASSINAR_URL}`,
+        text: `Olá ${u.primeiro_nome}, sou o Israel, CEO do Oráculo Mycroft. Você está na plataforma há mais de uma semana sem assinar. ${ps.greens} greens em 7 dias enquanto você está com acesso limitado. Responde esse e-mail — eu leio. Assinar: ${ASSINAR_URL}`,
         sequencia: "EXPIRADO",
         userId: u.user_id,
         from: FROM_EMAIL_PESSOAL,

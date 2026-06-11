@@ -64,32 +64,27 @@ const DEFAULT_LEAGUES = [
   'soccer_uefa_champs_league',
 ];
 
-const currentYear = new Date().getFullYear();
-
 function getTimeWindows() {
   const today = new Date();
   const todayYmd = today.toISOString().slice(0, 10);
 
-  // Last 3 months: today minus 90 days
   const d3m = new Date(today);
   d3m.setDate(d3m.getDate() - 90);
   const from3m = d3m.toISOString().slice(0, 10);
 
-  // Last 6 months: today minus 180 days
-  const d6m = new Date(today);
-  d6m.setDate(d6m.getDate() - 180);
-  const from6m = d6m.toISOString().slice(0, 10);
+  const d12m = new Date(today);
+  d12m.setFullYear(d12m.getFullYear() - 1);
+  const from12m = d12m.toISOString().slice(0, 10);
 
-  const windows = [
-    { key: 'last_3m',  label: 'Últimos 3 meses', dateFrom: from3m,   dateTo: todayYmd },
-    { key: 'last_6m',  label: 'Últimos 6 meses', dateFrom: from6m,   dateTo: todayYmd },
+  const cap = (yr: number) => `${yr}-12-31` > todayYmd ? todayYmd : `${yr}-12-31`;
+
+  return [
+    { key: 'season_2026', label: 'Temporada 2026', dateFrom: '2026-01-01', dateTo: cap(2026) },
+    { key: 'season_2025', label: 'Temporada 2025', dateFrom: '2025-01-01', dateTo: cap(2025) },
+    { key: 'season_2024', label: 'Temporada 2024', dateFrom: '2024-01-01', dateTo: '2024-12-31' },
+    { key: 'last_3m',     label: '3 meses',        dateFrom: from3m,       dateTo: todayYmd },
+    { key: 'last_12m',    label: '12 meses',        dateFrom: from12m,      dateTo: todayYmd },
   ];
-
-  for (let yr = currentYear; yr >= currentYear - 3; yr--) {
-    const dateTo = `${yr}-12-31` > todayYmd ? todayYmd : `${yr}-12-31`;
-    windows.push({ key: `year_${yr}`, label: `Ano ${yr}`, dateFrom: `${yr}-01-01`, dateTo });
-  }
-  return windows;
 }
 
 const TIME_WINDOWS = getTimeWindows();
@@ -202,7 +197,7 @@ export default function BacktestPanel({ onClose }: Props) {
     { key: 'api_football', label: 'API-Football' },
   ];
   const [selectedLeagues, setSelectedLeagues] = useState<string[]>(DEFAULT_LEAGUES);
-  const [selectedWindow, setSelectedWindow] = useState(TIME_WINDOWS[2].key); // default: current year
+  const [selectedWindow, setSelectedWindow] = useState(TIME_WINDOWS[0].key); // default: temporada atual
   const [initialBankroll, setInitialBankroll] = useState(10000);
   const [selectedMarkets, setSelectedMarkets] = useState<string[]>(ALL_MARKETS.map(m => m.key));
   const [dataSource, setDataSource] = useState<string>('auto');

@@ -21,25 +21,25 @@ function html(nome: string, ps: ProvaSocial): string {
   const primeiro = nome.split(" ")[0] || "Trader";
   const body = `
 <h2 style="color:#1a3a5c;font-size:22px;margin:0 0 14px;">Bem-vindo, ${primeiro}! 👋</h2>
-<p style="color:#444;font-size:15px;line-height:1.7;margin:0 0 20px;">Você acaba de entrar no <strong>Oráculo Mycroft</strong> — sistema de trading esportivo com Inteligência Artificial. Seu trial de <strong>7 dias</strong> está ativo agora.</p>
+<p style="color:#444;font-size:15px;line-height:1.7;margin:0 0 20px;">Você acaba de entrar no <strong>Oráculo Mycroft</strong> — o sistema de trading esportivo com Inteligência Artificial que já entregou centenas de greens. Aqui está o que aconteceu nos últimos 7 dias enquanto você ainda estava de fora:</p>
 
 ${blocoProvaSocial(ps)}
 ${blocoCardDestaque(ps)}
 
-<p style="color:#1a3a5c;font-size:15px;font-weight:700;margin:0 0 12px;">🎯 O que está liberado para você:</p>
+<p style="color:#1a3a5c;font-size:15px;font-weight:700;margin:0 0 12px;">🎯 O que você tem acesso agora:</p>
 <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;"><tr><td style="background:#f0f6ff;border-radius:12px;padding:20px;">
-<p style="margin:6px 0;color:#1a3a5c;font-size:14px;">✅ <strong>Arena Trader Sports</strong> — sinais ao vivo com IA</p>
+<p style="margin:6px 0;color:#1a3a5c;font-size:14px;">✅ <strong>Arena Live</strong> — sinais ao vivo com IA</p>
 <p style="margin:6px 0;color:#1a3a5c;font-size:14px;">✅ <strong>Mycroft Punter</strong> — sinais pré-live com Value Expected positivo</p>
 <p style="margin:6px 0;color:#1a3a5c;font-size:14px;">✅ <strong>Gestão de banca</strong> — Kelly Criterion automático</p>
 <p style="margin:6px 0;color:#1a3a5c;font-size:14px;">✅ <strong>Histórico e performance</strong> — win rate e ROI em tempo real</p>
 <p style="margin:6px 0;color:#1a3a5c;font-size:14px;">✅ <strong>Lives semanais</strong> — operações ao vivo (ter, qua, sáb, dom)</p>
 </td></tr></table>
 
-${botaoCTA(`${SITE_URL}/punter`, "🚀 Acessar o Oráculo Mycroft")}
+${botaoCTA(`${SITE_URL}/lobby`, "🚀 Acessar o Oráculo Mycroft")}
 
 <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;"><tr><td style="border-left:4px solid #C49A00;padding:14px 18px;background:#fffbeb;border-radius:0 8px 8px 0;">
 <p style="color:#854f0b;font-size:14px;font-weight:700;margin:0 0 4px;">💡 Dica para começar</p>
-<p style="color:#5d4037;font-size:13px;line-height:1.6;margin:0;">Comece pela <strong>Arena Trader Sports</strong> e observe os sinais ao vivo sem apostar nos primeiros 2 dias. Entenda como o Mycroft analisa, depois entre com sua banca.</p>
+<p style="color:#5d4037;font-size:13px;line-height:1.6;margin:0;">Comece pela <strong>Arena Live</strong> e observe os sinais ao vivo antes de operar. Entenda como o Mycroft analisa cada entrada, depois entre com sua banca.</p>
 </td></tr></table>
 
 <p style="color:#444;font-size:14px;line-height:1.7;margin:0 0 8px;">📱 Entre também no nosso grupo VIP no Telegram:</p>
@@ -61,10 +61,10 @@ function text(nome: string, ps: ProvaSocial): string {
   const p = nome.split(" ")[0] || "Trader";
   return `Bem-vindo, ${p}!
 
-Seu trial de 7 dias do Oráculo Mycroft está ativo.
+Seu acesso ao Oráculo Mycroft está ativo.
 Últimos 7 dias: ${ps.greens} greens em ${ps.total} sinais (${ps.wr}% win rate).
 
-Acesse: ${SITE_URL}/punter
+Acesse: ${SITE_URL}/lobby
 
 — Israel Fideles, CEO`;
 }
