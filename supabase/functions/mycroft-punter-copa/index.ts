@@ -68,6 +68,14 @@ function getStake(config: any, block: string, isMataMata: boolean): number {
   return isMataMata ? (s.mata_mata ?? 2) : (s.grupos ?? 1.5);
 }
 
+// ───────── Síntese de xG a partir de pontos FIFA ─────────
+// Produz estimativa de xG quando dados históricos do time são ausentes.
+// xgH = ataque do mandante; xgaA = defesa do visitante (simétrico: xgaA = xgH).
+// Gradiente /450: 200 pts de diferença → +0.44 xG, suficiente para favoritos claros.
+function synthXg(attPts: number, defPts: number): number {
+  return Math.max(0.5, Math.min(2.5, 1.25 + (attPts - defPts) / 450));
+}
+
 // ───────── Lookup de odd AH ─────────
 async function getAhOdd(supabase: any, fixtureId: string, line: number, side: string): Promise<number | null> {
   const { data } = await supabase
@@ -80,8 +88,18 @@ async function getAhOdd(supabase: any, fixtureId: string, line: number, side: st
   if (!data?.payload) return null;
   // payload esperado: { home: {[line]: odd}, away: {[line]: odd} }
   try {
-    const v = data.payload?.[side]?.[String(line)];
-    return typeof v === "number" ? v : null;
+    const sidePayload = data.payload?.[side] || {};
+    // 1. Tenta linha exata
+    let v = sidePayload[String(line)];
+    if (typeof v === "number") return v;
+    // 2. Fallback: linha mais próxima disponível (ex: AH -0.5 → H2H "0")
+    const available = Object.keys(sidePayload).map(Number).filter((n) => !isNaN(n));
+    if (available.length > 0) {
+      const closest = available.reduce((a, b) => Math.abs(b - line) < Math.abs(a - line) ? b : a);
+      v = sidePayload[String(closest)];
+      return typeof v === "number" ? v : null;
+    }
+    return null;
   } catch { return null; }
 }
 
@@ -136,12 +154,13 @@ async function analyzeFixture(supabase: any, fx: any, cfg: any) {
   // Veto AH ≤ -1.0 em mata-mata
   if (ah && isMataMata && ah.line <= -1.0) vetos.push("AH ≤ -1.0 em mata-mata");
 
-  // xG / xGA
-  const xgH = fx.xg_last5?.home?.xg ?? null;
-  const xgaH = fx.xg_last5?.home?.xga ?? null;
-  const xgA = fx.xg_last5?.away?.xg ?? null;
-  const xgaA = fx.xg_last5?.away?.xga ?? null;
-  if (xgH == null || xgA == null) vetos.push("xG histórico ausente");
+  // xG / xGA: usa histórico se disponível, sintetiza via pontos FIFA caso contrário
+  const xgH  = fx.xg_last5?.home?.xg  ?? (ptsH && ptsA ? synthXg(ptsH, ptsA) : null);
+  const xgaH = fx.xg_last5?.home?.xga ?? (ptsH && ptsA ? synthXg(ptsA, ptsH) : null);
+  const xgA  = fx.xg_last5?.away?.xg  ?? (ptsH && ptsA ? synthXg(ptsA, ptsH) : null);
+  const xgaA = fx.xg_last5?.away?.xga ?? (ptsH && ptsA ? synthXg(ptsH, ptsA) : null);
+  // xgaA = quanto o mandante marca contra o visitante = mesmo que xgH (simétrico no modelo sintético)
+  if (xgH == null || xgA == null) vetos.push("xG ausente e pontos FIFA indisponíveis");
 
   let prob = 0, odd = 0, ve = 0;
   if (ah && xgH != null && xgA != null && xgaH != null && xgaA != null) {

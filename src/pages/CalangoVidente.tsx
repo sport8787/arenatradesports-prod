@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 
 // ─── Algoritmo do Calango ─────────────────────────────────────────────────────
 // Determinístico: mesmo jogo → mesmo resultado sempre.
-// Baseado em: diferença de ranking FIFA + "energia espiritual" (hash das seleções).
+// Baseado em: ranking FIFA (menor = melhor) + "energia espiritual" (hash).
 
 function simpleHash(s: string): number {
   let h = 0;
@@ -18,7 +18,8 @@ function simpleHash(s: string): number {
   return Math.abs(h);
 }
 
-function calangoPredict(home: string, away: string, homeFifa: number | null, awayFifa: number | null): {
+// homeRank / awayRank: ranking FIFA (1 = melhor, 200 = pior)
+function calangoPredict(home: string, away: string, homeRank: number | null, awayRank: number | null): {
   pick: 'home' | 'away' | 'draw';
   energia: number;
   msg: string;
@@ -27,14 +28,18 @@ function calangoPredict(home: string, away: string, homeFifa: number | null, awa
   const energiaHome = simpleHash(home) % 100;
   const energiaAway = simpleHash(away) % 100;
 
-  // Score base: ranking FIFA (menor rank = melhor)
-  const fifaDiff = (homeFifa ?? 50) - (awayFifa ?? 50);
-  const fifaBonus = fifaDiff < 0 ? 15 : fifaDiff > 0 ? -15 : 0; // home melhor = +15
+  // Ranking FIFA: menor = melhor. rankDiff > 0 → home tem ranking melhor (número menor).
+  const rankH = homeRank ?? 50;
+  const rankA = awayRank ?? 50;
+  const rankDiff = rankA - rankH; // positivo = home mais bem ranqueado
 
-  // Score com energia espiritual
+  // Bônus proporcional e graduado via raiz quadrada: zebras possíveis mas não dominantes
+  const fifaBonus = Math.sign(rankDiff) * Math.min(22, Math.sqrt(Math.abs(rankDiff)) * 3.5);
+
+  // Score com energia espiritual (fator caótico determinístico)
   const scoreHome = 50 + fifaBonus + (energiaHome - 50) * 0.3;
   const scoreAway = 50 - fifaBonus + (energiaAway - 50) * 0.3;
-  const drawScore = 50 + (seed % 20) - 10;
+  const drawScore = 40 + (seed % 15); // empates menos frequentes (40-55)
 
   const msgs_home = [
     `As vibrações ancestrais favorecem ${home}. A pedra revelou.`,
@@ -84,7 +89,7 @@ const PHASE_LABEL: Record<string, string> = {
 
 function PredictionCard({ fx }: { fx: Fixture }) {
   const { pick, energia, msg } = useMemo(
-    () => calangoPredict(fx.home, fx.away, fx.home_fifa_pts, fx.away_fifa_pts),
+    () => calangoPredict(fx.home, fx.away, fx.home_fifa_rank, fx.away_fifa_rank),
     [fx.fixture_id],
   );
   const [revealed, setRevealed] = useState(false);
