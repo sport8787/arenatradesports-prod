@@ -15,6 +15,16 @@ const CORS = {
 
 const AF_BASE = "https://v3.football.api-sports.io";
 
+// Nomes que a API-Football usa diferente dos nomes em copa_fixtures
+const AF_NAME_ALIASES: Record<string, string> = {
+  "Türkiye": "Turkiye",
+  "Curaçao": "Curacao",
+  "Bosnia & Herzegovina": "Bosnia",
+  "Congo DR": "DR Congo",
+  "Cape Verde Islands": "Cape Verde",
+  "Ivory Coast": "Ivory Coast",
+};
+
 // Ligas que consideramos "oficiais" para fins de análise punter
 const OFFICIAL_LEAGUES = [
   "world cup", "qualif", "nations league", "uefa euro", "copa america",
@@ -281,7 +291,8 @@ Deno.serve(async (req) => {
       teamId = cached?.team_api_id ?? null;
 
       if (!teamId) {
-        teamId = await resolveTeamId(teamName, apiKey);
+        const apiName = AF_NAME_ALIASES[teamName] ?? teamName;
+        teamId = await resolveTeamId(apiName, apiKey);
         if (!teamId) {
           failed++;
           results[teamName] = "team_id not found";
