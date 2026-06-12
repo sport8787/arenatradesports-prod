@@ -115,19 +115,42 @@ function extractTeamNamesFromConversation(query: string, history: Message[]): st
   return fromQuery;
 }
 
-// Deriva form string e últimos placares a partir do matches_data (JSON da API-Football)
+// Normaliza matches_data: suporta array direto, {matches:[...]} wrapper, e formatos API-Football e flat
 function parseMatchesData(matchesData: unknown, teamName: string): { form: string; scorelines: string[] } {
-  if (!Array.isArray(matchesData) || matchesData.length === 0) return { form: "", scorelines: [] };
+  // Suporta wrapper {matches: [...], fetched_at: "..."}
+  let arr: unknown[] = [];
+  if (Array.isArray(matchesData)) {
+    arr = matchesData;
+  } else if (matchesData && typeof matchesData === "object" && Array.isArray((matchesData as Record<string, unknown>).matches)) {
+    arr = (matchesData as Record<string, unknown>).matches as unknown[];
+  }
+  if (arr.length === 0) return { form: "", scorelines: [] };
 
   const results: Array<{ result: "W" | "D" | "L"; score: string }> = [];
   const nameLower = teamName.toLowerCase();
 
-  for (const match of matchesData.slice(0, 10)) {
+  for (const match of arr.slice(0, 10)) {
     try {
-      const home = match?.teams?.home?.name ?? "";
-      const away = match?.teams?.away?.name ?? "";
-      const goalsHome = match?.goals?.home ?? match?.score?.fulltime?.home ?? null;
-      const goalsAway = match?.goals?.away ?? match?.score?.fulltime?.away ?? null;
+      const m = match as Record<string, unknown>;
+
+      // Formato flat da API-Football normalizado (fetch-national-team-stats):
+      // {gf, ga, opponent, date, xg_api, fixture_id, ...}
+      if (typeof m.gf === "number" && typeof m.ga === "number") {
+        const gf = m.gf as number;
+        const ga = m.ga as number;
+        const opponent = String(m.opponent ?? "");
+        const result: "W" | "D" | "L" = gf > ga ? "W" : gf < ga ? "L" : "D";
+        results.push({ result, score: `${gf}-${ga} vs ${opponent} (${result})` });
+        continue;
+      }
+
+      // Formato full API-Football: {teams:{home:{name},away:{name}}, goals:{home,away}}
+      const home = (m.teams as Record<string, Record<string, string>>)?.home?.name ?? "";
+      const away = (m.teams as Record<string, Record<string, string>>)?.away?.name ?? "";
+      const goalsObj = m.goals as Record<string, number> | null;
+      const scoreObj = (m.score as Record<string, Record<string, number>>)?.fulltime;
+      const goalsHome = goalsObj?.home ?? scoreObj?.home ?? null;
+      const goalsAway = goalsObj?.away ?? scoreObj?.away ?? null;
       if (goalsHome === null || goalsAway === null) continue;
 
       const isHome = home.toLowerCase().includes(nameLower) || nameLower.includes(home.toLowerCase());
@@ -135,14 +158,10 @@ function parseMatchesData(matchesData: unknown, teamName: string): { form: strin
       if (!isHome && !isAway) continue;
 
       const teamGoals = isHome ? goalsHome : goalsAway;
-      const oppGoals = isHome ? goalsAway : goalsHome;
-      const oppName = isHome ? away : home;
-      const result = teamGoals > oppGoals ? "W" : teamGoals < oppGoals ? "L" : "D";
-
-      results.push({
-        result,
-        score: `${teamGoals}-${oppGoals} vs ${oppName} (${result})`,
-      });
+      const oppGoals  = isHome ? goalsAway : goalsHome;
+      const oppName   = isHome ? away : home;
+      const result: "W" | "D" | "L" = teamGoals > oppGoals ? "W" : teamGoals < oppGoals ? "L" : "D";
+      results.push({ result, score: `${teamGoals}-${oppGoals} vs ${oppName} (${result})` });
     } catch { /* skip malformed */ }
   }
 
