@@ -70,11 +70,9 @@ export default function PunterFunctionsPage() {
 
       <main className="container mx-auto px-4 py-6 max-w-3xl space-y-3">
         <PunterBreadcrumb items={[{ label: 'Funções' }]} className="mb-2" />
-        <div className="mb-2">
-          <p className="font-mono text-xs text-muted-foreground">
-            Acesse aqui as funções avançadas e configurações da Arena Punter.
-          </p>
-        </div>
+        <p className="font-mono text-xs text-muted-foreground mb-2">
+          Acesse aqui as funções avançadas e configurações da Arena Punter.
+        </p>
 
         {FUNCTIONS.map((f) => (
           <button

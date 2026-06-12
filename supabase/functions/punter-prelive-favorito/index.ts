@@ -78,6 +78,25 @@ serve(async (req) => {
   }
 
   const startedAt = Date.now();
+
+  // Kill switch: ignora apenas quando chamado manualmente via botão
+  let body: Record<string, unknown> = {};
+  try { body = await req.json(); } catch { /* sem body */ }
+  const isManual = body?.source === "manual";
+
+  if (!isManual) {
+    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+    const sb = createClient(SUPABASE_URL, SERVICE_KEY);
+    const { data: setting } = await sb.from("cron_settings").select("is_enabled").eq("setting_key", "punter_cron").maybeSingle();
+    if (!setting?.is_enabled) {
+      console.log("[prelive-favorito] ⏸️ crons Punter desativados via kill switch");
+      return new Response(JSON.stringify({ skipped: true, reason: "punter_cron disabled" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
+
   console.log("[prelive-favorito] iniciando rodada Favorito + AH");
 
   // Em sequência (não paralelo) para evitar duplo-rate-limit em Sportmonks/Odds

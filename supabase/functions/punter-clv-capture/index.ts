@@ -19,6 +19,25 @@ Deno.serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   )
 
+  // Kill switch — respeita o mesmo toggle do Punter
+  let body: Record<string, unknown> = {}
+  try { body = await req.json() } catch { /* sem body */ }
+  const isManual = body?.source === 'manual'
+
+  if (!isManual) {
+    const { data: setting } = await supabase
+      .from('cron_settings')
+      .select('is_enabled')
+      .eq('setting_key', 'punter_cron')
+      .maybeSingle()
+    if (!setting?.is_enabled) {
+      console.log('[CLV] ⏸️ punter_cron desativado — abortando captura de CLV')
+      return new Response(JSON.stringify({ skipped: true, reason: 'punter_cron disabled' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+  }
+
   const nowIso = new Date().toISOString()
   const horizonIso = new Date(Date.now() + 15 * 60 * 1000).toISOString()
   const lookbackIso = new Date(Date.now() - 30 * 60 * 1000).toISOString() // pega quem já começou nos últimos 30min sem close

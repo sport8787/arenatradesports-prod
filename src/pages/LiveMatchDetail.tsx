@@ -321,8 +321,22 @@ export default function LiveMatchDetail() {
           }
         }
 
-        // (Shadow AF lookup removido — API-Football descontinuada)
-
+        // 4) Fallback: busca em shadow_ai_signals (sinais aprovados pela IA)
+        // O id na URL pode ser shadow_ai_signals.match_id (= live_matches.id do jogo)
+        let shadowSignal: any = null;
+        if (!analysisRow) {
+          const { data: ss } = await supabase
+            .from('shadow_ai_signals')
+            .select('*')
+            .eq('match_id', id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (ss) {
+            shadowSignal = ss;
+            matchKey = matchKey || ss.match_id;
+          }
+        }
 
         // 5) Se temos matchKey mas não temos lm, busca live_matches por match_id agora
         let liveRow: any = lm;
@@ -338,7 +352,7 @@ export default function LiveMatchDetail() {
         if (liveRow) {
           setFallbackMatch({ ...liveRow, mycroft_analysis: analysisRow, _finished: !!analysisRow?.settled_at });
         } else if (analysisRow) {
-          // Sintetiza match a partir do snapshot da análise
+          // Sintetiza match a partir do snapshot da análise determinística
           const snap = analysisRow.stats_snapshot || {};
           setFallbackMatch({
             id: analysisRow.id || id,
@@ -353,6 +367,43 @@ export default function LiveMatchDetail() {
             updated_at: analysisRow.settled_at || analysisRow.created_at,
             mycroft_analysis: analysisRow,
             _finished: true,
+          });
+        } else if (shadowSignal) {
+          // Sintetiza match a partir do sinal da IA (shadow_ai_signals)
+          const snap = shadowSignal.stats_snapshot || {};
+          setFallbackMatch({
+            id: id,
+            match_id: id,
+            home_team: shadowSignal.home_team || snap.home_team || snap.home || 'Mandante',
+            away_team: shadowSignal.away_team || snap.away_team || snap.away || 'Visitante',
+            championship: shadowSignal.championship || snap.championship || snap.league || '—',
+            score_home: shadowSignal.final_score_home ?? shadowSignal.approved_at_score_home ?? snap.score_home ?? 0,
+            score_away: shadowSignal.final_score_away ?? shadowSignal.approved_at_score_away ?? snap.score_away ?? 0,
+            minute: shadowSignal.approved_at_minute ?? snap.minute ?? 0,
+            stats: snap.stats || snap || {},
+            odds_live: snap.odds_live || null,
+            updated_at: shadowSignal.created_at,
+            mycroft_analysis: {
+              // Adapta o sinal ao formato esperado pelo LiveMatchDetail
+              id: shadowSignal.id,
+              match_id: id,
+              verdict: shadowSignal.verdict,
+              market: shadowSignal.market,
+              odd: shadowSignal.odd,
+              confidence: shadowSignal.confidence,
+              thesis: shadowSignal.thesis,
+              approved_at_minute: shadowSignal.approved_at_minute,
+              approved_at_score_home: shadowSignal.approved_at_score_home,
+              approved_at_score_away: shadowSignal.approved_at_score_away,
+              final_score_home: shadowSignal.final_score_home,
+              final_score_away: shadowSignal.final_score_away,
+              result: shadowSignal.result,
+              settled_at: shadowSignal.result ? shadowSignal.created_at : null,
+              stats_snapshot: shadowSignal.stats_snapshot,
+              created_at: shadowSignal.created_at,
+            },
+            _finished: !!shadowSignal.result,
+            _from_shadow_ai: true,
           });
         }
       } catch (e) {
