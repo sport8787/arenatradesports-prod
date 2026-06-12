@@ -57,6 +57,9 @@ verify_jwt = false
 [functions.fetch-daily-odds]
 verify_jwt = false
 
+[functions.capture-prelive-odds]
+verify_jwt = false
+
 [functions.update-live-scores]
 verify_jwt = false
 

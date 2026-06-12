@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { match_id, market, sport = "soccer" } = await req.json();
+    const { match_id, market, sport = "soccer", steam_scan, steam_threshold_pct, hours_back } = await req.json();
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -191,9 +191,87 @@ serve(async (req) => {
       });
     }
 
+    // Mode 3: Steam detection from betfair_odds_snapshot (opening vs closing comparison)
+    if (steam_scan) {
+      const threshold = Number(steam_threshold_pct ?? 10); // % de queda na odd → steam (dinheiro entrando)
+      const windowHours = Number(hours_back ?? 24);
+      const since = new Date(Date.now() - windowHours * 3600_000).toISOString();
+
+      // Busca pares opening/closing capturados recentemente
+      const { data: openings } = await supabase
+        .from("betfair_odds_snapshot")
+        .select("event_id, home_team, away_team, league_name, event_date, market_type, selection, mid_odd, captured_at")
+        .eq("snapshot_type", "opening")
+        .gte("captured_at", since)
+        .not("mid_odd", "is", null)
+        .order("captured_at", { ascending: false })
+        .limit(500);
+
+      if (!openings?.length) {
+        return new Response(JSON.stringify({ success: true, steam_moves: [], reason: "no_opening_snapshots" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Busca closing snapshots para os mesmos event_ids
+      const eventIds = [...new Set(openings.map((o: any) => o.event_id))];
+      const { data: closings } = await supabase
+        .from("betfair_odds_snapshot")
+        .select("event_id, market_type, selection, mid_odd, captured_at")
+        .eq("snapshot_type", "closing")
+        .in("event_id", eventIds)
+        .not("mid_odd", "is", null);
+
+      // Indexa closings para lookup rápido
+      const closingMap = new Map<string, number>();
+      for (const c of closings ?? []) {
+        const key = `${c.event_id}|${c.market_type}|${c.selection}`;
+        closingMap.set(key, c.mid_odd);
+      }
+
+      const steamMoves: any[] = [];
+      for (const op of openings) {
+        const key = `${op.event_id}|${op.market_type}|${op.selection}`;
+        const closeMid = closingMap.get(key);
+        if (!closeMid) continue;
+
+        const openMid = Number(op.mid_odd);
+        // Steam: odd caiu mais que X% entre abertura e fechamento (dinheiro real entrando)
+        const changePct = ((closeMid - openMid) / openMid) * 100;
+        if (changePct <= -threshold) {
+          steamMoves.push({
+            event_id: op.event_id,
+            home_team: op.home_team,
+            away_team: op.away_team,
+            league_name: op.league_name,
+            event_date: op.event_date,
+            market_type: op.market_type,
+            selection: op.selection,
+            open_odd: openMid,
+            close_odd: closeMid,
+            change_pct: Math.round(changePct * 100) / 100,
+            signal: changePct <= -20 ? "strong_steam" : changePct <= -15 ? "steam" : "soft_steam",
+          });
+        }
+      }
+
+      // Ordena por maior queda (mais dinheiro entrando)
+      steamMoves.sort((a, b) => a.change_pct - b.change_pct);
+
+      return new Response(JSON.stringify({
+        success: true,
+        steam_moves: steamMoves,
+        total: steamMoves.length,
+        threshold_pct: threshold,
+        window_hours: windowHours,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(JSON.stringify({
       success: false,
-      error: "Provide match_id or configure THE_ODDS_API_KEY for live scanning",
+      error: "Provide match_id, configure THE_ODDS_API_KEY, or use steam_scan:true",
     }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

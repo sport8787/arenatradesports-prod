@@ -209,3 +209,32 @@ export async function getFutoddsLiveEvents(eventId?: number | string): Promise<a
   const j = await fdGet("/matches-live-events", params);
   return j?.data ?? null;
 }
+
+// ── Endpoints pré-live ────────────────────────────────────────────────────────
+
+/** Jogos futuros com mercados Betfair. Retorna lista com event_id Betfair. */
+export async function getFutoddsUpcoming(params: Record<string, string> = {}): Promise<any[]> {
+  if (isFutoddsDisabled()) return [];
+  const j = await fdGet("/matches-betfair-upcoming", params);
+  return Array.isArray(j?.data) ? j.data : [];
+}
+
+/** Odds Betfair pré-live (back/lay) por event_id. Usar /matches-betfair-upcoming para obter event_ids. */
+export async function getFutoddsPreliveOdds(eventId: number | string, marketType?: string): Promise<any> {
+  const params: Record<string, string> = { event_id: String(eventId) };
+  if (marketType) params.market_type = marketType;
+  const j = await fdGet("/matches-betfair-prelive-odds", params);
+  return j?.data ?? null;
+}
+
+// ── Detalhe ao vivo (opta_data) ───────────────────────────────────────────────
+
+/**
+ * Detalhes completos de um jogo ao vivo via game_id (obtido de /matches-live).
+ * Inclui opta_data avançado. ~50-200KB por jogo — usar seletivamente.
+ */
+export async function getFutoddsLiveDetail(gameId: number | string): Promise<any> {
+  if (isFutoddsDisabled()) return null;
+  const j = await fdGet("/matches-live-detail", { game_id: String(gameId) });
+  return j?.data ?? null;
+}

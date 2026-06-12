@@ -1,6 +1,60 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+/** Busca odd de fechamento Betfair de betfair_odds_snapshot por home+away+data. */
+async function fetchBetfairClosingOdd(
+  supabase: any,
+  homeTeam: string,
+  awayTeam: string,
+  placedAt: string,
+  market: string,
+): Promise<number | null> {
+  if (!homeTeam || !awayTeam) return null;
+  try {
+    // Janela: placed_at até 30h depois (cobre jogos marcados até o dia seguinte)
+    const dateMin = new Date(new Date(placedAt).getTime() - 3 * 3600_000).toISOString();
+    const dateMax = new Date(new Date(placedAt).getTime() + 30 * 3600_000).toISOString();
+
+    const { data: snaps } = await supabase
+      .from("betfair_odds_snapshot")
+      .select("market_type, selection, mid_odd")
+      .ilike("home_team", `%${homeTeam.split(" ")[0]}%`)
+      .ilike("away_team", `%${awayTeam.split(" ")[0]}%`)
+      .eq("snapshot_type", "closing")
+      .gte("event_date", dateMin)
+      .lte("event_date", dateMax)
+      .not("mid_odd", "is", null);
+
+    if (!snaps?.length) return null;
+
+    // Prioridade: MATCH_ODDS para mercados H2H; OVER_UNDER_* para gols
+    const mLower = (market || "").toLowerCase();
+    let targetMarket = "MATCH_ODDS";
+    let targetSide = "home";
+    if (/over\s*2\.5|gols\s*over|over.*2\.5/i.test(mLower)) { targetMarket = "OVER_UNDER_25"; targetSide = "over"; }
+    else if (/over\s*1\.5/i.test(mLower)) { targetMarket = "OVER_UNDER_15"; targetSide = "over"; }
+    else if (/over\s*3\.5/i.test(mLower)) { targetMarket = "OVER_UNDER_35"; targetSide = "over"; }
+    else if (/btts|ambas/i.test(mLower)) { targetMarket = "BOTH_TEAMS_TO_SCORE"; targetSide = "yes"; }
+    else if (/draw|empate/i.test(mLower)) targetSide = "draw";
+    else if (/away|fora|visitante/i.test(mLower)) targetSide = "away";
+
+    const match = snaps.find((s: any) => {
+      if (s.market_type !== targetMarket) return false;
+      const sel = (s.selection || "").toLowerCase();
+      if (targetMarket === "MATCH_ODDS") {
+        if (targetSide === "home") return /home|casa|1\b/.test(sel);
+        if (targetSide === "away") return /away|fora|visit|2\b/.test(sel);
+        if (targetSide === "draw") return /draw|empate|x\b/.test(sel);
+      }
+      if (targetMarket.startsWith("OVER_UNDER")) return sel.includes(targetSide);
+      if (targetMarket === "BOTH_TEAMS_TO_SCORE") return sel.includes(targetSide);
+      return false;
+    });
+
+    return match?.mid_odd ?? null;
+  } catch { return null; }
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
@@ -12,11 +66,36 @@ serve(async (req) => {
   }
 
   try {
-    const { user_id, match_id, bet_id } = await req.json();
+    const { user_id, match_id, bet_id, populate_closes, days } = await req.json();
     
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Mode 4: Populate odd_close from betfair_odds_snapshot for recent bets (cron-friendly)
+    if (populate_closes) {
+      const since = new Date(Date.now() - (Number(days ?? 3)) * 86400_000).toISOString();
+      const { data: bets } = await supabase
+        .from("bets_history")
+        .select("id, home_team, away_team, placed_at, market")
+        .is("odd_close", null)
+        .gte("placed_at", since)
+        .order("placed_at", { ascending: false })
+        .limit(200);
+
+      let populated = 0;
+      for (const bet of bets ?? []) {
+        const closingOdd = await fetchBetfairClosingOdd(
+          supabase, bet.home_team, bet.away_team, bet.placed_at, bet.market,
+        );
+        if (!closingOdd) continue;
+        await supabase.from("bets_history").update({ odd_close: closingOdd }).eq("id", bet.id);
+        populated++;
+      }
+      return new Response(JSON.stringify({ success: true, mode: "populate_closes", populated }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Mode 1: Calculate CLV for a specific bet
     if (bet_id) {
@@ -28,15 +107,24 @@ serve(async (req) => {
 
       if (!bet) throw new Error("Bet not found");
 
-      const clvResult = calculateCLV(bet.odd, bet.odd_close);
+      // Auto-lookup closing odd from betfair snapshot se odd_close for nulo
+      let oddClose = bet.odd_close;
+      if (!oddClose && bet.home_team && bet.away_team) {
+        oddClose = await fetchBetfairClosingOdd(supabase, bet.home_team, bet.away_team, bet.placed_at, bet.market);
+        if (oddClose) {
+          await supabase.from("bets_history").update({ odd_close: oddClose }).eq("id", bet_id);
+        }
+      }
+
+      const clvResult = calculateCLV(bet.odd, oddClose);
       
       // Update the bet with CLV
       await supabase
         .from("bets_history")
-        .update({ clv: clvResult.clv_percentage })
+        .update({ clv: clvResult.clv_percentage, odd_close: oddClose ?? bet.odd_close })
         .eq("id", bet_id);
 
-      return new Response(JSON.stringify({ success: true, clv: clvResult }), {
+      return new Response(JSON.stringify({ success: true, clv: clvResult, odd_close_source: oddClose && !bet.odd_close ? "betfair_snapshot" : "manual" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
