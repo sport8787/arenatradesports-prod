@@ -776,10 +776,10 @@ serve(async (req) => {
             /over\s*0\.?5/.test(marketLower) &&
             (/(ht|1t|1[ºo]?\s*tempo|primeiro\s*tempo|first\s*half)/.test(marketLower));
           if (isOver05HT) {
-            if (minute < 5 || minute > 30) {
-              console.log(`[AnalyzeLive] 🚫 VETO Over 0.5 HT — min=${minute} placar=${sh}x${sa} (regra: 5'≤min≤30' do 1T)`);
+            if (minute < 5 || minute > 30 || totalGoals >= 1) {
+              console.log(`[AnalyzeLive] 🚫 VETO Over 0.5 HT — min=${minute} placar=${sh}x${sa} (regra: 5'≤min≤30' e 0x0)`);
               analysis.verdict = 'AGUARDAR';
-              analysis.thesis = `[VETO TEMPORAL] Over 0.5 HT bloqueado: minuto ${minute}, placar ${sh}x${sa}. Janela válida: minuto 5–30 do 1º tempo. ` + (analysis.thesis || '');
+              analysis.thesis = `[VETO TEMPORAL] Over 0.5 HT bloqueado: minuto ${minute}, placar ${sh}x${sa}. Janela válida: minuto 5–30 do 1º tempo e placar 0x0. ` + (analysis.thesis || '');
               analysis.plan_name = null;
             }
           }

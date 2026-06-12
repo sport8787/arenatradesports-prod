@@ -232,7 +232,7 @@ Se o time dominante LEVA o gol contra a corrida do jogo, prefira LAY ao time que
 Em "additional_markets" retorne NO MÁXIMO 1 mercado, com conf≥75%, stake máx 2%, NÃO correlacionado ao principal (ver lista acima), nunca oposto, nunca após min 70'. Quando em dúvida, devolva array vazio.
 
 ## MÓDULO SITUACIONAL (override quando JOGO_MORTO por dados insuficientes)
-S1 PRESSÃO PRÉ-GOL: min 5-35, placar 0-0/1-0, xG dom≥0.4 ou 2+ SOT, posse dom≥58%, adversário sem SOT → Over 0.5 HT / Over 1.5 / Back dom (2%, conf≥75%)
+S1 PRESSÃO PRÉ-GOL: min 5-30, placar 0-0 APENAS, xG dom≥0.4 ou 2+ SOT, posse dom≥58%, adversário sem SOT → Over 0.5 HT (somente com placar 0x0) / Over 1.5 / Back dom (2%, conf≥75%)
 S2 PLACAR EXPRESSIVO ABERTO: min 20-60, placar ≥2-0/≥3-1, xG total≥2.0, perdedor posse≥40% → Over próximo gol / Over 3.5 / Back vencedor (2%, conf≥75%)
 S3 MATA-MATA OBRIGAÇÃO: eliminatória, time perdendo agregado, dif 1-2 → Over próximo / Back obrigado / Over 2.5 (3% se dif=1, 2% se dif=2, conf≥75%)
 S4 ESCANTEIOS PRESSÃO: min 10-40, ≥4 escanteios e ≤1 gol, xG≥0.6 sem gol → Over X escanteios / Over 0.5 HT (2%, conf≥75%)
@@ -574,6 +574,46 @@ serve(async (req) => {
       analysis.verdict = 'AGUARDAR';
       analysis.plan_name = null;
       analysis.alerts = [...(analysis.alerts || []), `⏱️ Under 2.5 só pode ser aprovado entre o minuto 10 e o minuto 20 do 1º tempo.`];
+      }
+    }
+
+    // === GUARD TEMPORAL OVER 0.5 HT ===
+    // Janela válida: 1º tempo, minuto 5 até 30, placar obrigatoriamente 0x0.
+    // Após gol (totalGoals >= 1) não há mais valor — mercado já decidido ou odd colapsada.
+    {
+      const _oMin = Number(match.minute ?? 0);
+      const _oPeriod = String((match as any).period || '').toUpperCase();
+      const _oSh = Number((match as any).scoreHome ?? (match as any).score_home ?? 0);
+      const _oSa = Number((match as any).scoreAway ?? (match as any).score_away ?? 0);
+      const _oTotalGoals = _oSh + _oSa;
+      const _oIsSecondHalf =
+        _oMin > 45 ||
+        _oPeriod.includes('SECOND') || _oPeriod.includes('2H') || _oPeriod === 'HT' ||
+        _oPeriod.includes('HALF_TIME') || _oPeriod.includes('HALFTIME') ||
+        _oPeriod.includes('EXTRA') || _oPeriod === 'FT' || _oPeriod.includes('FULL_TIME');
+      const _oIsOver05HT =
+        ['APROVADO', 'APROVADO_SITUACIONAL', 'LABAREDA'].includes(analysis.verdict) &&
+        typeof analysis.market === 'string' &&
+        /over\s*0\.?5/i.test(analysis.market) &&
+        /(ht|1t|1[ºo]?\s*tempo|primeiro\s*tempo|first\s*half)/i.test(analysis.market);
+      if (_oIsOver05HT && (_oMin < 5 || _oMin > 30 || _oTotalGoals >= 1 || _oIsSecondHalf)) {
+        const motivoVeto = `Over 0.5 HT fora da janela (min ${_oMin}, placar ${_oSh}x${_oSa}, period=${_oPeriod || 'n/d'}). Janela válida: minuto 5–30 do 1º tempo e placar 0x0.`;
+        console.warn(`[MycroftSports] 🛑 VETO TEMPORAL Over 0.5 HT: ${motivoVeto}`);
+        try {
+          await getSupabaseAdmin().from("mycroft_vetoed_log").insert({
+            jogo: `${match.home} vs ${match.away}`,
+            liga: match.championship,
+            mercado: analysis.market,
+            odd: analysis.odd,
+            confianca_recebida: analysis.confidence,
+            verdict_gemini: 'APROVADO_PREMATURO',
+            motivo_veto: motivoVeto,
+            raw_response: analysis,
+          });
+        } catch (e) { console.warn('[MycroftSports] Falha log veto Over 0.5 HT:', e); }
+        analysis.verdict = 'AGUARDAR';
+        analysis.plan_name = null;
+        analysis.alerts = [...(analysis.alerts || []), `⏱️ Over 0.5 HT só pode ser aprovado entre minuto 5–30 do 1º tempo com placar 0x0.`];
       }
     }
 
