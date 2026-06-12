@@ -4,6 +4,7 @@ import {
   ArrowLeft, Trophy, Loader2, ChevronRight, TrendingUp,
   BarChart2, Target, Layers, Eye, EyeOff, Bell, BellOff, BellRing,
 } from 'lucide-react';
+import CopaChatMycroft from '@/components/punter/CopaChatMycroft';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -751,6 +752,9 @@ export default function PunterCopa() {
           </>
         )}
       </main>
+
+      {/* Chat flutuante com Mycroft para análise manual Copa */}
+      <CopaChatMycroft />
     </div>
   );
 }
