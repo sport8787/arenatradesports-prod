@@ -130,7 +130,34 @@ Deno.serve(async (req) => {
     }
   }
 
-  // ── 2) Sinais já existentes para evitar duplicatas ────────────────────────────
+  // ── 2) Estatísticas da tabela national_team_stats ────────────────────────────
+  interface TeamStats {
+    team_name: string;
+    matches_analyzed: number;
+    wins: number; draws: number; losses: number;
+    avg_goals_scored: number; avg_goals_conceded: number;
+    avg_xg: number; avg_xga: number;
+    avg_possession: number;
+    avg_shots_total: number; avg_shots_on_target: number;
+    avg_corners: number;
+    btts_percentage: number;
+    clean_sheet_count: number;
+    over_25_count: number; under_25_count: number;
+    last_updated: string;
+  }
+  const teamStats: Record<string, TeamStats> = {};
+  for (const tName of teamNames) {
+    const { data: ts } = await supabase
+      .from("national_team_stats")
+      .select("*")
+      .ilike("team_name", `%${tName}%`)
+      .order("last_updated", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (ts) teamStats[tName] = ts as TeamStats;
+  }
+
+  // ── 3) Sinais já existentes para evitar duplicatas ────────────────────────────
   let existingSignals: string[] = [];
   if (matchedFixture?.fixture_id) {
     const { data: sigs } = await supabase
@@ -142,7 +169,7 @@ Deno.serve(async (req) => {
     );
   }
 
-  // ── 3) Montar contexto para o sistema ────────────────────────────────────────
+  // ── 4) Montar contexto para o sistema ────────────────────────────────────────
   let contextExtra = "";
 
   if (matchedFixture) {
@@ -157,13 +184,37 @@ fixture_id: ${matchedFixture.fixture_id}`;
     contextExtra += "\n\n## FIXTURE: Não encontrado na base Copa — analise apenas pelos dados fornecidos.";
   }
 
+  // Injetar estatísticas da national_team_stats (dados históricos das seleções)
+  if (Object.keys(teamStats).length > 0) {
+    contextExtra += "\n\n## ESTATÍSTICAS DAS SELEÇÕES (últimos jogos — API-Football)";
+    for (const [name, ts] of Object.entries(teamStats)) {
+      const age = ts.last_updated
+        ? Math.round((Date.now() - new Date(ts.last_updated).getTime()) / 3_600_000)
+        : null;
+      contextExtra += `
+
+### ${ts.team_name} (${ts.matches_analyzed} jogos · atualizado há ${age ?? "?"}h)
+- Resultado: ${ts.wins}V ${ts.draws}E ${ts.losses}D
+- Gols marcados: ${ts.avg_goals_scored}/jogo | Sofridos: ${ts.avg_goals_conceded}/jogo
+- xG médio: ${ts.avg_xg ?? "n/d"} | xGA médio: ${ts.avg_xga ?? "n/d"}
+- Posse média: ${ts.avg_possession ?? "n/d"}%
+- Finalizações: ${ts.avg_shots_total ?? "n/d"} totais / ${ts.avg_shots_on_target ?? "n/d"} no alvo
+- Escanteios médios: ${ts.avg_corners ?? "n/d"}
+- BTTS: ${ts.btts_percentage ?? "n/d"}% | Over 2.5: ${ts.over_25_count}/${ts.matches_analyzed} jogos
+- Clean sheets: ${ts.clean_sheet_count}/${ts.matches_analyzed}`;
+    }
+  } else {
+    // Avisa o Mycroft que os dados automáticos não estão disponíveis
+    contextExtra += "\n\n## ESTATÍSTICAS AUTO: não disponíveis (execute fetch-national-team-stats para popular)";
+  }
+
   if (existingSignals.length > 0) {
     contextExtra += `\n\n## SINAIS JÁ APROVADOS PARA ESTE JOGO\n${existingSignals.join("\n")}`;
   }
 
   const systemWithContext = SYSTEM + contextExtra;
 
-  // ── 4) Montar messages multi-turn ────────────────────────────────────────────
+  // ── 5) Montar messages multi-turn ────────────────────────────────────────────
   const messages = [
     { role: "system", content: systemWithContext },
     ...(conversationHistory as Message[]).map((m) => ({ role: m.role, content: m.content })),
