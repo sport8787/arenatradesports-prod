@@ -68,8 +68,8 @@ function applyMarketSanityVeto(params: {
     /over\s*0\.?5/.test(marketLower) &&
     /(ht|1t|1[ºo]?\s*tempo|primeiro\s*tempo|first\s*half)/.test(marketLower);
   if (isOver05HT) {
-    if (minute < 5 || minute > 20 || totalGoals >= 1) {
-      vetoReason = `Over 0.5 HT bloqueado: minuto ${minute}, placar ${sh}x${sa}. Janela válida: minuto 5–20 e placar 0x0.`;
+    if (minute < 5 || minute > 30) {
+      vetoReason = `Over 0.5 HT bloqueado: minuto ${minute}, placar ${sh}x${sa}. Janela válida: minuto 5–30 do 1º tempo.`;
     }
   }
 

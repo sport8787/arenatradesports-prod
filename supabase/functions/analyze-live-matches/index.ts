@@ -757,8 +757,8 @@ serve(async (req) => {
 
         // ========== VETO TEMPORAL POR MERCADO (server-side guard) ==========
         // Regras solicitadas pelo produto:
-        //  • Over 0.5 HT → só aprovar até o minuto 30 do 1T E placar 0x0
-        //    (se já saiu 1 gol no HT — 1x0 / 0x1 / qualquer — VETAR)
+        //  • Over 0.5 HT → aprovar entre minuto 5 e 30 do 1T (placar irrelevante)
+        //    Permite aprovação mesmo após gol (ex: gol min 9, aprovação min 20)
         //  • Over 1.5 / 2.5 / 3.5 / 4.5 (FT) → só aprovar até o minuto 70
         // Aplica-se apenas a verdicts ativos (APROVADO / APROVADO_SITUACIONAL / LABAREDA)
         const activeVerdicts = ['APROVADO', 'APROVADO_SITUACIONAL', 'LABAREDA'];
@@ -769,17 +769,17 @@ serve(async (req) => {
           const sa = Number(match.score_away ?? 0);
           const totalGoals = sh + sa;
 
-          // 1) Over 0.5 HT — janela estreita: APENAS entre minuto 5 e 20, com placar 0x0.
-          //    Após o minuto 20 NÃO faz mais sentido (preço já desabou e gol pode sair só no fim do 1T).
+          // 1) Over 0.5 HT — janela: minuto 5 a 30 do 1T (placar irrelevante).
+          //    Permite aprovação mesmo após gol (análise gerada antes do gol, aprovação pode ser atrasada).
           //    Antes do minuto 5 ainda não há leitura estatística suficiente.
           const isOver05HT =
             /over\s*0\.?5/.test(marketLower) &&
             (/(ht|1t|1[ºo]?\s*tempo|primeiro\s*tempo|first\s*half)/.test(marketLower));
           if (isOver05HT) {
-            if (minute < 5 || minute > 20 || totalGoals >= 1) {
-              console.log(`[AnalyzeLive] 🚫 VETO Over 0.5 HT — min=${minute} placar=${sh}x${sa} (regra: 5'≤min≤20' e 0x0)`);
+            if (minute < 5 || minute > 30) {
+              console.log(`[AnalyzeLive] 🚫 VETO Over 0.5 HT — min=${minute} placar=${sh}x${sa} (regra: 5'≤min≤30' do 1T)`);
               analysis.verdict = 'AGUARDAR';
-              analysis.thesis = `[VETO TEMPORAL] Over 0.5 HT bloqueado: minuto ${minute}, placar ${sh}x${sa}. Janela válida: minuto 5–20 e placar 0x0. Após o 20' considere Over 0.5 FT ou Back ao time dominante. ` + (analysis.thesis || '');
+              analysis.thesis = `[VETO TEMPORAL] Over 0.5 HT bloqueado: minuto ${minute}, placar ${sh}x${sa}. Janela válida: minuto 5–30 do 1º tempo. ` + (analysis.thesis || '');
               analysis.plan_name = null;
             }
           }
@@ -1248,7 +1248,7 @@ serve(async (req) => {
               const _line = Number(_overHT[1]);
               if (_tot >= _line + 1) _killReason = `Over ${_line}.5 HT já batido (${_tot} gols)`;
               else if (_isInSecondHalf) _killReason = `Over ${_line}.5 HT — 1T encerrado (min ${_min}, period=${_period})`;
-              else if (_line === 0 && _min > 20) _killReason = `Over 0.5 HT fora da janela (min ${_min} > 20)`;
+              else if (_line === 0 && _min > 30) _killReason = `Over 0.5 HT fora da janela (min ${_min} > 30)`;
               else if (_line === 0 && _min < 5) _killReason = `Over 0.5 HT fora da janela (min ${_min} < 5)`;
             }
             // Over X.5 FT — já batido (sem valor), linha máxima 4.5, ou pós-70'
