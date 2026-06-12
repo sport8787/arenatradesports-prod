@@ -34,7 +34,15 @@ const SUGGESTIONS = [
   'Existe edge no Handicap Asiático?',
 ];
 
-export default function CopaChatMycroft() {
+interface FeaturedMatch {
+  fixture_id: string;
+  home: string;
+  away: string;
+  phase: string;
+  commence_time: string;
+}
+
+export default function CopaChatMycroft({ featuredMatch }: { featuredMatch?: FeaturedMatch | null }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -81,6 +89,7 @@ export default function CopaChatMycroft() {
             query: q,
             conversationHistory: messages,
             userId: session?.user?.id,
+            contextFixture: featuredMatch ?? null,
           }),
         },
       );
@@ -195,7 +204,10 @@ export default function CopaChatMycroft() {
                 </div>
                 <div>
                   <div className="font-mono font-bold text-yellow-400 text-sm leading-none">Mycroft Copa 2026</div>
-                  <div className="text-[10px] text-white/35 font-mono mt-0.5">Análise punter via DeepSeek</div>
+                  {featuredMatch
+                    ? <div className="text-[10px] text-yellow-300/60 font-mono mt-0.5 font-bold">{featuredMatch.home} vs {featuredMatch.away}</div>
+                    : <div className="text-[10px] text-white/35 font-mono mt-0.5">Análise punter via DeepSeek</div>
+                  }
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -223,10 +235,17 @@ export default function CopaChatMycroft() {
               {/* Empty state */}
               {messages.length === 0 && (
                 <div className="space-y-4 py-4">
-                  <p className="text-center text-white/30 text-xs font-mono leading-relaxed">
-                    Cole aqui a análise estatística do confronto.<br />
-                    Mycroft analisa e aprova uma entrada se houver valor.
-                  </p>
+                  {featuredMatch ? (
+                    <div className="bg-yellow-500/8 border border-yellow-500/20 rounded-xl px-3 py-2.5 text-center">
+                      <div className="text-[10px] text-white/35 font-mono mb-1">Contexto atual</div>
+                      <div className="text-xs font-mono font-bold text-yellow-300">{featuredMatch.home} vs {featuredMatch.away}</div>
+                    </div>
+                  ) : (
+                    <p className="text-center text-white/30 text-xs font-mono leading-relaxed">
+                      Cole aqui a análise estatística do confronto.<br />
+                      Mycroft analisa e aprova uma entrada se houver valor.
+                    </p>
+                  )}
                   <div className="space-y-2">
                     {SUGGESTIONS.map((s) => (
                       <button

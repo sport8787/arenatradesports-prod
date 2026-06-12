@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
     { auth: { persistSession: false } },
   );
 
-  const { query, conversationHistory = [], userId } = await req.json();
+  const { query, conversationHistory = [], userId, contextFixture } = await req.json();
   if (!query?.trim()) {
     return new Response(JSON.stringify({ error: "query vazia" }), {
       status: 400, headers: { ...CORS, "Content-Type": "application/json" },
@@ -126,24 +126,44 @@ Deno.serve(async (req) => {
   }
 
   // ── 1) Buscar fixture correspondente ─────────────────────────────────────────
-  const teamNames = extractTeamNamesFromConversation(query, conversationHistory as Message[]);
+  // contextFixture tem prioridade (enviado pela página com o jogo em destaque)
   let matchedFixture: Record<string, unknown> | null = null;
 
-  if (teamNames.length >= 2) {
-    const [t1, t2] = teamNames;
-    const { data: fixtures } = await supabase
+  if (contextFixture?.fixture_id) {
+    // Página enviou o fixture diretamente — busca completo pelo ID
+    const { data: fx } = await supabase
       .from("copa_fixtures")
       .select("fixture_id, home, away, phase, group_letter, commence_time, home_fifa_rank, away_fifa_rank, xg_last5, xg_copa")
-      .or(`and(home.ilike.%${t1}%,away.ilike.%${t2}%),and(home.ilike.%${t2}%,away.ilike.%${t1}%)`)
-      .order("commence_time", { ascending: true })
-      .limit(3);
-
-    if (fixtures && fixtures.length > 0) {
-      matchedFixture = fixtures[0] as Record<string, unknown>;
+      .eq("fixture_id", contextFixture.fixture_id)
+      .maybeSingle();
+    matchedFixture = fx ?? {
+      fixture_id: contextFixture.fixture_id,
+      home: contextFixture.home,
+      away: contextFixture.away,
+      phase: contextFixture.phase,
+      commence_time: contextFixture.commence_time,
+    };
+  } else {
+    // Fallback: extrai times da conversa
+    const teamNames = extractTeamNamesFromConversation(query, conversationHistory as Message[]);
+    if (teamNames.length >= 2) {
+      const [t1, t2] = teamNames;
+      const { data: fixtures } = await supabase
+        .from("copa_fixtures")
+        .select("fixture_id, home, away, phase, group_letter, commence_time, home_fifa_rank, away_fifa_rank, xg_last5, xg_copa")
+        .or(`and(home.ilike.%${t1}%,away.ilike.%${t2}%),and(home.ilike.%${t2}%,away.ilike.%${t1}%)`)
+        .order("commence_time", { ascending: true })
+        .limit(3);
+      if (fixtures && fixtures.length > 0) matchedFixture = fixtures[0] as Record<string, unknown>;
     }
   }
 
   // ── 2) Estatísticas da tabela national_team_stats ────────────────────────────
+  // Se contextFixture foi usado, garante que temos os nomes dos times para buscar stats
+  const statsTeamNames = matchedFixture
+    ? [String(matchedFixture.home), String(matchedFixture.away)]
+    : extractTeamNamesFromConversation(query, conversationHistory as Message[]);
+
   interface TeamStats {
     team_name: string;
     matches_analyzed: number;
@@ -159,7 +179,7 @@ Deno.serve(async (req) => {
     last_updated: string;
   }
   const teamStats: Record<string, TeamStats> = {};
-  for (const tName of teamNames) {
+  for (const tName of statsTeamNames) {
     const { data: ts } = await supabase
       .from("national_team_stats")
       .select("*")

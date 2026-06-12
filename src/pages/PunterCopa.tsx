@@ -418,6 +418,7 @@ export default function PunterCopa() {
   const navigate = useNavigate();
   const [signals, setSignals] = useState<CopaSignal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [nextFixture, setNextFixture] = useState<{ fixture_id: string; home: string; away: string; phase: string; commence_time: string } | null>(null);
   const [advanced, setAdvanced] = useState(false);
   const [subPage, setSubPage] = useState<SubPage>('sinais');
   const [soundEnabled, setSoundEnabled] = useState(() => {
@@ -449,6 +450,21 @@ export default function PunterCopa() {
         .limit(500);
       setSignals((data as CopaSignal[]) || []);
       setLoading(false);
+    })();
+  }, []);
+
+  // Próximo jogo Copa para contexto do chat
+  useEffect(() => {
+    (async () => {
+      const now = new Date().toISOString();
+      const { data } = await supabase
+        .from('copa_fixtures')
+        .select('fixture_id, home, away, phase, commence_time')
+        .gte('commence_time', now)
+        .order('commence_time', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (data) setNextFixture(data as typeof nextFixture);
     })();
   }, []);
 
@@ -754,7 +770,7 @@ export default function PunterCopa() {
       </main>
 
       {/* Chat flutuante com Mycroft para análise manual Copa */}
-      <CopaChatMycroft />
+      <CopaChatMycroft featuredMatch={nextFixture} />
     </div>
   );
 }
