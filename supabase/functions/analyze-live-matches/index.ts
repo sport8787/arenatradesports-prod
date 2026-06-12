@@ -3,7 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { logEdgeError } from "../_shared/logEdgeError.ts";
 import { shadowCompare } from "../_shared/mycroft-rules-engine.ts";
 import { getLiveStatsSM } from "../_shared/sportmonks-af-adapter.ts";
-import { getFutoddsLive } from "../_shared/futoddsProvider.ts";
+import { getFutoddsLive, getFutoddsLiveBasic, getFutoddsLiveDetail } from "../_shared/futoddsProvider.ts";
 import { fetchFutoddsList } from "../_shared/futoddsCache.ts";
 import { getCalibrationFloor, applyCalibrationFloor } from "../_shared/calibrationFloor.ts";
 import { isBorderline, validateBorderline, ACTIVE_VERDICTS as BORDERLINE_ACTIVE } from "../_shared/borderlineAIValidator.ts";
@@ -40,6 +40,21 @@ async function getFutoddsLiveCached(maxAgeMs = 25_000): Promise<any[]> {
   } catch (e) {
     console.warn("[AnalyzeLive] futodds live fetch falhou:", (e as Error)?.message);
     _futoddsLiveCache = { ts: now, fixtures: [] };
+    return [];
+  }
+}
+
+// Cache de /matches-live (game_id lookup para opta_data)
+let _futoddsBasicCache: { ts: number; list: any[] } | null = null;
+async function getFutoddsBasicCached(maxAgeMs = 60_000): Promise<any[]> {
+  const now = Date.now();
+  if (_futoddsBasicCache && now - _futoddsBasicCache.ts < maxAgeMs) return _futoddsBasicCache.list;
+  try {
+    const list = await getFutoddsLiveBasic();
+    _futoddsBasicCache = { ts: now, list };
+    return list;
+  } catch {
+    _futoddsBasicCache = { ts: now, list: [] };
     return [];
   }
 }
@@ -560,6 +575,43 @@ serve(async (req) => {
           }
         } catch (fdErr) {
           console.warn(`[AnalyzeLive] Futodds pressure enrichment failed:`, fdErr instanceof Error ? fdErr.message : fdErr);
+        }
+
+        // 🔵 OPTA ENRICHMENT — Copa 2026 only, minuto 30-75
+        // Usa /matches-live → game_id → /matches-live-detail para dados Opta avançados.
+        // Guardado com rate-limit natural: 1 chamada por jogo por ciclo de análise.
+        const _copaMinute = Number(match.minute ?? 0);
+        if (modoCopa && _copaMinute >= 30 && _copaMinute <= 75) {
+          try {
+            const basicList = await getFutoddsBasicCached();
+            const h = _normTeam(match.home_team);
+            const a = _normTeam(match.away_team);
+            const basicFx = basicList.find((f: any) => {
+              const fh = _normTeam(f.home_name || f.home_team || f.home || "");
+              const fa = _normTeam(f.away_name || f.away_team || f.away || "");
+              return _pairMatch(fh, h) && _pairMatch(fa, a);
+            });
+            const gameId = basicFx?.id ?? basicFx?.game_id;
+            if (gameId) {
+              const detail = await getFutoddsLiveDetail(gameId);
+              const opta = detail?.opta_data ?? detail?.optaData;
+              if (opta) {
+                if (opta.xg_home != null && Number(opta.xg_home) > 0) {
+                  (enrichedStats as any).xG_home = opta.xg_home;
+                  (enrichedStats as any).xg_home = opta.xg_home;
+                }
+                if (opta.xg_away != null && Number(opta.xg_away) > 0) {
+                  (enrichedStats as any).xG_away = opta.xg_away;
+                  (enrichedStats as any).xg_away = opta.xg_away;
+                }
+                (enrichedStats as any).opta_data = opta;
+                (enrichedStats as any).source_opta = "futodds_live_detail";
+                console.log(`[AnalyzeLive][COPA] 🔵 opta_data enriched ${match.home_team} vs ${match.away_team} (min=${_copaMinute})`);
+              }
+            }
+          } catch (optaErr) {
+            console.warn(`[AnalyzeLive][COPA] opta enrichment failed:`, (optaErr as Error)?.message);
+          }
         }
 
         // 🚫 SofaScore e Flashscore DESATIVADOS — fonte única: Sportmonks (live).

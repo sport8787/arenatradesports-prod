@@ -10,7 +10,7 @@ import type { NormalizedStats } from "./sportmonks.ts";
 const FUTODDS_BASE = "https://csv.futodds.com/functions/v1";
 
 /** true quando a subscription Futodds está inativa — retorna dados vazios silenciosamente. */
-function isFutoddsDisabled(): boolean {
+export function isFutoddsDisabled(): boolean {
   return (Deno.env.get("FUTODDS_DISABLED") || "").toLowerCase() === "true";
 }
 
@@ -237,4 +237,11 @@ export async function getFutoddsLiveDetail(gameId: number | string): Promise<any
   if (isFutoddsDisabled()) return null;
   const j = await fdGet("/matches-live-detail", { game_id: String(gameId) });
   return j?.data ?? null;
+}
+
+/** Lista básica /matches-live com id (game_id) para lookup de detalhe. */
+export async function getFutoddsLiveBasic(params: Record<string, string> = {}): Promise<any[]> {
+  if (isFutoddsDisabled()) return [];
+  const j = await fdGet("/matches-live", params);
+  return Array.isArray(j?.data) ? j.data : [];
 }
