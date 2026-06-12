@@ -77,16 +77,29 @@ interface Approval {
   rationale?: string;
 }
 
-// Extrai possíveis nomes de times da query (palavras capitalizadas, ex: "EUA", "Paraguai")
-function extractTeamNames(query: string): string[] {
-  // Procura padrão "X vs Y" ou "X × Y" ou "X x Y"
-  const vsMatch = query.match(/([A-ZÀ-Úa-zà-ú\s]+?)\s+(?:vs|×|x)\s+([A-ZÀ-Úa-zà-ú\s]+)/i);
-  if (vsMatch) {
-    return [vsMatch[1].trim(), vsMatch[2].trim()];
-  }
-  // Fallback: palavras com maiúscula
-  const words = query.match(/\b[A-ZÁÉÍÓÚÀÂÊÔÃÕÜ][a-záéíóúàâêôãõü]+(?:\s+[A-ZÁÉÍÓÚÀÂÊÔÃÕÜ][a-záéíóúàâêôãõü]+)*/g) || [];
+// Extrai nomes de times de um texto — prioriza padrão "X vs Y"
+function extractTeamNames(text: string): string[] {
+  const vsMatch = text.match(/([A-ZÀ-Úa-zà-ú][A-ZÀ-Úa-zà-ú\s]{1,30}?)\s+(?:vs\.?|×|x)\s+([A-ZÀ-Úa-zà-ú][A-ZÀ-Úa-zà-ú\s]{1,30})/i);
+  if (vsMatch) return [vsMatch[1].trim(), vsMatch[2].trim()];
+  const words = text.match(/\b[A-ZÁÉÍÓÚÀÂÊÔÃÕÜ][a-záéíóúàâêôãõü]+(?:\s+[A-ZÁÉÍÓÚÀÂÊÔÃÕÜ][a-záéíóúàâêôãõü]+)*/g) || [];
   return words.slice(0, 4);
+}
+
+// Busca times em toda a conversa (histórico + query atual) — permite "o confronto acima"
+function extractTeamNamesFromConversation(query: string, history: Message[]): string[] {
+  // 1) Tenta a query atual primeiro (tem prioridade)
+  const fromQuery = extractTeamNames(query);
+  if (fromQuery.length >= 2 && fromQuery[0] !== fromQuery[1]) return fromQuery;
+
+  // 2) Varre o histórico do mais recente para o mais antigo procurando padrão "X vs Y"
+  for (let i = history.length - 1; i >= 0; i--) {
+    const msg = history[i];
+    const vsMatch = msg.content.match(/([A-ZÀ-Úa-zà-ú][A-ZÀ-Úa-zà-ú\s]{1,30}?)\s+(?:vs\.?|×|x)\s+([A-ZÀ-Úa-zà-ú][A-ZÀ-Úa-zà-ú\s]{1,30})/i);
+    if (vsMatch) return [vsMatch[1].trim(), vsMatch[2].trim()];
+  }
+
+  // 3) Fallback: palavras capitalizadas da query
+  return fromQuery;
 }
 
 Deno.serve(async (req) => {
@@ -113,7 +126,7 @@ Deno.serve(async (req) => {
   }
 
   // ── 1) Buscar fixture correspondente ─────────────────────────────────────────
-  const teamNames = extractTeamNames(query);
+  const teamNames = extractTeamNamesFromConversation(query, conversationHistory as Message[]);
   let matchedFixture: Record<string, unknown> | null = null;
 
   if (teamNames.length >= 2) {
