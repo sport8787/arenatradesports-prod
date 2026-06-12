@@ -6,6 +6,7 @@ import { resolveFutoddsEventId, getExchangeQuote, computeExchangeEdgePP } from '
 import { applyApprovalBlocks, loadGateConfig } from '../_shared/punterApprovalBlocks.ts'
 import { probeSportmonksPrediction, logShadowPrediction } from '../_shared/sportmonksPredictions.ts'
 import { callDeepseek } from '../_shared/deepseekProvider.ts'
+import { getFutoddsCS, getFutoddsUpcoming, getFutoddsUpcomingDetail, isFutoddsDisabled } from '../_shared/futoddsProvider.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -217,6 +218,25 @@ FOCO: ROI positivo consistente. Adaptar modelo ao nível de dados disponível.`
 
     console.log('[Mycroft Punter] KB carregada, prompt: ' + (customPrompt ? 'Custom' : 'Default'))
 
+    // 2.5 Pre-fetch Futodds CS projections + upcoming event_ids (2 bulk calls para todos os jogos)
+    let futoddsCSList: any[] = []
+    let futoddsUpcomingList: any[] = []
+    if (!isFutoddsDisabled()) {
+      try {
+        const today = now.toISOString().slice(0, 10)
+        const dateMax = maxTime.toISOString().slice(0, 10)
+        const [csRes, upcomingRes] = await Promise.all([
+          getFutoddsCS({ date_from: today, date_to: dateMax }),
+          getFutoddsUpcoming({ date_from: today, date_to: dateMax, limit: '500' }),
+        ])
+        futoddsCSList = csRes
+        futoddsUpcomingList = upcomingRes
+        console.log(`[Mycroft Punter] Futodds: ${futoddsCSList.length} CS, ${futoddsUpcomingList.length} upcoming`)
+      } catch (fdErr) {
+        console.warn('[Mycroft Punter] Futodds prefetch failed:', (fdErr as Error)?.message)
+      }
+    }
+
     // 3. Analyze each game (with delay for rate limiting)
     const approvedSignals: any[] = []
     let totalAnalyzed = 0
@@ -227,6 +247,47 @@ FOCO: ROI positivo consistente. Adaptar modelo ao nível de dados disponível.`
         if (totalAnalyzed > 1) {
           await new Promise(resolve => setTimeout(resolve, 3000))
         }
+
+        // Enriquecer game com dados Futodds pré-live (CS projections + upcoming-detail)
+        if (futoddsCSList.length > 0 || futoddsUpcomingList.length > 0) {
+          const normH = _normPunterTeam(game.home_team)
+          const normA = _normPunterTeam(game.away_team)
+
+          // CS projections — lambda Poisson
+          const csMatch = futoddsCSList.find((c: any) => {
+            const ch = _normPunterTeam(c.home_team || c.home_name || '')
+            const ca = _normPunterTeam(c.away_team || c.away_name || '')
+            return _pairMatchPunter(ch, normH) && _pairMatchPunter(ca, normA)
+          })
+          if (csMatch) {
+            game.futodds_cs = {
+              lambda_home: csMatch.projected_home_goals_ft ?? csMatch.home_goals ?? null,
+              lambda_away: csMatch.projected_away_goals_ft ?? csMatch.away_goals ?? null,
+              win_prob_home: csMatch.win_prob_home ?? csMatch.probability_home ?? null,
+              win_prob_draw: csMatch.win_prob_draw ?? csMatch.probability_draw ?? null,
+              win_prob_away: csMatch.win_prob_away ?? csMatch.probability_away ?? null,
+            }
+          }
+
+          // Upcoming event_id → detail
+          const upcomingMatch = futoddsUpcomingList.find((u: any) => {
+            const uh = _normPunterTeam(u.home_team_name || u.home_name || u.home || '')
+            const ua = _normPunterTeam(u.away_team_name || u.away_name || u.away || '')
+            return _pairMatchPunter(uh, normH) && _pairMatchPunter(ua, normA)
+          })
+          if (upcomingMatch) {
+            game.futodds_event_id = upcomingMatch.event_id ?? upcomingMatch.eventId ?? null
+            try {
+              if (game.futodds_event_id) {
+                const detail = await getFutoddsUpcomingDetail(game.futodds_event_id)
+                if (detail) game.futodds_detail = detail
+              }
+            } catch (detailErr) {
+              console.warn(`[Mycroft Punter] upcoming-detail falhou ${game.home_team}:`, (detailErr as Error)?.message)
+            }
+          }
+        }
+
         const analysis = await analyzeGame(game, customPrompt, methodologyContent, valueGuideContent, min_value, supabaseClient, apiFootballKey)
         if (analysis && typeof analysis.verdict === 'string' && analysis.verdict.startsWith('APROVADO')) {
           if (game.simulated_odds) analysis.simulated_odds = true
@@ -904,6 +965,61 @@ function computeMarketDetectors(oddsData: any[], totalsData: any[], modelProbabi
   return result
 }
 
+function formatFutoddsBlock(cs: any, detail: any): string {
+  if (!cs && !detail) return ''
+  let block = `═══════════════════════════════════════
+FUTODDS — PROJEÇÕES QUANTITATIVAS PRÉ-LIVE
+═══════════════════════════════════════`
+
+  if (cs?.lambda_home != null) {
+    block += `
+  Lambdas Poisson (gols esperados):
+    Casa: λ=${cs.lambda_home} | Fora: λ=${cs.lambda_away}`
+    if (cs.win_prob_home != null) {
+      block += `
+  Probabilidades CS:
+    Casa: ${cs.win_prob_home}% | Empate: ${cs.win_prob_draw}% | Fora: ${cs.win_prob_away}%`
+    }
+  }
+
+  if (detail) {
+    if (detail.probability?.home != null) {
+      block += `
+  Probabilidades Futodds:
+    Casa: ${detail.probability.home}% | Empate: ${detail.probability.draw}% | Fora: ${detail.probability.away}%`
+    }
+    if (detail.dnb?.home != null) {
+      block += `
+  DNB (Draw No Bet): Casa=${detail.dnb.home} | Fora=${detail.dnb.away}`
+    }
+    if (detail.asian_handicap) {
+      const ah = detail.asian_handicap
+      block += `
+  Asian Handicap: linha=${ah.line ?? 'N/A'} | Casa=${ah.home} | Fora=${ah.away}`
+    }
+    if (detail.corners?.asian) {
+      const ca = detail.corners.asian
+      block += `
+  Corners Asian HC: linha=${ca.line ?? 'N/A'} | Casa=${ca.home} | Fora=${ca.away}`
+    }
+    if (detail.over_under) {
+      const ou = detail.over_under
+      block += `
+  Over/Under Futodds: Over=${ou.over_25 ?? ou.over} | Under=${ou.under_25 ?? ou.under}`
+    }
+    if (detail.home_standing || detail.away_standing) {
+      block += `
+  Posição na tabela: Casa=${detail.home_standing ?? 'N/A'}º | Fora=${detail.away_standing ?? 'N/A'}º`
+    }
+    if (cs?.lambda_home != null) {
+      block += `
+  Instrução: Use λ_casa=${cs.lambda_home} e λ_fora=${cs.lambda_away} como parâmetros Poisson-Dixon-Coles.`
+    }
+  }
+
+  return block
+}
+
 function formatDetectorsBlock(d: MarketDetectorResult): string {
   let block = `═══════════════════════════════════════
 MARKET MANIPULATION DETECTOR
@@ -1326,6 +1442,20 @@ function applySherlockRules(
   return { veto: false, confidenceDelta, notes }
 }
 
+// ── Helpers para matching Futodds em mycroft-punter ─────────────────────────
+function _normPunterTeam(s: string): string {
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9 ]/g, '').trim()
+}
+function _pairMatchPunter(a: string, b: string): boolean {
+  if (!a || !b || a.length < 3 || b.length < 3) return false
+  if (a === b) return true
+  const longer = a.length >= b.length ? a : b
+  const shorter = a.length >= b.length ? b : a
+  if (!longer.includes(shorter)) return false
+  return shorter.length / longer.length >= 0.5
+}
+
 // ═══════════════════════════════════════════════
 // Main analysis function (Anthropic Claude only)
 // ═══════════════════════════════════════════════
@@ -1356,6 +1486,12 @@ async function analyzeGame(
   const awayInjuriesBlock = formatInjuriesBlock(game.away_team, enriched.injuries?.away || [])
   const standingsBlock = formatStandingsBlock(enriched.standings || [], game.home_team, game.away_team)
   const predictionsBlock = formatPredictionsBlock(enriched.predictions)
+
+  // ── Futodds CS + Detail block ──
+  const futoddsBlock = formatFutoddsBlock(game.futodds_cs, game.futodds_detail)
+  if (game.futodds_cs?.lambda_home != null) {
+    console.log(`[Mycroft Punter] Futodds CS λ: ${game.futodds_cs.lambda_home}/${game.futodds_cs.lambda_away} para ${game.home_team}`)
+  }
 
   // ── Market Manipulation & Sharp Money Detection ──
   const detectors = computeMarketDetectors(oddsData, totalsData, null, null)
@@ -1413,6 +1549,8 @@ VALIDAÇÃO CRUZADA: Compare sua análise com as previsões da API-Football acim
 - Se AMBOS concordarem no vencedor/over-under → boost de confiança +5%
 - Se DIVERGIREM → sinalize no risk_factors e reduza confiança -5%
 ` : ''}
+
+${futoddsBlock}
 
 ${detectorsBlock}
 
@@ -1747,6 +1885,9 @@ ANALISE AGORA E RETORNE APENAS O JSON:`
           sherlock_alert: !!smProbe?.sherlock_alert,
           sportmonks_probability: smProbe?.sportmonks_probability ?? null,
           sportmonks_divergence_pp: smProbe?.divergence_pp ?? null,
+          futodds_event_id: game.futodds_event_id ?? null,
+          futodds_lambda_home: game.futodds_cs?.lambda_home ?? null,
+          futodds_lambda_away: game.futodds_cs?.lambda_away ?? null,
         }, { onConflict: 'match_id,market', ignoreDuplicates: false })
         console.log('[Mycroft Punter] ✅ Sinal aprovado registrado')
       }

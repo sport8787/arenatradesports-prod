@@ -212,6 +212,20 @@ export async function getFutoddsLiveEvents(eventId?: number | string): Promise<a
 
 // ── Endpoints pré-live ────────────────────────────────────────────────────────
 
+/** Projeções CS (Computer Simulations) para Poisson. Retorna projected_home/away_goals_ft. */
+export async function getFutoddsCS(params: Record<string, string> = {}): Promise<any[]> {
+  if (isFutoddsDisabled()) return [];
+  const j = await fdGet("/matches-cs", { with_projections_only: "true", ...params });
+  return Array.isArray(j?.data) ? j.data : [];
+}
+
+/** Detalhes de jogo pré-live: probabilidades, DNB, Asian HC, Corners, standings. */
+export async function getFutoddsUpcomingDetail(eventId: number | string): Promise<any> {
+  if (isFutoddsDisabled()) return null;
+  const j = await fdGet("/matches-upcoming-detail", { event_id: String(eventId) });
+  return j?.data ?? null;
+}
+
 /** Jogos futuros com mercados Betfair. Retorna lista com event_id Betfair. */
 export async function getFutoddsUpcoming(params: Record<string, string> = {}): Promise<any[]> {
   if (isFutoddsDisabled()) return [];

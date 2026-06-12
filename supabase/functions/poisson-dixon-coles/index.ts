@@ -49,6 +49,9 @@ interface PoissonInput {
   // Expected goals (can come from xG, historical avg, or API)
   home_xg?: number;
   away_xg?: number;
+  // Futodds CS projected goals (best source for pre-live)
+  futodds_lambda_home?: number;
+  futodds_lambda_away?: number;
   // Historical averages if no xG
   home_goals_avg?: number;
   away_goals_avg?: number;
@@ -105,8 +108,12 @@ serve(async (req) => {
     let lambdaHome: number;
     let lambdaAway: number;
 
-    if (input.home_xg && input.away_xg) {
-      // Use xG directly (best source)
+    if (input.futodds_lambda_home && input.futodds_lambda_away) {
+      // Futodds CS projections — preferred for pre-live (Computer Simulation model)
+      lambdaHome = input.futodds_lambda_home;
+      lambdaAway = input.futodds_lambda_away;
+    } else if (input.home_xg && input.away_xg) {
+      // Use xG directly (second best)
       lambdaHome = input.home_xg;
       lambdaAway = input.away_xg;
     } else if (input.home_goals_avg && input.away_goals_avg) {
