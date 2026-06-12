@@ -1,13 +1,17 @@
 # Arena Trade Sports — instruções para Claude Code
 
-## Regra obrigatória: sempre commitar e fazer push ao final
+## Regras de deploy por tipo de mudança
 
-**Toda sessão de trabalho deve terminar com `git add → git commit → git push origin main`.**
+| Tipo | Para ir ao vivo | `git push` obrigatório? |
+|---|---|---|
+| Frontend `.tsx/.ts` | `git push origin main` → Vercel auto-deploya | **Sim** |
+| Edge function | `npx supabase functions deploy <nome>` | Não (mas commitar para histórico) |
+| Migration SQL | `npx supabase db query --linked --file <arquivo>` | Não (mas commitar para histórico) |
 
-- Vercel faz deploy automático apenas quando há push no GitHub
-- Mudanças não commitadas nunca chegam em produção
-- Não encerre uma tarefa sem confirmar que o push foi feito
-- Se houver dúvida sobre o que commitar, mostre o `git diff --stat` e confirme com o usuário antes de commitar
+**Regra prática:**
+- Mudanças de frontend → sempre terminar com `git push origin main`
+- Edge functions → deploy direto via CLI, já está ao vivo imediatamente
+- Sempre commitar ao final para manter o código em sync com o git, mesmo quando o push não é necessário para funcionar
 
 ## Stack
 
@@ -18,10 +22,9 @@
 
 ## Deploy de edge functions
 
-Sempre que alterar um arquivo em `supabase/functions/<nome>/index.ts`, fazer deploy:
-
 ```bash
 npx supabase functions deploy <nome-da-função>
+# imediatamente ao vivo — não precisa de git push
 ```
 
 ## Migrations
