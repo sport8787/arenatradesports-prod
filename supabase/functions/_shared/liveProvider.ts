@@ -1,6 +1,6 @@
-// liveProvider — API-Football (Copa do Mundo) + Sportmonks (primário) + Futodds (fallback).
-// Hierarquia: API-Football tem prioridade para as ligas configuradas em API_FOOTBALL_LEAGUES
-// (padrão: league_id=1 Copa do Mundo). Sportmonks cobre demais ligas. Futodds preenche lacunas.
+// liveProvider — Sportmonks (primário) + Futodds (Copa 2026 + lacunas) + API-Football (fallback).
+// COPA_FUTODDS_PRIMARY=true → Futodds cobre Copa do Mundo com prioridade máxima sobre AF/SM.
+// Modo merge: Futodds Copa → SM (outras ligas) → Futodds gaps → AF fallback.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import {
@@ -77,6 +77,12 @@ async function trySportmonks(): Promise<LiveResult> {
 }
 
 const MODE = (Deno.env.get("LIVE_PROVIDER_MODE") || "merge").toLowerCase(); // merge | fallback
+// Quando true, Futodds tem prioridade máxima para Copa do Mundo (SM/AF ficam como fallback para Copa).
+const COPA_FUTODDS_PRIMARY = (Deno.env.get("COPA_FUTODDS_PRIMARY") || "false").toLowerCase() === "true";
+
+function isCopaCompetition(f: any): boolean {
+  return /world.?cup|copa.?do.?mundo|mundial|copa.?mundo|fifa.?world/i.test(f?.league?.name ?? "");
+}
 
 function normTeam(s: any): string {
   return String(s ?? "")
@@ -127,12 +133,35 @@ async function mergeProviders(): Promise<LiveResult> {
 
   const seen = new Set<string>();
   const merged: any[] = [];
+  let addedFromFutodds = 0;
+  let skippedDup = 0;
+  const filledLeagues = new Set<number>();
 
-  // === 1) API-Football — PRIORIDADE MÁXIMA para suas ligas (Copa do Mundo etc.) ===
-  // Estes jogos NÃO serão substituídos por SM ou Futodds mesmo se aparecerem lá.
+  // === 0) COPA_FUTODDS_PRIMARY: Futodds cobre Copa do Mundo com prioridade máxima ===
+  // SM e AF não cobrem Copa 2026 com stats completas (pressure, xg, momentum).
+  const fdCopaTeamDay = new Set<string>();
+  if (COPA_FUTODDS_PRIMARY) {
+    for (const f of fd) {
+      if (!isCopaCompetition(f)) continue;
+      const k = fixtureKey(f);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      fdCopaTeamDay.add(teamDayKey(f));
+      merged.push(f);
+      addedFromFutodds++;
+      filledLeagues.add(Number(f?.league?.id ?? -1));
+    }
+    if (fdCopaTeamDay.size > 0) {
+      console.log(`[liveProvider] ⚽ COPA_FUTODDS_PRIMARY: Futodds cobriu ${fdCopaTeamDay.size} jogos Copa 2026`);
+    }
+  }
+
+  // === 1) API-Football — PRIORIDADE ALTA para suas ligas; pula Copa se Futodds já cobriu ===
   const afTeamDay = new Set<string>();
   let addedFromAf = 0;
   for (const f of af) {
+    // Se COPA_FUTODDS_PRIMARY e Futodds já cobriu este jogo Copa → pula AF
+    if (COPA_FUTODDS_PRIMARY && (isCopaCompetition(f) || fdCopaTeamDay.has(teamDayKey(f)))) continue;
     const k = fixtureKey(f);
     if (seen.has(k)) continue;
     seen.add(k);
@@ -141,15 +170,15 @@ async function mergeProviders(): Promise<LiveResult> {
     addedFromAf++;
   }
 
-  // === 2) Sportmonks — cobre demais ligas; pula jogos já cobertos por AF ===
+  // === 2) Sportmonks — cobre demais ligas; pula jogos já cobertos por AF ou Futodds Copa ===
   const smLeagues = new Set<number>();
   const smTeamDay = new Set<string>();
   for (const f of sm) {
     const lid = Number(f?.league?.id ?? -1);
-    // Se AF já cobre esta liga, SM é descartado para este jogo
     if (afLeagues.has(lid)) continue;
-    // Dedup por time+dia (AF pode ter o mesmo jogo com league_id diferente)
     if (afTeamDay.has(teamDayKey(f))) continue;
+    // Pula Copa se Futodds já cobriu (COPA_FUTODDS_PRIMARY)
+    if (fdCopaTeamDay.has(teamDayKey(f))) continue;
     const k = fixtureKey(f);
     if (seen.has(k)) continue;
     seen.add(k);
@@ -158,12 +187,11 @@ async function mergeProviders(): Promise<LiveResult> {
     merged.push(f);
   }
 
-  // === 3) Futodds — preenche ligas não cobertas por SM nem AF ===
-  let addedFromFutodds = 0;
-  let skippedDup = 0;
-  const filledLeagues = new Set<number>();
+  // === 3) Futodds — preenche ligas não cobertas por SM nem AF (Copa já adicionada no passo 0) ===
   for (const f of fd) {
     const lid = Number(f?.league?.id ?? -1);
+    // Copa já foi adicionada no passo 0 (COPA_FUTODDS_PRIMARY) — não duplicar
+    if (COPA_FUTODDS_PRIMARY && fdCopaTeamDay.has(teamDayKey(f))) continue;
     if (smLeagues.has(lid)) continue;
     if (afLeagues.has(lid)) continue;
     if (smTeamDay.has(teamDayKey(f)) || afTeamDay.has(teamDayKey(f))) { skippedDup++; continue; }
@@ -192,6 +220,9 @@ async function mergeProviders(): Promise<LiveResult> {
   );
   if (addedFromAf > 0) {
     console.log(`[liveProvider] ⚽ API-Football cobriu ${addedFromAf} jogos (ligas: ${[...afLeagues].join(",")})`);
+  }
+  if (COPA_FUTODDS_PRIMARY && fdCopaTeamDay.size === 0 && fd.length > 0) {
+    console.log(`[liveProvider] ⚠️ COPA_FUTODDS_PRIMARY ativo mas Futodds não retornou jogos Copa — verificar cobertura`);
   }
   if (smFriendlies > 0 && fdFriendlies === 0) {
     console.log(`[liveProvider] 🤝 amistosos cobertos só por Sportmonks (Futodds=0) — fallback ativo`);
