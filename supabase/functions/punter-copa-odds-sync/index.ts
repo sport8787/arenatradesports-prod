@@ -31,15 +31,33 @@ const ODDS_API_KEY = Deno.env.get("THE_ODDS_API_KEY") || Deno.env.get("ODDS_API_
 // Horizon: busca fixtures Copa nas próximas N horas
 const HORIZON_HOURS = 48;
 
+// Aliases para variações de nome entre copa_fixtures e The Odds API
+const TEAM_ALIASES: Record<string, string> = {
+  "turkiye": "turkey",
+  "turkey": "turkiye",
+  "ir iran": "iran",
+  "iran": "ir iran",
+  "korea republic": "south korea",
+  "south korea": "korea republic",
+  "korea dpr": "north korea",
+  "ivory coast": "cote d ivoire",
+  "cote divoire": "cote d ivoire",
+  "czechia": "czech republic",
+  "czech republic": "czechia",
+  "united states": "usa",
+  "usa": "united states",
+};
+
 // ─── Normaliza nome de seleção para matching ───────────────────────────────────
 function normalizeName(name: string): string {
-  return name
+  const base = name
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")  // remove acentos
+    .replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9 ]/g, "")
     .replace(/\s+/g, " ")
     .trim();
+  return TEAM_ALIASES[base] ?? base;
 }
 
 // Verifica se dois nomes de equipe são compatíveis (matching fuzzy)
@@ -308,13 +326,25 @@ Deno.serve(async (req) => {
       const allKeys = [...Object.keys(payload.home), ...Object.keys(payload.away)];
       const hasRealAhLines = allKeys.some((k) => k !== "0");
       if (!hasRealAhLines) {
-        // Apenas odds h2h (linha "0") — não sobrescrever snapshots AH reais existentes
-        console.warn(`[copa-odds] ${fx.home} x ${fx.away}: apenas h2h disponível, snapshot AH preservado`);
-        log.push({
-          fixture_id: fx.fixture_id, home: fx.home, away: fx.away,
-          status: "h2h_only_skip", odds_event_id: matched.id,
-        });
-        continue;
+        // Sem linhas AH: verifica se já existe snapshot AH recente para preservar
+        const { data: ahCheck } = await supabase
+          .from("ah_odds_snapshot")
+          .select("payload")
+          .eq("fixture_id", fx.fixture_id)
+          .gte("captured_at", new Date(Date.now() - 12 * 3600_000).toISOString())
+          .order("captured_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const hasRecentAh = ahCheck?.payload &&
+          [...Object.keys(ahCheck.payload?.home || {}), ...Object.keys(ahCheck.payload?.away || {})]
+            .some((k) => k !== "0");
+        if (hasRecentAh) {
+          // Existe AH recente: preserva, não sobrescreve com h2h
+          log.push({ fixture_id: fx.fixture_id, home: fx.home, away: fx.away, status: "h2h_only_skip", odds_event_id: matched.id });
+          continue;
+        }
+        // Sem AH disponível: salva h2h como fallback para o pipeline 1X2
+        console.log(`[copa-odds] ${fx.home} x ${fx.away}: sem AH, salvando h2h para fallback 1X2`);
       }
       const hasOdds = allKeys.length > 0;
       if (!hasOdds) {
@@ -359,11 +389,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Log no cron_logs
     await supabase.from("cron_logs").insert({
       tipo: "punter_copa_odds_sync",
-      mensagem: `Snapshots AH: ${salvos}/${fixtures.length} fixtures | sem match: ${semMatch}`,
-      detalhes: { fixtures: fixtures.length, salvos, semMatch, sport_keys: sportKeys, log },
+      total_recebidos: fixtures.length,
+      total_filtrados: salvos,
     });
 
     return new Response(

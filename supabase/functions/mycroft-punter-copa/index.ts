@@ -24,6 +24,21 @@ function factorial(n: number): number { let r = 1; for (let i = 2; i <= n; i++) 
 function poisson(k: number, lambda: number): number {
   return Math.exp(-lambda) * Math.pow(lambda, k) / factorial(k);
 }
+/** Probabilidade de vitória simples (exclui empate). Usado no fallback 1X2. */
+function probWin(xgH: number, xgA: number, side: "home" | "away"): number {
+  let prob = 0;
+  const lH = Math.max(0.05, xgH);
+  const lA = Math.max(0.05, xgA);
+  for (let h = 0; h <= 8; h++) {
+    for (let a = 0; a <= 8; a++) {
+      const p = poisson(h, lH) * poisson(a, lA);
+      if (side === "home" && h > a) prob += p;
+      else if (side === "away" && a > h) prob += p;
+    }
+  }
+  return Math.min(0.98, Math.max(0.02, prob));
+}
+
 /** Probabilidade de cobertura de AH dado xG mandante/visitante e linha (negativa = favorito mandante). */
 function probAHCover(xgH: number, xgA: number, ahLine: number, side: "home" | "away"): number {
   let prob = 0;
@@ -200,10 +215,89 @@ async function analyzeFixture(supabase: any, fx: any, cfg: any) {
   validCands.sort((a, b) => b.ve - a.ve);
   const bestCand = validCands[0] ?? null;
 
+  // ───────── Fallback 1X2 quando não há linhas AH ─────────
   if (!bestCand) {
-    vetos.push("odd AH indisponível ou fora de range em ah_odds_snapshot");
-    return { fixture_id: fx.fixture_id, approved: false, vetos, ve: 0, confidence: 0 };
+    const h2hHome = await getAhOdd(supabase, fx.fixture_id, 0, "home");
+    const h2hAway = await getAhOdd(supabase, fx.fixture_id, 0, "away");
+
+    if (!h2hHome && !h2hAway) {
+      vetos.push("sem odds AH ou 1X2 em ah_odds_snapshot");
+      return { fixture_id: fx.fixture_id, approved: false, vetos, ve: 0, confidence: 0 };
+    }
+
+    type H2hCand = { side: "home" | "away"; odd: number; prob: number; ve: number };
+    const h2hCands: H2hCand[] = [];
+    for (const [side, odd] of [["home", h2hHome], ["away", h2hAway]] as [string, number | null][]) {
+      if (!odd || odd < ahRange.min || odd > ahRange.max) continue;
+      const prob = probWin(xgH, xgA, side as "home" | "away");
+      const ve = vePct(prob, odd);
+      const conf = Math.round(prob * 100);
+      if (ve >= veMinThis && conf >= confMin) {
+        h2hCands.push({ side: side as "home" | "away", odd, prob, ve });
+      }
+    }
+    h2hCands.sort((a, b) => b.ve - a.ve);
+    const h2hBest = h2hCands[0];
+
+    if (!h2hBest) {
+      vetos.push("odds 1X2 disponíveis mas sem valor esperado positivo");
+      return { fixture_id: fx.fixture_id, approved: false, vetos, ve: 0, confidence: 0 };
+    }
+
+    const h2hConf = Math.round(h2hBest.prob * 100);
+    const mvH2h = await checkOddMovement(supabase, fx.fixture_id);
+    if (mvH2h.alert) vetos.push("movimento de odd suspeito nas últimas 12h");
+
+    const h2hBlock = vetos.length === 0 ? pickBlock(h2hBest.ve, h2hConf) : null;
+    if (!h2hBlock) {
+      return { fixture_id: fx.fixture_id, approved: false, vetos, ve: h2hBest.ve, confidence: h2hConf };
+    }
+
+    const h2hTeam = h2hBest.side === "home" ? fx.home : fx.away;
+    const h2hStake = getStake(cfg, h2hBlock, isMataMata);
+
+    let h2hRationale = `${h2hTeam} Vence (1X2). xG H ${xgH.toFixed(2)}/A ${xgA.toFixed(2)}. Diff FIFA ${diff} pts. VE ${h2hBest.ve}%, prob ${h2hConf}%.`;
+    try {
+      const sys = "Você é o Mycroft. Responde em pt-br, frio e dedutivo. JSON com {ok:boolean, rationale:string}. Recuse (ok:false) se a tese tiver furo claro.";
+      const usr = `Copa 2026 — ${fx.phase}\n${fx.home} x ${fx.away}\nMercado: 1X2 — ${h2hTeam} Vence\nOdd: ${h2hBest.odd}\nVE: ${h2hBest.ve}% | Prob: ${h2hConf}%\nFIFA: ${ptsH} vs ${ptsA}\nxG L5: H ${xgH.toFixed(2)}/${xgaH.toFixed(2)} | A ${xgA.toFixed(2)}/${xgaA.toFixed(2)}\nDesfalques: H=${injH} A=${injA}\n\nValide a tese em ≤4 linhas. Devolva JSON.`;
+      const out = await callDeepseek(sys, usr, { temperature: 0.2, max_tokens: 400, timeoutMs: 20000 });
+      const parsed = JSON.parse(out);
+      if (parsed?.ok === false) vetos.push("IA recusou a tese (1X2)");
+      else if (parsed?.rationale) h2hRationale = parsed.rationale;
+    } catch (e) {
+      console.warn(`[copa] IA 1X2 falhou ${fx.fixture_id}:`, (e as Error).message);
+    }
+
+    if (vetos.length > 0) {
+      return { fixture_id: fx.fixture_id, approved: false, vetos, ve: h2hBest.ve, confidence: h2hConf };
+    }
+
+    return {
+      fixture_id: fx.fixture_id,
+      approved: true,
+      signal: {
+        fixture_id: fx.fixture_id,
+        home: fx.home,
+        away: fx.away,
+        commence_time: fx.commence_time,
+        phase: fx.phase,
+        market: "Resultado 1X2",
+        selection: `${h2hTeam} Vence`,
+        ah_line: null,
+        odd: h2hBest.odd,
+        prob: h2hBest.prob,
+        ve_pct: h2hBest.ve,
+        edge_pct: h2hBest.ve,
+        confidence: h2hConf,
+        block: h2hBlock,
+        stake_pct: h2hStake,
+        rationale: h2hRationale,
+        vetos: [],
+        copa_badge: true,
+      },
+    };
   }
+  // ─────────────────────────────────────────────────────────
 
   const { line: ahLine, side: ahSide, odd, prob, ve } = bestCand;
   const confidence = Math.round(prob * 100);
@@ -436,14 +530,8 @@ Deno.serve(async (req) => {
 
     await supabase.from("cron_logs").insert({
       tipo: "copa_punter",
-      mensagem: `Copa: ${fixtures?.length || 0} fixtures, ${final.length} sinais aprovados`,
-      detalhes: {
-        fixtures: fixtures?.length || 0,
-        candidatos: approved.length,
-        aprovados: final.length,
-        exposicao_total: totalStake,
-        vetos_top: vetoCounts,
-      },
+      total_recebidos: fixtures?.length || 0,
+      total_filtrados: final.length,
     });
 
     return new Response(JSON.stringify({
