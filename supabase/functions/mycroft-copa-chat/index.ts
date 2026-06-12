@@ -1,6 +1,6 @@
 // mycroft-copa-chat — Chat punter Copa 2026
-// Recebe query + histórico, injeta contexto de copa_fixtures e sinais existentes,
-// chama DeepSeek e retorna análise + aprovação estruturada.
+// Contexto rico: copa_2026_stats (priority) + national_team_stats (fallback)
+// Análise Poisson com xG + form string + últimos placares
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -11,7 +11,27 @@ const CORS = {
 
 const SYSTEM = `Você é o Mycroft, analista punter especializado na Copa do Mundo 2026.
 
-Sua missão: analisar dados estatísticos fornecidos pelo trader e decidir se há valor real em alguma entrada. Você é rigoroso e só aprova quando os dados justificam.
+Sua missão: analisar os dados estatísticos fornecidos e identificar entradas com valor real. Você tem acesso a stats completas e DEVE usá-las para uma análise quantitativa rigorosa.
+
+## MODELO POISSON — USE SEMPRE QUE xG ESTIVER DISPONÍVEL
+Quando avg_xg e avg_xga estiverem disponíveis:
+  λ_ataque = (avg_xg_time + avg_xga_adversário) / 2
+  P(k gols) = e^(−λ) × λ^k / k!  (para k = 0, 1, 2, 3...)
+  P(Over 2.5) = 1 − P(0) − P(1) − P(2 gols totais)
+  P(BTTS) ≈ (1 − P(0 gols time A)) × (1 − P(0 gols time B))
+  P(Under 2.5) = P(0) + P(1) + P(2 gols totais)
+
+Calcule λ para cada time separadamente, some para o total esperado e derive todas as probabilidades.
+Se xG não estiver disponível, use avg_goals_scored/conceded como proxy para λ.
+
+## REGRA FUNDAMENTAL: NUNCA RECUSE ANÁLISE COM DADOS DISPONÍVEIS
+Se o contexto contiver stats (mesmo que parciais), produza a análise. Não diga "dados insuficientes" quando há stats no contexto. Diga "dados insuficientes" apenas se NÃO HÁ estatísticas.
+
+## COPA 2026 — FATORES CONTEXTUAIS
+- Sede: EUA/Canadá/México → neutralidade relativa, altitude pode afetar em alguns locais
+- Grupos: equipes jogam 3 vezes nos grupos → preserve energia
+- Jogos eliminatórios: pressão máxima, tendência a menos gols, UOs têm valor
+- Ranking FIFA: diferença > 15 posições favorece handicap ao time melhor rankeado
 
 ## MERCADOS VÁLIDOS
 - Handicap Asiático (AH): -0.5, -1, -1.5, +0.5, +1, +1.5
@@ -22,7 +42,7 @@ Sua missão: analisar dados estatísticos fornecidos pelo trader e decidir se h�
 
 ## CRITÉRIOS DE APROVAÇÃO
 - Confiança mínima: 68%
-- Valor Esperado (VE) mínimo: +5%
+- Valor Esperado (VE) mínimo: +5%  →  VE = (prob_real × odd − 1)
 - Stake por bloco:
   • conf 68–74% → stake 2% (Bloco B)
   • conf 75–84% → stake 3% (Bloco A)
@@ -32,12 +52,11 @@ Sua missão: analisar dados estatísticos fornecidos pelo trader e decidir se h�
 - Over 0.5 HT: só com placar 0x0 e entre min 5–30 do 1T
 - Under 2.5: só no 1T (min 10–30), placar ≤ 1 gol
 - VE calculado < +5%: não aprovar
-- Amostra insuficiente (< 5 jogos): solicitar mais dados
 - Dupla aprovação no mesmo mercado/jogo: vetar
 
 ## FORMATO DE RESPOSTA (sempre JSON válido)
 {
-  "mensagem": "análise completa em markdown com justificativa",
+  "mensagem": "análise completa em markdown — mostre os cálculos Poisson, probabilidades derivadas e justificativa do VE",
   "aprovacao": {
     "aprovado": true,
     "home": "nome exato do time da casa",
@@ -51,7 +70,7 @@ Sua missão: analisar dados estatísticos fornecidos pelo trader e decidir se h�
     "confidence": 78,
     "stake_pct": 3,
     "block": "A",
-    "rationale": "justificativa em 1-2 frases"
+    "rationale": "justificativa em 1-2 frases com λ calculado"
   }
 }
 Se não houver valor, retorne "aprovacao": null.`;
@@ -85,21 +104,52 @@ function extractTeamNames(text: string): string[] {
   return words.slice(0, 4);
 }
 
-// Busca times em toda a conversa (histórico + query atual) — permite "o confronto acima"
+// Busca times em toda a conversa (histórico + query atual)
 function extractTeamNamesFromConversation(query: string, history: Message[]): string[] {
-  // 1) Tenta a query atual primeiro (tem prioridade)
   const fromQuery = extractTeamNames(query);
   if (fromQuery.length >= 2 && fromQuery[0] !== fromQuery[1]) return fromQuery;
-
-  // 2) Varre o histórico do mais recente para o mais antigo procurando padrão "X vs Y"
   for (let i = history.length - 1; i >= 0; i--) {
-    const msg = history[i];
-    const vsMatch = msg.content.match(/([A-ZÀ-Úa-zà-ú][A-ZÀ-Úa-zà-ú\s]{1,30}?)\s+(?:vs\.?|×|x)\s+([A-ZÀ-Úa-zà-ú][A-ZÀ-Úa-zà-ú\s]{1,30})/i);
+    const vsMatch = history[i].content.match(/([A-ZÀ-Úa-zà-ú][A-ZÀ-Úa-zà-ú\s]{1,30}?)\s+(?:vs\.?|×|x)\s+([A-ZÀ-Úa-zà-ú][A-ZÀ-Úa-zà-ú\s]{1,30})/i);
     if (vsMatch) return [vsMatch[1].trim(), vsMatch[2].trim()];
   }
-
-  // 3) Fallback: palavras capitalizadas da query
   return fromQuery;
+}
+
+// Deriva form string e últimos placares a partir do matches_data (JSON da API-Football)
+function parseMatchesData(matchesData: unknown, teamName: string): { form: string; scorelines: string[] } {
+  if (!Array.isArray(matchesData) || matchesData.length === 0) return { form: "", scorelines: [] };
+
+  const results: Array<{ result: "W" | "D" | "L"; score: string }> = [];
+  const nameLower = teamName.toLowerCase();
+
+  for (const match of matchesData.slice(0, 10)) {
+    try {
+      const home = match?.teams?.home?.name ?? "";
+      const away = match?.teams?.away?.name ?? "";
+      const goalsHome = match?.goals?.home ?? match?.score?.fulltime?.home ?? null;
+      const goalsAway = match?.goals?.away ?? match?.score?.fulltime?.away ?? null;
+      if (goalsHome === null || goalsAway === null) continue;
+
+      const isHome = home.toLowerCase().includes(nameLower) || nameLower.includes(home.toLowerCase());
+      const isAway = away.toLowerCase().includes(nameLower) || nameLower.includes(away.toLowerCase());
+      if (!isHome && !isAway) continue;
+
+      const teamGoals = isHome ? goalsHome : goalsAway;
+      const oppGoals = isHome ? goalsAway : goalsHome;
+      const oppName = isHome ? away : home;
+      const result = teamGoals > oppGoals ? "W" : teamGoals < oppGoals ? "L" : "D";
+
+      results.push({
+        result,
+        score: `${teamGoals}-${oppGoals} vs ${oppName} (${result})`,
+      });
+    } catch { /* skip malformed */ }
+  }
+
+  return {
+    form: results.map(r => r.result).join(""),
+    scorelines: results.slice(0, 3).map(r => r.score),
+  };
 }
 
 Deno.serve(async (req) => {
@@ -126,11 +176,9 @@ Deno.serve(async (req) => {
   }
 
   // ── 1) Buscar fixture correspondente ─────────────────────────────────────────
-  // contextFixture tem prioridade (enviado pela página com o jogo em destaque)
   let matchedFixture: Record<string, unknown> | null = null;
 
   if (contextFixture?.fixture_id) {
-    // Página enviou o fixture diretamente — busca completo pelo ID
     const { data: fx } = await supabase
       .from("copa_fixtures")
       .select("fixture_id, home, away, phase, group_letter, commence_time, home_fifa_rank, away_fifa_rank, xg_last5, xg_copa")
@@ -144,7 +192,6 @@ Deno.serve(async (req) => {
       commence_time: contextFixture.commence_time,
     };
   } else {
-    // Fallback: extrai times da conversa
     const teamNames = extractTeamNamesFromConversation(query, conversationHistory as Message[]);
     if (teamNames.length >= 2) {
       const [t1, t2] = teamNames;
@@ -158,13 +205,31 @@ Deno.serve(async (req) => {
     }
   }
 
-  // ── 2) Estatísticas da tabela national_team_stats ────────────────────────────
-  // Se contextFixture foi usado, garante que temos os nomes dos times para buscar stats
+  // ── 2) Estatísticas — copa_2026_stats (priority) + national_team_stats (fallback) ──
   const statsTeamNames = matchedFixture
     ? [String(matchedFixture.home), String(matchedFixture.away)]
     : extractTeamNamesFromConversation(query, conversationHistory as Message[]);
 
-  interface TeamStats {
+  interface CopaStat {
+    team_name: string;
+    last_matches: number;
+    avg_goals_scored: number | null;
+    avg_goals_conceded: number | null;
+    avg_xg: number | null;
+    avg_xga: number | null;
+    avg_possession: number | null;
+    over_25_pct: number | null;
+    btts_pct: number | null;
+    clean_sheet_pct: number | null;
+    avg_corners: number | null;
+    avg_shots_on_target: number | null;
+    form_last5: string | null;
+    matches_data: unknown;
+    source: string | null;
+    last_updated: string;
+  }
+
+  interface NatStat {
     team_name: string;
     matches_analyzed: number;
     wins: number; draws: number; losses: number;
@@ -176,21 +241,102 @@ Deno.serve(async (req) => {
     btts_percentage: number;
     clean_sheet_count: number;
     over_25_count: number; under_25_count: number;
+    raw_data: unknown;
     last_updated: string;
   }
-  const teamStats: Record<string, TeamStats> = {};
+
+  interface EnrichedStat {
+    team_name: string;
+    n: number;
+    avg_goals_scored: number | null;
+    avg_goals_conceded: number | null;
+    avg_xg: number | null;
+    avg_xga: number | null;
+    avg_possession: number | null;
+    over_25_pct: number | null;
+    btts_pct: number | null;
+    clean_sheet_pct: number | null;
+    avg_corners: number | null;
+    avg_shots_on_target: number | null;
+    form: string;
+    scorelines: string[];
+    source: string;
+    last_updated: string;
+  }
+
+  const teamStats: Record<string, EnrichedStat> = {};
+
   for (const tName of statsTeamNames) {
-    const { data: ts } = await supabase
+    // Tenta copa_2026_stats primeiro
+    const { data: cs } = await supabase
+      .from("copa_2026_stats")
+      .select("*")
+      .ilike("team_name", `%${tName}%`)
+      .order("last_updated", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (cs) {
+      const copa = cs as CopaStat;
+      // Deriva form/scorelines do matches_data se form_last5 não estiver preenchido
+      const parsed = parseMatchesData(copa.matches_data, copa.team_name);
+      const form = copa.form_last5 ?? parsed.form;
+      teamStats[tName] = {
+        team_name: copa.team_name,
+        n: copa.last_matches ?? 10,
+        avg_goals_scored: copa.avg_goals_scored,
+        avg_goals_conceded: copa.avg_goals_conceded,
+        avg_xg: copa.avg_xg,
+        avg_xga: copa.avg_xga,
+        avg_possession: copa.avg_possession,
+        over_25_pct: copa.over_25_pct,
+        btts_pct: copa.btts_pct,
+        clean_sheet_pct: copa.clean_sheet_pct,
+        avg_corners: copa.avg_corners,
+        avg_shots_on_target: copa.avg_shots_on_target,
+        form,
+        scorelines: parsed.scorelines,
+        source: copa.source ?? "copa_2026_stats",
+        last_updated: copa.last_updated,
+      };
+      continue;
+    }
+
+    // Fallback: national_team_stats
+    const { data: ns } = await supabase
       .from("national_team_stats")
       .select("*")
       .ilike("team_name", `%${tName}%`)
       .order("last_updated", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (ts) teamStats[tName] = ts as TeamStats;
+
+    if (ns) {
+      const nat = ns as NatStat;
+      const n = nat.matches_analyzed || 1;
+      const parsed = parseMatchesData(nat.raw_data, nat.team_name);
+      teamStats[tName] = {
+        team_name: nat.team_name,
+        n: nat.matches_analyzed,
+        avg_goals_scored: nat.avg_goals_scored,
+        avg_goals_conceded: nat.avg_goals_conceded,
+        avg_xg: nat.avg_xg,
+        avg_xga: nat.avg_xga,
+        avg_possession: nat.avg_possession,
+        over_25_pct: n > 0 ? Math.round((nat.over_25_count / n) * 100 * 10) / 10 : null,
+        btts_pct: nat.btts_percentage,
+        clean_sheet_pct: n > 0 ? Math.round((nat.clean_sheet_count / n) * 100 * 10) / 10 : null,
+        avg_corners: nat.avg_corners,
+        avg_shots_on_target: nat.avg_shots_on_target,
+        form: parsed.form,
+        scorelines: parsed.scorelines,
+        source: "api-football",
+        last_updated: nat.last_updated,
+      };
+    }
   }
 
-  // ── 3) Sinais já existentes para evitar duplicatas ────────────────────────────
+  // ── 3) Sinais já existentes ───────────────────────────────────────────────────
   let existingSignals: string[] = [];
   if (matchedFixture?.fixture_id) {
     const { data: sigs } = await supabase
@@ -202,43 +348,89 @@ Deno.serve(async (req) => {
     );
   }
 
-  // ── 4) Montar contexto para o sistema ────────────────────────────────────────
+  // ── 4) Montar contexto ────────────────────────────────────────────────────────
   let contextExtra = "";
 
   if (matchedFixture) {
     const xg = matchedFixture.xg_copa as Record<string, unknown> | null;
-    contextExtra += `\n\n## FIXTURE ENCONTRADO NO BANCO
+    contextExtra += `\n\n## FIXTURE
 ${matchedFixture.home} vs ${matchedFixture.away}
 Fase: ${matchedFixture.phase} | Grupo: ${matchedFixture.group_letter ?? "—"} | Data: ${String(matchedFixture.commence_time).slice(0, 10)}
 FIFA Rank: ${matchedFixture.home} #${matchedFixture.home_fifa_rank ?? "?"} | ${matchedFixture.away} #${matchedFixture.away_fifa_rank ?? "?"}
 fixture_id: ${matchedFixture.fixture_id}`;
-    if (xg) contextExtra += `\nxG Copa: ${JSON.stringify(xg)}`;
+    if (xg) contextExtra += `\nxG Copa (modelo pré-jogo): ${JSON.stringify(xg)}`;
   } else {
-    contextExtra += "\n\n## FIXTURE: Não encontrado na base Copa — analise apenas pelos dados fornecidos.";
+    contextExtra += "\n\n## FIXTURE: Não encontrado na base Copa — analise pelos dados fornecidos.";
   }
 
-  // Injetar estatísticas da national_team_stats (dados históricos das seleções)
   if (Object.keys(teamStats).length > 0) {
-    contextExtra += "\n\n## ESTATÍSTICAS DAS SELEÇÕES (últimos jogos — API-Football)";
-    for (const [name, ts] of Object.entries(teamStats)) {
-      const age = ts.last_updated
+    contextExtra += "\n\n## ESTATÍSTICAS DAS SELEÇÕES";
+    for (const [, ts] of Object.entries(teamStats)) {
+      const ageH = ts.last_updated
         ? Math.round((Date.now() - new Date(ts.last_updated).getTime()) / 3_600_000)
         : null;
+      const formStr = ts.form ? ` | Forma: ${ts.form.slice(0, 5)}` : "";
       contextExtra += `
 
-### ${ts.team_name} (${ts.matches_analyzed} jogos · atualizado há ${age ?? "?"}h)
-- Resultado: ${ts.wins}V ${ts.draws}E ${ts.losses}D
-- Gols marcados: ${ts.avg_goals_scored}/jogo | Sofridos: ${ts.avg_goals_conceded}/jogo
+### ${ts.team_name} (${ts.n} jogos · fonte: ${ts.source} · ${ageH ?? "?"}h atrás${formStr})
+- Gols marcados: ${ts.avg_goals_scored ?? "n/d"}/jogo | Sofridos: ${ts.avg_goals_conceded ?? "n/d"}/jogo
 - xG médio: ${ts.avg_xg ?? "n/d"} | xGA médio: ${ts.avg_xga ?? "n/d"}
 - Posse média: ${ts.avg_possession ?? "n/d"}%
-- Finalizações: ${ts.avg_shots_total ?? "n/d"} totais / ${ts.avg_shots_on_target ?? "n/d"} no alvo
-- Escanteios médios: ${ts.avg_corners ?? "n/d"}
-- BTTS: ${ts.btts_percentage ?? "n/d"}% | Over 2.5: ${ts.over_25_count}/${ts.matches_analyzed} jogos
-- Clean sheets: ${ts.clean_sheet_count}/${ts.matches_analyzed}`;
+- Finalizações no alvo: ${ts.avg_shots_on_target ?? "n/d"}/jogo | Escanteios: ${ts.avg_corners ?? "n/d"}/jogo
+- Over 2.5: ${ts.over_25_pct ?? "n/d"}% | BTTS: ${ts.btts_pct ?? "n/d"}% | Clean sheet: ${ts.clean_sheet_pct ?? "n/d"}%`;
+      if (ts.scorelines.length > 0) {
+        contextExtra += `\n- Últimos resultados: ${ts.scorelines.join(" · ")}`;
+      }
+    }
+
+    // Calcula λ Poisson se tivermos xG dos dois times
+    const entries = Object.values(teamStats);
+    if (entries.length === 2) {
+      const [t1, t2] = entries;
+      const xg1 = t1.avg_xg ?? t1.avg_goals_scored;
+      const xga1 = t1.avg_xga ?? t1.avg_goals_conceded;
+      const xg2 = t2.avg_xg ?? t2.avg_goals_scored;
+      const xga2 = t2.avg_xga ?? t2.avg_goals_conceded;
+
+      if (xg1 && xga2 && xg2 && xga1) {
+        const lam1 = Math.round(((xg1 + xga2) / 2) * 100) / 100;
+        const lam2 = Math.round(((xg2 + xga1) / 2) * 100) / 100;
+
+        // P(k) = e^(-λ) * λ^k / k!  para k = 0..4
+        const poisson = (lam: number, k: number): number =>
+          Math.exp(-lam) * Math.pow(lam, k) / [1, 1, 2, 6, 24][k];
+
+        const p0_1 = poisson(lam1, 0); const p1_1 = poisson(lam1, 1);
+        const p2_1 = poisson(lam1, 2); const p3_1 = poisson(lam1, 3);
+        const p0_2 = poisson(lam2, 0); const p1_2 = poisson(lam2, 1);
+        const p2_2 = poisson(lam2, 2); const p3_2 = poisson(lam2, 3);
+
+        // Probabilidades de placares exatos (produto cruzado)
+        const scores: Array<{ s: string; p: number }> = [];
+        for (let i = 0; i <= 3; i++) {
+          for (let j = 0; j <= 3; j++) {
+            const pi = [p0_1, p1_1, p2_1, p3_1][i];
+            const pj = [p0_2, p1_2, p2_2, p3_2][j];
+            scores.push({ s: `${i}-${j}`, p: Math.round(pi * pj * 1000) / 10 });
+          }
+        }
+        scores.sort((a, b) => b.p - a.p);
+        const top5 = scores.slice(0, 5).map(s => `${s.s} (${s.p}%)`).join(", ");
+
+        const pBtts = Math.round((1 - p0_1) * (1 - p0_2) * 100 * 10) / 10;
+        const pOver25 = Math.round((1 - p0_1 * p0_2 - p0_1 * p1_2 - p1_1 * p0_2 - p1_1 * p1_2 - p2_1 * p0_2 - p0_1 * p2_2) * 100 * 10) / 10;
+        const pUnder25 = Math.round(100 - pOver25);
+
+        contextExtra += `
+
+## ANÁLISE POISSON PRÉ-CALCULADA (use como base)
+λ ${t1.team_name}: ${lam1} | λ ${t2.team_name}: ${lam2}
+Placares mais prováveis: ${top5}
+P(BTTS Sim): ${pBtts}% | P(Over 2.5): ${pOver25}% | P(Under 2.5): ${pUnder25}%`;
+      }
     }
   } else {
-    // Avisa o Mycroft que os dados automáticos não estão disponíveis
-    contextExtra += "\n\n## ESTATÍSTICAS AUTO: não disponíveis (execute fetch-national-team-stats para popular)";
+    contextExtra += "\n\n## ESTATÍSTICAS AUTO: não disponíveis — solicite dados ao usuário ou execute fetch-national-team-stats.";
   }
 
   if (existingSignals.length > 0) {
@@ -254,7 +446,7 @@ fixture_id: ${matchedFixture.fixture_id}`;
     { role: "user", content: query },
   ];
 
-  // ── 5) Chamar DeepSeek ───────────────────────────────────────────────────────
+  // ── 6) Chamar DeepSeek ───────────────────────────────────────────────────────
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 60_000);
   let rawText = "";
@@ -268,8 +460,8 @@ fixture_id: ${matchedFixture.fixture_id}`;
       },
       body: JSON.stringify({
         model: "deepseek-chat",
-        temperature: 0.35,
-        max_tokens: 2500,
+        temperature: 0.3,
+        max_tokens: 3000,
         response_format: { type: "json_object" },
         messages,
       }),
@@ -291,7 +483,7 @@ fixture_id: ${matchedFixture.fixture_id}`;
     );
   }
 
-  // ── 6) Parsear resposta ───────────────────────────────────────────────────────
+  // ── 7) Parsear resposta ───────────────────────────────────────────────────────
   let parsed: { mensagem?: string; aprovacao?: Approval | null } = {};
   try {
     parsed = JSON.parse(rawText);
@@ -302,12 +494,10 @@ fixture_id: ${matchedFixture.fixture_id}`;
   const aprov = parsed.aprovacao;
   const approval = (aprov && aprov.aprovado) ? {
     ...aprov,
-    // Enriquecer com dados do fixture encontrado
     fixture_id: matchedFixture?.fixture_id ?? null,
     phase: matchedFixture?.phase ?? null,
     commence_time: matchedFixture?.commence_time ?? null,
     block: aprov.block ?? (
-      (aprov.confidence ?? 0) >= 85 ? "A" :
       (aprov.confidence ?? 0) >= 75 ? "A" : "B"
     ),
     prob: aprov.prob ?? (aprov.odd ? Math.round((1 / aprov.odd) * 100) / 100 : null),
