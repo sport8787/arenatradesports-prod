@@ -61,6 +61,7 @@ type SubPage = 'sinais' | 'roi' | 'acerto' | 'mercados';
 
 function EntradaDestaque({ s, onNavigate }: { s: CopaSignal; onNavigate: () => void }) {
   const isPending = !s.resultado;
+  const isExpired = s.status === 'EXPIRADO' || (isPending && s.commence_time != null && new Date(s.commence_time) <= new Date());
   return (
     <div className="rounded-2xl overflow-hidden border border-yellow-500/40 shadow-[0_0_30px_rgba(234,179,8,0.08)]">
       {/* Header bar */}
@@ -114,17 +115,21 @@ function EntradaDestaque({ s, onNavigate }: { s: CopaSignal; onNavigate: () => v
         </div>
 
         {/* CTA */}
-        {isPending ? (
+        {!isPending ? (
+          <div className={`w-full text-center font-mono font-bold text-sm py-3 rounded-xl ${s.resultado === 'GREEN' ? 'bg-green-900/40 text-green-400 border border-green-500/30' : 'bg-red-900/40 text-red-400 border border-red-500/30'}`}>
+            {s.resultado}{s.profit_loss != null ? ` · ${s.profit_loss >= 0 ? '+' : ''}${Number(s.profit_loss).toFixed(2)}u` : ''}
+          </div>
+        ) : isExpired ? (
+          <div className="w-full text-center font-mono font-bold text-sm py-3 rounded-xl bg-orange-900/30 text-orange-400 border border-orange-500/30">
+            ⏰ Jogo iniciado — entrada encerrada
+          </div>
+        ) : (
           <button
             onClick={onNavigate}
             className="w-full bg-yellow-500 hover:bg-yellow-400 active:scale-95 text-black font-mono font-black text-sm tracking-widest uppercase py-3 rounded-xl transition-all"
           >
             Executar Posição
           </button>
-        ) : (
-          <div className={`w-full text-center font-mono font-bold text-sm py-3 rounded-xl ${s.resultado === 'GREEN' ? 'bg-green-900/40 text-green-400 border border-green-500/30' : 'bg-red-900/40 text-red-400 border border-red-500/30'}`}>
-            {s.resultado}{s.profit_loss != null ? ` · ${s.profit_loss >= 0 ? '+' : ''}${Number(s.profit_loss).toFixed(2)}u` : ''}
-          </div>
         )}
       </div>
     </div>
@@ -183,6 +188,7 @@ function SignalCard({ s, advanced }: { s: CopaSignal; advanced: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const isGreen = s.resultado === 'GREEN';
   const isRed = s.resultado === 'RED';
+  const isExpired = s.status === 'EXPIRADO' || (!s.resultado && s.commence_time != null && new Date(s.commence_time) <= new Date());
 
   return (
     <Card className="border-yellow-500/20 bg-black/40 overflow-hidden">
@@ -204,6 +210,10 @@ function SignalCard({ s, advanced }: { s: CopaSignal; advanced: boolean }) {
           {s.resultado ? (
             <Badge className={`text-[10px] ${isGreen ? 'bg-green-600' : 'bg-red-600'}`}>
               {s.resultado}{s.profit_loss != null ? ` (${s.profit_loss >= 0 ? '+' : ''}${Number(s.profit_loss).toFixed(2)}u)` : ''}
+            </Badge>
+          ) : isExpired ? (
+            <Badge variant="outline" className="text-[10px] border-orange-500/40 text-orange-400">
+              ⏰ JOGO INICIADO
             </Badge>
           ) : (
             <Badge variant="outline" className="text-[10px] border-yellow-500/40 text-yellow-400">
@@ -466,13 +476,21 @@ export default function PunterCopa() {
     { key: 'mercados', label: 'Mercados', icon: Layers },
   ];
 
-  // Sinal destaque: pendente de maior confiança, senão o mais recente aprovado
+  // Sinal destaque: pendente de jogo ainda não iniciado, com maior confiança
   const featuredSignal = useMemo(() => {
-    const pending = approved.filter(s => !s.resultado);
-    if (pending.length > 0) {
-      return pending.reduce((best, s) =>
-        (s.confidence ?? 0) > (best.confidence ?? 0) ? s : best, pending[0]);
+    const now = new Date();
+    // Prefere sinais pendentes cujo jogo ainda não começou
+    const actionable = approved.filter(s =>
+      !s.resultado &&
+      s.status !== 'EXPIRADO' &&
+      s.commence_time != null &&
+      new Date(s.commence_time) > now,
+    );
+    if (actionable.length > 0) {
+      return actionable.reduce((best, s) =>
+        (s.confidence ?? 0) > (best.confidence ?? 0) ? s : best, actionable[0]);
     }
+    // Fallback: mostra o sinal mais recente (pode ser expirado/liquidado)
     return approved[approved.length - 1] ?? null;
   }, [approved]);
 

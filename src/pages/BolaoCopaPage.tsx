@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Trophy, Send, Loader2, Star } from 'lucide-react';
+import { ArrowLeft, Trophy, Send, Loader2, Star, Check, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
@@ -63,6 +63,7 @@ function PalpiteCard({
   const [h, setH] = useState(existing?.palpite_home ?? 0);
   const [a, setA] = useState(existing?.palpite_away ?? 0);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const isPast = new Date(fx.commence_time) < new Date();
   const pts = existing ? calcPoints(existing.palpite_home, existing.palpite_away, existing.gols_home, existing.gols_away) : null;
 
@@ -70,6 +71,8 @@ function PalpiteCard({
     setSaving(true);
     await onSave(fx.fixture_id, h, a);
     setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
   };
 
   return (
@@ -140,14 +143,31 @@ function PalpiteCard({
         )}
 
         {!isPast && (
-          <Button
-            size="sm"
-            onClick={handleSave}
-            disabled={saving}
-            className="w-full bg-yellow-500 hover:bg-yellow-400 text-black text-xs font-bold h-7"
-          >
-            {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <><Send className="w-3 h-3 mr-1" /> Enviar palpite</>}
-          </Button>
+          <div className="space-y-1.5">
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={saving || saved}
+              className={`w-full text-xs font-bold h-7 transition-all duration-300 ${
+                saved
+                  ? 'bg-green-600 hover:bg-green-600 text-white'
+                  : 'bg-yellow-500 hover:bg-yellow-400 text-black'
+              }`}
+            >
+              {saving
+                ? <Loader2 className="w-3 h-3 animate-spin" />
+                : saved
+                  ? <><Check className="w-3 h-3 mr-1" /> Palpite registrado!</>
+                  : <><Send className="w-3 h-3 mr-1" /> Enviar palpite</>
+              }
+            </Button>
+            {saved && (
+              <div className="flex items-center justify-center gap-1.5 text-green-400 text-[11px] font-medium animate-in fade-in duration-300">
+                <CheckCircle2 className="w-3 h-3" />
+                Seu palpite foi registrado com sucesso!
+              </div>
+            )}
+          </div>
         )}
       </CardContent>
     </Card>

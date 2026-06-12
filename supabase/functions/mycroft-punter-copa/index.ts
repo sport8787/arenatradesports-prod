@@ -41,13 +41,23 @@ function probAHCover(xgH: number, xgA: number, ahLine: number, side: "home" | "a
   return Math.min(0.98, Math.max(0.02, prob));
 }
 
-function ahLineFromFifaDiff(diff: number): { line: number; side: "home" | "away" } | null {
+type AhCandidate = { line: number; side: "home" | "away"; isFavorite: boolean };
+
+function ahLineCandidates(diff: number): AhCandidate[] {
   const abs = Math.abs(diff);
-  const side = diff > 0 ? "home" : "away";
-  if (abs > 500) return { line: -1.5, side };
-  if (abs >= 300) return { line: -1.0, side };
-  if (abs >= 150) return { line: -0.5, side };
-  return { line: 0, side: side === "home" ? "away" : "home" }; // favorece zebra
+  const favSide: "home" | "away" = diff >= 0 ? "home" : "away";
+  const undSide: "home" | "away" = favSide === "home" ? "away" : "home";
+
+  let favLines: number[];
+  if (abs > 500)       favLines = [-1.5, -2.0, -2.5, -3.0];
+  else if (abs >= 200) favLines = [-0.5, -1.0, -1.5, -2.0, -2.5];
+  else if (abs >= 80)  favLines = [-0.5, -1.0, -1.5];
+  else                 favLines = [0.0, -0.5];
+
+  const out: AhCandidate[] = [];
+  for (const l of favLines) out.push({ line: l, side: favSide, isFavorite: true });
+  for (const l of favLines) out.push({ line: -l, side: undSide, isFavorite: false });
+  return out;
 }
 
 function vePct(prob: number, odd: number): number {
@@ -56,9 +66,9 @@ function vePct(prob: number, odd: number): number {
 
 // Stake conforme bloco + fase
 function pickBlock(ve: number, conf: number): "A" | "B" | "C" | null {
-  if (ve >= 12 && conf >= 75) return "C";
-  if (ve >= 8 && conf >= 70) return "B";
-  if (ve >= 5 && conf >= 65) return "A";
+  if (ve >= 12 && conf >= 70) return "C";
+  if (ve >= 8 && conf >= 60) return "B";
+  if (ve >= 5 && conf >= 52) return "A";
   return null;
 }
 
@@ -89,17 +99,8 @@ async function getAhOdd(supabase: any, fixtureId: string, line: number, side: st
   // payload esperado: { home: {[line]: odd}, away: {[line]: odd} }
   try {
     const sidePayload = data.payload?.[side] || {};
-    // 1. Tenta linha exata
-    let v = sidePayload[String(line)];
-    if (typeof v === "number") return v;
-    // 2. Fallback: linha mais próxima disponível (ex: AH -0.5 → H2H "0")
-    const available = Object.keys(sidePayload).map(Number).filter((n) => !isNaN(n));
-    if (available.length > 0) {
-      const closest = available.reduce((a, b) => Math.abs(b - line) < Math.abs(a - line) ? b : a);
-      v = sidePayload[String(closest)];
-      return typeof v === "number" ? v : null;
-    }
-    return null;
+    const v = sidePayload[String(line)];
+    return typeof v === "number" ? v : null;
   } catch { return null; }
 }
 
@@ -112,24 +113,29 @@ async function checkOddMovement(supabase: any, fixtureId: string): Promise<{ pct
     .gte("captured_at", new Date(Date.now() - 12 * 3600_000).toISOString())
     .order("captured_at", { ascending: true });
   if (!data || data.length < 2) return { pct: 0, alert: false };
-  const first = JSON.stringify(data[0]?.payload || {});
-  const last = JSON.stringify(data.at(-1)?.payload || {});
-  // proxy simples — flag de movimento se payloads diferem muito
+  // Ignora snapshots h2h-only (linha "0") — compara só snapshots com linhas AH reais
+  const ahOnly = (data as any[]).filter((row) => {
+    const keys = [...Object.keys(row.payload?.home || {}), ...Object.keys(row.payload?.away || {})];
+    return keys.some((k) => k !== "0");
+  });
+  if (ahOnly.length < 2) return { pct: 0, alert: false };
+  const first = JSON.stringify(ahOnly[0]?.payload || {});
+  const last = JSON.stringify(ahOnly.at(-1)?.payload || {});
   const same = first === last;
   return { pct: same ? 0 : 25, alert: !same };
 }
 
 // ───────── Pipeline por fixture ─────────
 async function analyzeFixture(supabase: any, fx: any, cfg: any) {
-  const ve_min = (cfg?.ve_min || {});
-  const conf_min = (cfg?.conf_min || {});
-  const ahRange = cfg?.ah_odd_range || { min: 1.65, max: 2.30 };
+  const ve_min = cfg?.ve_min || {};
+  const conf_min_cfg = cfg?.conf_min || {};
+  const ahRange = cfg?.ah_odd_range || { min: 1.40, max: 4.50 };
 
   const isMataMata = ["oitavas", "quartas", "semi", "final", "3lugar"].includes(fx.phase);
-  const veMinThis = fx.phase.startsWith("grupos") ? (ve_min.grupos ?? 7)
+  const veMinThis = fx.phase.startsWith("grupos") ? (ve_min.grupos ?? 5)
                   : fx.phase === "oitavas" ? (ve_min.oitavas ?? 5)
                   : (ve_min.quartas_plus ?? 4);
-  const confMin = isMataMata ? (conf_min.mata_mata ?? 65) : (conf_min.grupos ?? 70);
+  const confMin = isMataMata ? (conf_min_cfg.mata_mata ?? 65) : (conf_min_cfg.grupos ?? 52);
 
   const vetos: string[] = [];
 
@@ -143,47 +149,69 @@ async function analyzeFixture(supabase: any, fx: any, cfg: any) {
   if (injH > 4) vetos.push(`mandante com ${injH} desfalques`);
   if (injA > 4) vetos.push(`visitante com ${injA} desfalques`);
 
-  // FIFA diff → linha AH alvo
   const ptsH = fx.home_fifa_pts ?? 0;
   const ptsA = fx.away_fifa_pts ?? 0;
   if (!ptsH || !ptsA) vetos.push("ranking FIFA ausente");
-  const diff = ptsH - ptsA;
-  const ah = ahLineFromFifaDiff(diff);
-  if (!ah) vetos.push("não foi possível derivar linha AH");
 
-  // Veto AH ≤ -1.0 em mata-mata
-  if (ah && isMataMata && ah.line <= -1.0) vetos.push("AH ≤ -1.0 em mata-mata");
-
-  // xG / xGA: usa histórico se disponível, sintetiza via pontos FIFA caso contrário
-  const xgH  = fx.xg_last5?.home?.xg  ?? (ptsH && ptsA ? synthXg(ptsH, ptsA) : null);
-  const xgaH = fx.xg_last5?.home?.xga ?? (ptsH && ptsA ? synthXg(ptsA, ptsH) : null);
-  const xgA  = fx.xg_last5?.away?.xg  ?? (ptsH && ptsA ? synthXg(ptsA, ptsH) : null);
-  const xgaA = fx.xg_last5?.away?.xga ?? (ptsH && ptsA ? synthXg(ptsH, ptsA) : null);
-  // xgaA = quanto o mandante marca contra o visitante = mesmo que xgH (simétrico no modelo sintético)
-  if (xgH == null || xgA == null) vetos.push("xG ausente e pontos FIFA indisponíveis");
-
-  let prob = 0, odd = 0, ve = 0;
-  if (ah && xgH != null && xgA != null && xgaH != null && xgaA != null) {
-    const favXg = ah.side === "home" ? xgH : xgA;
-    const advXga = ah.side === "home" ? xgaA : xgaH;
-    if (favXg < (cfg?.xg_fav_min ?? 1.5)) vetos.push(`xG favorito ${favXg} < ${cfg?.xg_fav_min ?? 1.5}`);
-    if (advXga < (cfg?.xga_adv_min ?? 1.2)) vetos.push(`xGA adversário ${advXga} < ${cfg?.xga_adv_min ?? 1.2}`);
-
-    prob = probAHCover(xgH, xgA, ah.line, ah.side);
-    odd = (await getAhOdd(supabase, fx.fixture_id, ah.line, ah.side)) ?? 0;
-    if (!odd) vetos.push("odd AH indisponível em ah_odds_snapshot");
-    else if (odd < ahRange.min || odd > ahRange.max) vetos.push(`odd AH ${odd} fora do range ${ahRange.min}-${ahRange.max}`);
-    if (odd) ve = vePct(prob, odd);
+  if (vetos.length > 0) {
+    return { fixture_id: fx.fixture_id, approved: false, vetos, ve: 0, confidence: 0 };
   }
 
-  // Movimento de odd > 20% nas últimas 12h
+  const diff = ptsH - ptsA;
+
+  // xG / xGA: usa histórico se disponível, sintetiza via pontos FIFA caso contrário
+  const xgH  = fx.xg_last5?.home?.xg  ?? synthXg(ptsH, ptsA);
+  const xgaH = fx.xg_last5?.home?.xga ?? synthXg(ptsA, ptsH);
+  const xgA  = fx.xg_last5?.away?.xg  ?? synthXg(ptsA, ptsH);
+  const xgaA = fx.xg_last5?.away?.xga ?? synthXg(ptsH, ptsA);
+
+  const xg_fav_min = cfg?.xg_fav_min ?? 1.5;
+  const xga_adv_min = cfg?.xga_adv_min ?? 1.2;
+
+  // Avalia todos os candidatos AH (favorito + underdog); escolhe melhor VE dentre os que passam thresholds
+  const candidates = ahLineCandidates(diff);
+  type CandResult = { line: number; side: "home" | "away"; isFavorite: boolean; odd: number; prob: number; ve: number };
+  const validCands: CandResult[] = [];
+
+  for (const cand of candidates) {
+    // Veto: AH ≤ -1.0 em mata-mata (só favorito)
+    if (isMataMata && cand.isFavorite && cand.line <= -1.0) continue;
+
+    const odd = await getAhOdd(supabase, fx.fixture_id, cand.line, cand.side);
+    if (!odd || odd < ahRange.min || odd > ahRange.max) continue;
+
+    // Filtro de xG só para candidatos favoritos
+    if (cand.isFavorite) {
+      const favXg = cand.side === "home" ? xgH : xgA;
+      const advXga = cand.side === "home" ? xgaA : xgaH;
+      if (favXg < xg_fav_min || advXga < xga_adv_min) continue;
+    }
+
+    const prob = probAHCover(xgH, xgA, cand.line, cand.side);
+    const ve = vePct(prob, odd);
+    const conf = Math.round(prob * 100);
+
+    // Só mantém candidatos que passariam os filtros finais
+    if (ve >= veMinThis && conf >= confMin) {
+      validCands.push({ ...cand, odd, prob, ve });
+    }
+  }
+
+  validCands.sort((a, b) => b.ve - a.ve);
+  const bestCand = validCands[0] ?? null;
+
+  if (!bestCand) {
+    vetos.push("odd AH indisponível ou fora de range em ah_odds_snapshot");
+    return { fixture_id: fx.fixture_id, approved: false, vetos, ve: 0, confidence: 0 };
+  }
+
+  const { line: ahLine, side: ahSide, odd, prob, ve } = bestCand;
+  const confidence = Math.round(prob * 100);
+  const selLabel = ahLine > 0 ? `+${ahLine}` : String(ahLine);
+
+  // Movimento de odd nas últimas 12h (não bloqueia, mas veta se suspeito)
   const mv = await checkOddMovement(supabase, fx.fixture_id);
   if (mv.alert) vetos.push("movimento de odd suspeito nas últimas 12h");
-
-  // Filtros finais
-  const confidence = Math.round(prob * 100);
-  if (ve < veMinThis) vetos.push(`VE ${ve}% < mínimo da fase (${veMinThis}%)`);
-  if (confidence < confMin) vetos.push(`Confiança ${confidence}% < mínimo (${confMin}%)`);
 
   const block = vetos.length === 0 ? pickBlock(ve, confidence) : null;
   if (!block) {
@@ -191,10 +219,10 @@ async function analyzeFixture(supabase: any, fx: any, cfg: any) {
   }
 
   // IA: justificativa pt-br
-  let rationale = `Favorito ${ah!.side === "home" ? fx.home : fx.away} via AH ${ah!.line}. xG favorito ${ah!.side === "home" ? xgH : xgA}, xGA adversário ${ah!.side === "home" ? xgaA : xgaH}. Diff FIFA ${diff} pts. VE ${ve}%, prob ${confidence}%.`;
+  let rationale = `${ahSide === "home" ? fx.home : fx.away} AH ${selLabel}. xG H ${xgH.toFixed(2)}/A ${xgA.toFixed(2)}. Diff FIFA ${diff} pts. VE ${ve}%, prob ${confidence}%.`;
   try {
     const sys = "Você é o Mycroft. Responde sempre em pt-br, frio e dedutivo. JSON com {ok:boolean, rationale:string}. Recuse (ok:false) se a tese tiver furo claro.";
-    const usr = `Copa do Mundo 2026 — ${fx.phase}\n${fx.home} x ${fx.away}\nAH: ${ah!.line} no ${ah!.side === "home" ? fx.home : fx.away}\nOdd: ${odd}\nVE: ${ve}% | Prob: ${confidence}%\nFIFA: ${ptsH} vs ${ptsA}\nxG L5: H ${xgH}/${xgaH} | A ${xgA}/${xgaA}\nDesfalques: H=${injH} A=${injA}\n\nValide a tese em ≤4 linhas, frias e técnicas. Devolva JSON.`;
+    const usr = `Copa do Mundo 2026 — ${fx.phase}\n${fx.home} x ${fx.away}\nAH: ${selLabel} no ${ahSide === "home" ? fx.home : fx.away}\nOdd: ${odd}\nVE: ${ve}% | Prob: ${confidence}%\nFIFA: ${ptsH} vs ${ptsA}\nxG L5: H ${xgH.toFixed(2)}/${xgaH.toFixed(2)} | A ${xgA.toFixed(2)}/${xgaA.toFixed(2)}\nDesfalques: H=${injH} A=${injA}\n\nValide a tese em ≤4 linhas, frias e técnicas. Devolva JSON.`;
     const out = await callDeepseek(sys, usr, { temperature: 0.2, max_tokens: 400, timeoutMs: 20000 });
     const parsed = JSON.parse(out);
     if (parsed?.ok === false) vetos.push("IA recusou a tese");
@@ -219,8 +247,8 @@ async function analyzeFixture(supabase: any, fx: any, cfg: any) {
       commence_time: fx.commence_time,
       phase: fx.phase,
       market: "Handicap Asiático",
-      selection: `${ah!.side === "home" ? fx.home : fx.away} ${ah!.line}`,
-      ah_line: ah!.line,
+      selection: `${ahSide === "home" ? fx.home : fx.away} ${selLabel}`,
+      ah_line: ahLine,
       odd, prob, ve_pct: ve, edge_pct: ve,
       confidence,
       block,
@@ -279,12 +307,24 @@ Deno.serve(async (req) => {
 
     const cfg = gate?.copa_config || {};
 
-    // 2) Carrega fixtures das próximas 36h
-    const horizonEnd = new Date(Date.now() + 36 * 3600_000).toISOString();
+    // 2a) Expira sinais APROVADOS cujo jogo já iniciou (evita entradas in-game)
+    const nowIso = new Date().toISOString();
+    const { error: expireErr } = await supabase
+      .from("punter_copa_signals")
+      .update({ status: "EXPIRADO" })
+      .eq("status", "APROVADO")
+      .is("resultado", null)          // não toca nos já liquidados
+      .lt("commence_time", nowIso);
+    if (expireErr) console.warn("[copa-punter] erro ao expirar sinais:", expireErr.message);
+
+    // 2b) Carrega fixtures das próximas 36h — exige ≥60 min até o início (margem anti in-game)
+    const PRE_GAME_BUFFER = 60 * 60_000; // 60 minutos
+    const horizonStart = new Date(Date.now() + PRE_GAME_BUFFER).toISOString();
+    const horizonEnd   = new Date(Date.now() + 36 * 3600_000).toISOString();
     const { data: fixtures } = await supabase
       .from("copa_fixtures")
       .select("*")
-      .gte("commence_time", new Date().toISOString())
+      .gte("commence_time", horizonStart)
       .lte("commence_time", horizonEnd)
       .order("commence_time", { ascending: true });
 
@@ -316,11 +356,41 @@ Deno.serve(async (req) => {
 
     // 4a) Persistir aprovados
     for (const s of final) {
-      const { error } = await supabase
+      // Guarda final: nunca insere sinal para jogo que já iniciou
+      if (new Date(s.commence_time) <= new Date()) {
+        console.warn(`[copa-punter] ${s.home} x ${s.away}: jogo já iniciado, sinal descartado`);
+        continue;
+      }
+      const { data: upserted, error } = await supabase
         .from("punter_copa_signals")
-        .upsert({ ...s, status: "APROVADO" }, { onConflict: "fixture_id,market,selection" });
+        .upsert({ ...s, status: "APROVADO" }, { onConflict: "fixture_id,market,selection" })
+        .select("id")
+        .single();
       if (error) console.error("[copa-punter] insert aprovado:", error.message);
       else {
+        // Registra em copa_punter_entradas para rastreio G/R exclusivo da Copa
+        const { error: entradaErr } = await supabase
+          .from("copa_punter_entradas")
+          .upsert({
+            signal_id:    upserted?.id ?? null,
+            fixture_id:   s.fixture_id,
+            home:         s.home,
+            away:         s.away,
+            phase:        s.phase,
+            commence_time: s.commence_time,
+            market:       s.market,
+            selection:    s.selection,
+            ah_line:      s.ah_line,
+            odd:          s.odd,
+            stake_pct:    s.stake_pct,
+            block:        s.block,
+            confidence:   s.confidence,
+            ve_pct:       s.ve_pct,
+            edge_pct:     s.edge_pct,
+            prob:         s.prob,
+            rationale:    s.rationale,
+          }, { onConflict: "fixture_id,selection" });
+        if (entradaErr) console.warn("[copa-punter] copa_punter_entradas:", entradaErr.message);
         await sendTelegram(
           `🏆 <b>COPA 2026 — ${s.phase.toUpperCase()}</b>\n` +
           `<b>${s.home}</b> x <b>${s.away}</b>\n` +

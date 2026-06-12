@@ -305,7 +305,18 @@ Deno.serve(async (req) => {
         payload = { home: payload.away, away: payload.home };
       }
 
-      const hasOdds = Object.keys(payload.home).length > 0 || Object.keys(payload.away).length > 0;
+      const allKeys = [...Object.keys(payload.home), ...Object.keys(payload.away)];
+      const hasRealAhLines = allKeys.some((k) => k !== "0");
+      if (!hasRealAhLines) {
+        // Apenas odds h2h (linha "0") — não sobrescrever snapshots AH reais existentes
+        console.warn(`[copa-odds] ${fx.home} x ${fx.away}: apenas h2h disponível, snapshot AH preservado`);
+        log.push({
+          fixture_id: fx.fixture_id, home: fx.home, away: fx.away,
+          status: "h2h_only_skip", odds_event_id: matched.id,
+        });
+        continue;
+      }
+      const hasOdds = allKeys.length > 0;
       if (!hasOdds) {
         console.warn(`[copa-odds] Evento encontrado mas sem odds AH: ${fx.home} x ${fx.away}`);
         log.push({
