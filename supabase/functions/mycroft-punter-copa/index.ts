@@ -174,11 +174,14 @@ async function analyzeFixture(supabase: any, fx: any, cfg: any) {
 
   const diff = ptsH - ptsA;
 
-  // xG / xGA: usa histórico se disponível, sintetiza via pontos FIFA caso contrário
+  // xG / xGA: Futodds CS (proj) → FootyStats → API-Football → síntese FIFA
   const xgH  = fx.xg_last5?.home?.xg  ?? synthXg(ptsH, ptsA);
   const xgaH = fx.xg_last5?.home?.xga ?? synthXg(ptsA, ptsH);
   const xgA  = fx.xg_last5?.away?.xg  ?? synthXg(ptsA, ptsH);
   const xgaA = fx.xg_last5?.away?.xga ?? synthXg(ptsH, ptsA);
+  const xgSource = fx.xg_last5?.home?.source ?? "synth_fifa";
+  const formH = fx.xg_last5?.home?.form ?? null;
+  const formA = fx.xg_last5?.away?.form ?? null;
 
   const xg_fav_min = cfg?.xg_fav_min ?? 1.5;
   const xga_adv_min = cfg?.xga_adv_min ?? 1.2;
@@ -259,7 +262,7 @@ async function analyzeFixture(supabase: any, fx: any, cfg: any) {
     let h2hRationale = `${h2hTeam} Vence (1X2). xG H ${xgH.toFixed(2)}/A ${xgA.toFixed(2)}. Diff FIFA ${diff} pts. VE ${h2hBest.ve}%, prob ${h2hConf}%.`;
     try {
       const sys = "Você é o Mycroft. Responde em pt-br, frio e dedutivo. JSON com {ok:boolean, rationale:string}. Recuse (ok:false) se a tese tiver furo claro.";
-      const usr = `Copa 2026 — ${fx.phase}\n${fx.home} x ${fx.away}\nMercado: 1X2 — ${h2hTeam} Vence\nOdd: ${h2hBest.odd}\nVE: ${h2hBest.ve}% | Prob: ${h2hConf}%\nFIFA: ${ptsH} vs ${ptsA}\nxG L5: H ${xgH.toFixed(2)}/${xgaH.toFixed(2)} | A ${xgA.toFixed(2)}/${xgaA.toFixed(2)}\nDesfalques: H=${injH} A=${injA}\n\nValide a tese em ≤4 linhas. Devolva JSON.`;
+      const usr = `Copa 2026 — ${fx.phase}\n${fx.home} x ${fx.away}\nMercado: 1X2 — ${h2hTeam} Vence\nOdd: ${h2hBest.odd}\nVE: ${h2hBest.ve}% | Prob: ${h2hConf}%\nFIFA: ${ptsH} vs ${ptsA}\nλ (${xgSource}): H ${xgH.toFixed(2)}/${xgaH.toFixed(2)} | A ${xgA.toFixed(2)}/${xgaA.toFixed(2)}${formH ? `\nForma H: ${formH} | A: ${formA}` : ""}\nDesfalques: H=${injH} A=${injA}\n\nValide a tese em ≤4 linhas. Devolva JSON.`;
       const out = await callDeepseek(sys, usr, { temperature: 0.2, max_tokens: 400, timeoutMs: 20000 });
       const parsed = JSON.parse(out);
       if (parsed?.ok === false) vetos.push("IA recusou a tese (1X2)");
@@ -316,7 +319,7 @@ async function analyzeFixture(supabase: any, fx: any, cfg: any) {
   let rationale = `${ahSide === "home" ? fx.home : fx.away} AH ${selLabel}. xG H ${xgH.toFixed(2)}/A ${xgA.toFixed(2)}. Diff FIFA ${diff} pts. VE ${ve}%, prob ${confidence}%.`;
   try {
     const sys = "Você é o Mycroft. Responde sempre em pt-br, frio e dedutivo. JSON com {ok:boolean, rationale:string}. Recuse (ok:false) se a tese tiver furo claro.";
-    const usr = `Copa do Mundo 2026 — ${fx.phase}\n${fx.home} x ${fx.away}\nAH: ${selLabel} no ${ahSide === "home" ? fx.home : fx.away}\nOdd: ${odd}\nVE: ${ve}% | Prob: ${confidence}%\nFIFA: ${ptsH} vs ${ptsA}\nxG L5: H ${xgH.toFixed(2)}/${xgaH.toFixed(2)} | A ${xgA.toFixed(2)}/${xgaA.toFixed(2)}\nDesfalques: H=${injH} A=${injA}\n\nValide a tese em ≤4 linhas, frias e técnicas. Devolva JSON.`;
+    const usr = `Copa do Mundo 2026 — ${fx.phase}\n${fx.home} x ${fx.away}\nAH: ${selLabel} no ${ahSide === "home" ? fx.home : fx.away}\nOdd: ${odd}\nVE: ${ve}% | Prob: ${confidence}%\nFIFA: ${ptsH} vs ${ptsA}\nλ (${xgSource}): H ${xgH.toFixed(2)}/${xgaH.toFixed(2)} | A ${xgA.toFixed(2)}/${xgaA.toFixed(2)}${formH ? `\nForma H: ${formH} | A: ${formA}` : ""}\nDesfalques: H=${injH} A=${injA}\n\nValide a tese em ≤4 linhas, frias e técnicas. Devolva JSON.`;
     const out = await callDeepseek(sys, usr, { temperature: 0.2, max_tokens: 400, timeoutMs: 20000 });
     const parsed = JSON.parse(out);
     if (parsed?.ok === false) vetos.push("IA recusou a tese");
