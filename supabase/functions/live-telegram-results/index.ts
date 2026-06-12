@@ -201,7 +201,7 @@ Deno.serve(async (req) => {
       queue.push({
         id: r.id,
         source: "live_sinais",
-        chat_id: CHAT_ID_PRELIVE!,
+        chat_id: (CHAT_ID_LIVE || CHAT_ID_PRELIVE)!,
         home_team: r.home_team || "—",
         away_team: r.away_team || "—",
         league: r.championship || "—",

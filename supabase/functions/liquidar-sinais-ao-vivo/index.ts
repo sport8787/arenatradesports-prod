@@ -24,6 +24,9 @@ interface PendingSignal {
   odd: number | null;
   stake: number;
   match_date: string;
+  approved_at_score: string | null;
+  approved_at_period: string | null;
+  goals_home: number | null;
 }
 
 interface FinalScore {
@@ -36,6 +39,27 @@ interface FinalScore {
 }
 
 const DEFAULT_SETTLEMENT_ODD = 1.7;
+
+async function sendTelegramSettlement(home: string, away: string, market: string, result: "green" | "red", odd: number, finalHome: number, finalAway: number, approvedMinute: number | null) {
+  const token = Deno.env.get("TELEGRAM_BOT_TOKEN");
+  const chatId = Deno.env.get("TELEGRAM_CHAT_ID");
+  if (!token || !chatId) return;
+  const emoji = result === "green" ? "🟢 GREEN" : "🔴 RED";
+  const flag = result === "green" ? "✅" : "❌";
+  const msg = `${flag} *${home.toUpperCase()} x ${away.toUpperCase()} — ${emoji}*\n`
+    + `Mercado: ${market} @ ${odd.toFixed(2)}\n`
+    + `Placar final: ${finalHome}x${finalAway}`
+    + (approvedMinute ? ` | Aprovado: ${approvedMinute}'` : "");
+  try {
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, text: msg, parse_mode: "Markdown" }),
+    });
+  } catch (e) {
+    console.warn("[liquidar] telegram notify falhou:", (e as Error).message);
+  }
+}
 
 const norm = (s: string) =>
   (s || "")
@@ -220,6 +244,139 @@ async function sofaFallback(home: string, away: string, isoDate: string): Promis
   }
 }
 
+// Fallback 3: live_matches (DB próprio) — usa match_id para buscar placar final gravado em tempo real.
+// Aceita como "final" se status = finished/FT/AET ou se minute >= 88 no 2T.
+async function liveMatchesFallback(
+  supabase: ReturnType<typeof createClient>,
+  matchId: string,
+): Promise<(FinalScore & { home_team: string; away_team: string }) | null> {
+  if (!matchId) return null;
+  try {
+    const { data } = await supabase
+      .from("live_matches")
+      .select("score_home, score_away, minute, period, status, home_team, away_team")
+      .eq("match_id", matchId)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!data || data.score_home == null || data.score_away == null) return null;
+    const isFinal =
+      data.status === "finished" || data.status === "FT" || data.status === "AET" ||
+      (Number(data.minute) >= 88 && ["Second Half", "Extra Time", "ET"].includes(data.period ?? ""));
+    if (!isFinal) return null;
+    return {
+      home: Number(data.score_home),
+      away: Number(data.score_away),
+      ht_home: null,
+      ht_away: null,
+      status: data.status || "FT",
+      source: "live_matches",
+      home_team: data.home_team || "",
+      away_team: data.away_team || "",
+    };
+  } catch (e) {
+    console.error("[live_matches-fallback]", e);
+    return null;
+  }
+}
+
+/**
+ * Deriva o resultado (green/red) de um sinal aprovado com base no mercado e placar final.
+ * Cobre os principais mercados do motor determinístico.
+ */
+function deriveMarketResult(
+  market: string,
+  finalHome: number,
+  finalAway: number,
+  htHome: number | null,
+  htAway: number | null,
+  approvedHome: number,
+  approvedAway: number,
+): "green" | "red" | null {
+  const m = (market || "").toLowerCase().trim();
+  const total = finalHome + finalAway;
+  const htTotal = (htHome ?? 0) + (htAway ?? 0);
+  const isHT = m.includes(" ht") || m.includes("(ht)") || m.includes("1t") || m.includes("primeiro tempo") || m.includes("half time");
+
+  // Over X.5
+  const overMatch = m.match(/over\s+(\d+(?:[.,]\d+)?)/);
+  if (overMatch) {
+    const line = parseFloat(overMatch[1].replace(",", "."));
+    const goals = isHT ? htTotal : total;
+    return goals > line ? "green" : "red";
+  }
+
+  // Under X.5
+  const underMatch = m.match(/under\s+(\d+(?:[.,]\d+)?)/);
+  if (underMatch) {
+    const line = parseFloat(underMatch[1].replace(",", "."));
+    const goals = isHT ? htTotal : total;
+    return goals < line ? "green" : "red";
+  }
+
+  // BTTS / Ambas Marcam
+  if (m.includes("btts") || m.includes("ambas") || m.includes("both teams to score") || m.includes("gg")) {
+    const bttsSim = finalHome > 0 && finalAway > 0;
+    const isNao = m.includes("não") || m.includes("nao") || m.includes(" no") || m.includes("ng");
+    return (isNao ? !bttsSim : bttsSim) ? "green" : "red";
+  }
+
+  // 1X2 / Match Odds
+  if (m.includes("vitória casa") || m.includes("home win") || m === "1" || m.includes("1x2 casa") || m.includes("back casa")) {
+    return finalHome > finalAway ? "green" : "red";
+  }
+  if (m.includes("vitória fora") || m.includes("away win") || m === "2" || m.includes("1x2 fora") || m.includes("back fora")) {
+    return finalHome < finalAway ? "green" : "red";
+  }
+  if (m.includes("empate") || m.includes("draw") || m === "x" || m.includes("back empate")) {
+    return finalHome === finalAway ? "green" : "red";
+  }
+
+  // Double Chance (DC)
+  if (m.includes("1x") || m.includes("dc 1x")) return finalHome >= finalAway ? "green" : "red";
+  if (m.includes("x2") || m.includes("dc x2")) return finalHome <= finalAway ? "green" : "red";
+  if (m.includes("12") || m.includes("dc 12")) return finalHome !== finalAway ? "green" : "red";
+
+  // Asian Handicap
+  const ahMatch = m.match(/ah?\s*([-+]?\d+(?:[.,]\d+)?)\s*(casa|fora|home|away)?/);
+  if (ahMatch) {
+    const line = parseFloat(ahMatch[1].replace(",", "."));
+    const side = ahMatch[2] || (m.includes("fora") || m.includes("away") ? "away" : "home");
+    const isAway = side === "fora" || side === "away";
+    const handicap = isAway ? finalAway - finalHome + line : finalHome - finalAway + line;
+    if (handicap > 0) return "green";
+    if (handicap < 0) return "red";
+    return null; // push/void (linha exata)
+  }
+
+  // Próximo Gol / Gols Restantes
+  if (m.includes("próximo gol") || m.includes("proximo gol") || m.includes("gols restantes") || m.includes("next goal")) {
+    const newHome = finalHome - approvedHome;
+    const newAway = finalAway - approvedAway;
+    const anyGoal = newHome + newAway > 0;
+    if (!anyGoal) return null; // jogo não teve mais gols ainda
+    if (m.includes("casa") || m.includes("home")) return newHome > 0 ? "green" : "red";
+    if (m.includes("fora") || m.includes("away")) return newAway > 0 ? "green" : "red";
+    return anyGoal ? "green" : "red"; // fallback: qualquer gol = green
+  }
+
+  // BACK 0x0
+  if (m.includes("0x0") || m.includes("0-0") || m.includes("back 0")) {
+    return (finalHome === 0 && finalAway === 0) ? "green" : "red";
+  }
+
+  // LAY markets (inverso)
+  if (m.startsWith("lay ")) {
+    const inner = m.slice(4).trim();
+    const r = deriveMarketResult(inner, finalHome, finalAway, htHome, htAway, approvedHome, approvedAway);
+    if (r === "green") return "red";
+    if (r === "red") return "green";
+    return null;
+  }
+
+  return null; // mercado não reconhecido
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
@@ -240,7 +397,7 @@ Deno.serve(async (req) => {
 
   const { data: pendings, error: pErr } = await supabase
     .from("live_sinais")
-    .select("id, match_id, home_team, away_team, market, market_key, odd, stake, match_date")
+    .select("id, match_id, home_team, away_team, market, market_key, odd, stake, match_date, approved_at_score, approved_at_period, goals_home")
     .is("result", null)
     .not("market_key", "is", null)
     .gte("match_date", windowStart)
@@ -287,6 +444,22 @@ Deno.serve(async (req) => {
         fs = await sofaFallback(home, away, sig.match_date);
         if (fs) sourceTag = "sofascore";
       }
+      if (!fs && sig.match_id) {
+        const lm = await liveMatchesFallback(supabase, sig.match_id);
+        if (lm) {
+          fs = { home: lm.home, away: lm.away, ht_home: lm.ht_home, ht_away: lm.ht_away, status: lm.status, source: lm.source };
+          // Para mercados de HT sem placar de 1T: deriva do placar no momento da aprovação
+          // (aprovado no 1T com X gols já marcados → HT teve pelo menos X gols = seguro para OVER_HT)
+          if (fs.ht_home == null && sig.approved_at_period === "First Half" && sig.approved_at_score) {
+            const parts = sig.approved_at_score.split("-").map(Number);
+            if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1]) &&
+                sig.market_key.startsWith("OVER_") && sig.market_key.endsWith("_HT")) {
+              fs = { ...fs, ht_home: parts[0], ht_away: parts[1] };
+            }
+          }
+          sourceTag = "live_matches";
+        }
+      }
       if (fs && sourceTag) {
         console.log(`[liquidar] ✅ score via ${sourceTag}: ${home} ${fs.home}-${fs.away} ${away} (ht ${fs.ht_home ?? "?"}-${fs.ht_away ?? "?"})`);
       } else if (!fs) {
@@ -314,13 +487,16 @@ Deno.serve(async (req) => {
       continue;
     }
 
+    // goals_home/away: só sobrescreve se ainda não tiver valor (aprovação pode já ter preenchido)
+    const goalsUpdate = sig.goals_home == null
+      ? { goals_home: fs.home, goals_away: fs.away }
+      : {};
     const { error: uErr } = await supabase
       .from("live_sinais")
       .update({
         result: row.result,
         profit_loss: row.profit_loss,
-        goals_home: fs.home,
-        goals_away: fs.away,
+        ...goalsUpdate,
         settled_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
@@ -331,14 +507,137 @@ Deno.serve(async (req) => {
     settled++;
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // PASSO 2 — Liquida mycroft_analyses (sinais aprovados ao vivo pelo motor IA)
+  // mycroft_analyses nunca tinha o result preenchido porque o passo 1 só toca live_sinais.
+  // ─────────────────────────────────────────────────────────────────────────
+  const APPROVED_VERDICTS = ["APROVADO", "APROVADO_SITUACIONAL", "LABAREDA"];
+
+  const { data: pendingAnalyses, error: aErr } = await supabase
+    .from("mycroft_analyses")
+    .select("id, match_id, market, odd, approved_at_score_home, approved_at_score_away, created_at, stats_snapshot")
+    .in("verdict", APPROVED_VERDICTS)
+    .is("result", null)
+    .gte("created_at", windowStart)
+    .lte("created_at", cutoff)
+    .order("created_at", { ascending: false })
+    .limit(300);
+
+  if (aErr) {
+    console.error("[liquidar] mycroft_analyses query error", aErr.message);
+  }
+
+  let settledAnalyses = 0;
+  let stillPendingAnalyses = 0;
+
+  for (const analysis of pendingAnalyses ?? []) {
+    // Extrai times do stats_snapshot (único lugar onde temos home/away team no mycroft_analyses)
+    const snap = analysis.stats_snapshot || {};
+    const home: string = snap.home_team || snap.home || "";
+    const away: string = snap.away_team || snap.away || "";
+    const signalDay = new Date(analysis.created_at).toISOString().slice(0, 10);
+
+    if (!home || !away) {
+      // Fallback: busca times e placar diretamente em live_matches pelo match_id
+      const lm = await liveMatchesFallback(supabase, analysis.match_id);
+      if (!lm || !lm.home_team || !lm.away_team) {
+        stillPendingAnalyses++;
+        continue;
+      }
+      const lmFs: FinalScore = { home: lm.home, away: lm.away, ht_home: lm.ht_home, ht_away: lm.ht_away, status: lm.status, source: lm.source };
+      const lmResult = deriveMarketResult(
+        analysis.market, lmFs.home, lmFs.away, lmFs.ht_home, lmFs.ht_away,
+        Number(analysis.approved_at_score_home ?? 0), Number(analysis.approved_at_score_away ?? 0),
+      );
+      if (!lmResult) {
+        console.log(`[liquidar] ⚠️ mycroft mercado sem lógica (live_matches): ${analysis.market}`);
+        stillPendingAnalyses++;
+        continue;
+      }
+      const { error: lmUpErr } = await supabase.from("mycroft_analyses")
+        .update({ result: lmResult.toUpperCase(), final_score_home: lmFs.home, final_score_away: lmFs.away, settled_at: new Date().toISOString() })
+        .eq("id", analysis.id).is("result", null);
+      if (lmUpErr) { console.error("[liquidar] mycroft live_matches update error", analysis.id, lmUpErr.message); continue; }
+      console.log(`[liquidar] ✅ mycroft via live_matches: ${lm.home_team} ${lmFs.home}-${lmFs.away} ${lm.away_team} | ${analysis.market} → ${lmResult}`);
+      settledAnalyses++;
+      continue;
+    }
+
+    const cacheKey = `${signalDay}|${norm(home)}|${norm(away)}`;
+    let fs: FinalScore | null;
+    if (fsCache.has(cacheKey)) {
+      fs = fsCache.get(cacheKey)!;
+    } else {
+      if (!futoddsByDayCache.has(signalDay)) {
+        futoddsByDayCache.set(signalDay, await futoddsByDate(signalDay));
+      }
+      fs = findFutodds(futoddsByDayCache.get(signalDay) ?? [], home, away);
+      if (!fs) fs = await smFallback(home, away, analysis.created_at);
+      if (!fs) fs = await sofaFallback(home, away, analysis.created_at);
+      if (!fs) {
+        const lmFallback = await liveMatchesFallback(supabase, analysis.match_id);
+        if (lmFallback) fs = { home: lmFallback.home, away: lmFallback.away, ht_home: lmFallback.ht_home, ht_away: lmFallback.ht_away, status: lmFallback.status, source: lmFallback.source };
+      }
+      fsCache.set(cacheKey, fs);
+    }
+
+    if (!fs) { stillPendingAnalyses++; continue; }
+
+    // Deriva o resultado com base no mercado e placar final
+    const result = deriveMarketResult(
+      analysis.market,
+      fs.home, fs.away,
+      fs.ht_home, fs.ht_away,
+      Number(analysis.approved_at_score_home ?? 0),
+      Number(analysis.approved_at_score_away ?? 0),
+    );
+
+    if (!result) {
+      console.log(`[liquidar] ⚠️ mercado sem lógica: ${analysis.market}`);
+      continue;
+    }
+
+    const odd = Number(analysis.odd ?? DEFAULT_SETTLEMENT_ODD);
+    const profit_loss = result === "green" ? (odd - 1) : -1; // em unidades de stake
+
+    const { error: upErr } = await supabase
+      .from("mycroft_analyses")
+      .update({
+        result: result.toUpperCase(),
+        final_score_home: fs.home,
+        final_score_away: fs.away,
+        settled_at: new Date().toISOString(),
+      })
+      .eq("id", analysis.id)
+      .is("result", null);
+
+    if (upErr) {
+      console.error("[liquidar] mycroft_analyses update error", analysis.id, upErr.message);
+      continue;
+    }
+
+    console.log(`[liquidar] ✅ mycroft_analyses liquidado: ${home} ${fs.home}-${fs.away} ${away} | ${analysis.market} → ${result}`);
+    settledAnalyses++;
+
+    // Notificação push via Telegram
+    await sendTelegramSettlement(
+      home, away, analysis.market, result, odd,
+      fs.home, fs.away,
+      snap.minute ?? null,
+    );
+  }
+
   const elapsed = Date.now() - startedAt;
-  console.log(`[liquidar] today=${today} days_back=${daysBack} pendentes=${list.length} liquidados=${settled} sem_placar=${stillPending} mercado_desconhecido=${unknownMarket} (${elapsed}ms)`);
+  console.log(`[liquidar] today=${today} days_back=${daysBack}`
+    + ` live_sinais: pendentes=${list.length} liquidados=${settled} sem_placar=${stillPending} mercado_desconhecido=${unknownMarket}`
+    + ` | mycroft_analyses: liquidados=${settledAnalyses} sem_placar=${stillPendingAnalyses}`
+    + ` (${elapsed}ms)`);
 
   return new Response(JSON.stringify({
     ok: true, today,
     days_back: daysBack,
-    pending_total: list.length,
-    settled, no_score_yet: stillPending, unknown_market: unknownMarket,
-    examples, elapsed_ms: elapsed,
+    live_sinais: { pending_total: list.length, settled, no_score_yet: stillPending, unknown_market: unknownMarket, examples },
+    mycroft_analyses: { pending_total: pendingAnalyses?.length ?? 0, settled: settledAnalyses, no_score_yet: stillPendingAnalyses },
+    elapsed_ms: elapsed,
   }), { headers: { ...cors, "Content-Type": "application/json" } });
 });
