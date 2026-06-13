@@ -268,6 +268,7 @@ export default function CalangoVidente() {
   const [loading, setLoading] = useState(true);
   const [revealState, setRevealState] = useState<RevealState>('idle');
   const [sessionSeed] = useState(() => Math.floor(Math.random() * 99991));
+  const [downloading, setDownloading] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -332,6 +333,28 @@ export default function CalangoVidente() {
     audioRef.current?.pause();
     audioRef.current = null;
     setRevealState('idle');
+  };
+
+  const handleDownloadAudio = async (audioUrl: string, home: string, away: string) => {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const res = await fetch(audioUrl);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const slug = `${home}_vs_${away}`.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+      a.download = `dialma_${slug}.mp3`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      // silencioso — áudio pode não estar disponível ainda
+    } finally {
+      setDownloading(false);
+    }
   };
 
   const predLabel = () => {
@@ -554,14 +577,25 @@ export default function CalangoVidente() {
                       "{prediction.msg}"
                     </p>
 
-                    {/* Texto do banco de áudio Dialma */}
+                    {/* Texto + download do áudio Dialma */}
                     {chosenGame && (() => {
                       const entry = findDialmaEntry(chosenGame.home, chosenGame.away, prediction.isZebra, prediction.scoreH + prediction.scoreA, prediction.energia);
+                      const audioReady = entry.audioUrl && !entry.audioUrl.startsWith('SUA_URL');
                       return (
-                        <div className="bg-yellow-900/20 border border-yellow-500/20 rounded-lg p-3">
+                        <div className="bg-yellow-900/20 border border-yellow-500/20 rounded-lg p-3 space-y-2">
                           <p className="text-[11px] text-yellow-300/80 leading-relaxed italic">
                             🎙️ "{entry.text}"
                           </p>
+                          {audioReady && (
+                            <button
+                              onClick={() => handleDownloadAudio(entry.audioUrl, chosenGame.home, chosenGame.away)}
+                              disabled={downloading}
+                              className="flex items-center gap-1.5 text-[10px] text-yellow-400/70 hover:text-yellow-300 transition-colors disabled:opacity-40"
+                            >
+                              <span>{downloading ? '⏳' : '⬇️'}</span>
+                              {downloading ? 'Baixando...' : 'Baixar áudio da Dialma'}
+                            </button>
+                          )}
                         </div>
                       );
                     })()}
