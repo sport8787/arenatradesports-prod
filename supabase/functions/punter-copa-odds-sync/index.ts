@@ -348,8 +348,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 2. Busca eventos Futodds upcoming para o mesmo horizonte
+    // 2. Busca eventos Futodds upcoming para o mesmo horizonte (geral + Copa por league_name)
     let futoddsUpcoming: any[] = [];
+    let copaBetfairEvents: any[] = []; // eventos Copa na Betfair buscados por league_name
     if (!isFutoddsDisabled()) {
       try {
         const dateFrom = now.slice(0, 10);
@@ -358,6 +359,17 @@ Deno.serve(async (req) => {
         console.log(`[copa-odds] Futodds upcoming: ${futoddsUpcoming.length} eventos`);
       } catch (e) {
         console.warn("[copa-odds] Futodds upcoming falhou:", (e as Error).message);
+      }
+      // Busca Copa especificamente por league_name (Betfair costuma listar sob "World Cup")
+      for (const leagueName of ["World Cup", "FIFA World Cup", "FIFA World Cup 2026"]) {
+        try {
+          const copaEvts = await getFutoddsUpcoming({ league_name: leagueName, limit: "100" });
+          if (copaEvts.length > 0) {
+            copaBetfairEvents = copaEvts;
+            console.log(`[copa-odds] Copa Betfair (${leagueName}): ${copaEvts.length} eventos`);
+            break;
+          }
+        } catch { /* tenta próximo nome */ }
       }
     } else {
       console.log("[copa-odds] FUTODDS_DISABLED=true — usando apenas The Odds API como fallback");
@@ -405,6 +417,59 @@ Deno.serve(async (req) => {
         }
       } else {
         console.log(`[copa-odds] ${fx.home} x ${fx.away} não encontrado no Futodds upcoming`);
+      }
+
+      // Estratégia 2: busca direta por betsapi_id (copa_fixtures.fixture_id = betsapi_id)
+      if (!payload && !isFutoddsDisabled()) {
+        try {
+          const bfFound = await getFutoddsUpcoming({ betsapi_id: fx.fixture_id, limit: "3" });
+          if (bfFound.length > 0) {
+            const bfEventId = String(bfFound[0].event_id ?? "");
+            if (bfEventId) {
+              const preliveData = await getFutoddsPreliveOdds(bfEventId, "asian_handicap");
+              if (preliveData) {
+                const isInverted = namesMatch(String(bfFound[0].home_team_name ?? ""), fx.away);
+                const parsed = parseFutoddsAhPayload(preliveData, fx.home, fx.away);
+                const allKeys = [...Object.keys(parsed.home), ...Object.keys(parsed.away)];
+                if (allKeys.some((k) => k !== "0" && k !== "0.0")) {
+                  payload = isInverted ? { home: parsed.away, away: parsed.home } : parsed;
+                  source = "futodds_ah_betsapi_id";
+                  console.log(`[copa-odds] ✅ betsapi_id AH ${fx.home} x ${fx.away} (event_id=${bfEventId})`);
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.warn(`[copa-odds] betsapi_id lookup ${fx.fixture_id} falhou:`, (e as Error).message);
+        }
+      }
+
+      // Estratégia 3: buscar no copaBetfairEvents pré-carregado por league_name
+      if (!payload && copaBetfairEvents.length > 0) {
+        const copaEv = copaBetfairEvents.find((u: any) => {
+          const uh = String(u.home_team_name ?? u.home_name ?? "");
+          const ua = String(u.away_team_name ?? u.away_name ?? "");
+          return (namesMatch(uh, fx.home) && namesMatch(ua, fx.away)) ||
+                 (namesMatch(uh, fx.away) && namesMatch(ua, fx.home));
+        });
+        if (copaEv) {
+          const copaEventId = String(copaEv.event_id ?? "");
+          try {
+            const preliveData = await getFutoddsPreliveOdds(copaEventId, "asian_handicap");
+            if (preliveData) {
+              const isInverted = namesMatch(String(copaEv.home_team_name ?? ""), fx.away);
+              const parsed = parseFutoddsAhPayload(preliveData, fx.home, fx.away);
+              const allKeys = [...Object.keys(parsed.home), ...Object.keys(parsed.away)];
+              if (allKeys.some((k) => k !== "0" && k !== "0.0")) {
+                payload = isInverted ? { home: parsed.away, away: parsed.home } : parsed;
+                source = "futodds_ah_league_name";
+                console.log(`[copa-odds] ✅ league_name AH ${fx.home} x ${fx.away} (event_id=${copaEventId})`);
+              }
+            }
+          } catch (e) {
+            console.warn(`[copa-odds] prelive odds copa_ev ${copaEventId} falhou:`, (e as Error).message);
+          }
+        }
       }
 
       // Fallback: H2H via The Odds API se não há AH do Futodds
