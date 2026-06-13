@@ -234,6 +234,67 @@ const COPA_SPORT_KEY_CANDIDATES = [
 
 type OddsPayload = { home: Record<string, number>; away: Record<string, number>; [key: string]: any };
 
+// ─── API-Football: Copa 2026 odds (1X2, Over/BTTS) ───────────────────────────
+const AF_BASE = "https://v3.football.api-sports.io";
+const AF_COPA_LEAGUE = 1; // FIFA World Cup
+const AF_COPA_SEASON = 2026;
+
+function parseApiFootballOdds(response: any[], isInverted: boolean): OddsPayload | null {
+  const h2hHome: Record<string, number> = {};
+  const h2hAway: Record<string, number> = {};
+  const overOdds: Record<string, number> = {};
+  let bttsYes: number | null = null;
+
+  for (const entry of response) {
+    for (const bm of (entry.bookmakers ?? [])) {
+      for (const bet of (bm.bets ?? [])) {
+        const betId: number = bet.id;
+        const betName: string = (bet.name || "").toLowerCase();
+        // 1X2 (bet ID 1 = Match Winner)
+        if (betId === 1 || betName.includes("match winner")) {
+          for (const val of (bet.values ?? [])) {
+            const side: string = (val.value || "").toLowerCase();
+            const price = parseFloat(val.odd);
+            if (!price || price < 1.01) continue;
+            if (side === "home" && !h2hHome["0"]) h2hHome["0"] = +price.toFixed(4);
+            if (side === "away" && !h2hAway["0"]) h2hAway["0"] = +price.toFixed(4);
+          }
+        }
+        // Over/Under (bet ID 5 = Goals Over/Under)
+        if (betId === 5 || betName.includes("goals over") || betName.includes("over/under")) {
+          for (const val of (bet.values ?? [])) {
+            const label: string = (val.value || "").toLowerCase();
+            const price = parseFloat(val.odd);
+            if (!price || price < 1.01) continue;
+            const m = label.match(/over\s+([\d.]+)/);
+            if (m && !overOdds[m[1]]) overOdds[m[1]] = +price.toFixed(4);
+          }
+        }
+        // BTTS (bet ID 8 = Both Teams Score)
+        if (betId === 8 || betName.includes("both teams")) {
+          for (const val of (bet.values ?? [])) {
+            if ((val.value || "").toLowerCase() === "yes" && !bttsYes) {
+              bttsYes = +parseFloat(val.odd).toFixed(4);
+            }
+          }
+        }
+      }
+    }
+    if (h2hHome["0"] || h2hAway["0"]) break; // first bookmaker com dados é suficiente
+  }
+
+  if (!h2hHome["0"] && !h2hAway["0"]) return null;
+
+  const homePayload = isInverted ? h2hAway : h2hHome;
+  const awayPayload = isInverted ? h2hHome : h2hAway;
+  const result: OddsPayload = { home: homePayload, away: awayPayload };
+  if (overOdds["1.5"]) result.over_15 = overOdds["1.5"];
+  if (overOdds["2.5"]) result.over_25 = overOdds["2.5"];
+  if (overOdds["3.5"]) result.over_35 = overOdds["3.5"];
+  if (bttsYes) result.btts_yes = bttsYes;
+  return result;
+}
+
 async function fetchH2hFallback(
   homeTeam: string,
   awayTeam: string,
@@ -375,6 +436,25 @@ Deno.serve(async (req) => {
       console.log("[copa-odds] FUTODDS_DISABLED=true — usando apenas The Odds API como fallback");
     }
 
+    // 2b. Pré-busca fixtures da Copa 2026 via API-Football (principal para odds 1X2/Over)
+    const afKey = Deno.env.get("API_FOOTBALL_KEY");
+    let afCopaFixtures: any[] = [];
+    if (afKey) {
+      try {
+        const afRes = await fetch(
+          `${AF_BASE}/fixtures?league=${AF_COPA_LEAGUE}&season=${AF_COPA_SEASON}&next=20`,
+          { headers: { "x-apisports-key": afKey, Accept: "application/json" }, signal: AbortSignal.timeout(10_000) },
+        );
+        if (afRes.ok) {
+          const afData = await afRes.json();
+          afCopaFixtures = afData?.response ?? [];
+          console.log(`[copa-odds] API-Football Copa fixtures: ${afCopaFixtures.length}`);
+        }
+      } catch (e) {
+        console.warn("[copa-odds] API-Football fixtures falhou:", (e as Error).message);
+      }
+    }
+
     // 3. Para cada fixture, busca AH Futodds ou fallback H2H
     let salvos = 0;
     const log: any[] = [];
@@ -472,7 +552,40 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Fallback: H2H via The Odds API se não há AH do Futodds
+      // Estratégia 4: API-Football 1X2 + Over/BTTS (principal para Copa 2026)
+      if (!payload && afKey && afCopaFixtures.length > 0) {
+        const afMatch = afCopaFixtures.find((f: any) => {
+          const fh = String(f.teams?.home?.name ?? "");
+          const fa = String(f.teams?.away?.name ?? "");
+          return (namesMatch(fh, fx.home) && namesMatch(fa, fx.away)) ||
+                 (namesMatch(fh, fx.away) && namesMatch(fa, fx.home));
+        });
+        if (afMatch) {
+          const afId: number = afMatch.fixture?.id;
+          const isInverted = namesMatch(String(afMatch.teams?.home?.name ?? ""), fx.away);
+          try {
+            const oddsRes = await fetch(
+              `${AF_BASE}/odds?fixture=${afId}`,
+              { headers: { "x-apisports-key": afKey, Accept: "application/json" }, signal: AbortSignal.timeout(10_000) },
+            );
+            if (oddsRes.ok) {
+              const oddsData = await oddsRes.json();
+              const parsed = parseApiFootballOdds(oddsData?.response ?? [], isInverted);
+              if (parsed && (parsed.home["0"] || parsed.away["0"])) {
+                payload = parsed;
+                source = "apifootball";
+                console.log(`[copa-odds] ✅ API-Football ${fx.home} x ${fx.away}: 1X2 home=${parsed.home["0"]} away=${parsed.away["0"]} over_25=${parsed.over_25 ?? "N/A"}`);
+              }
+            }
+          } catch (e) {
+            console.warn(`[copa-odds] AF odds fixture=${afId} falhou:`, (e as Error).message);
+          }
+        } else {
+          console.log(`[copa-odds] AF: ${fx.home} x ${fx.away} não encontrado nos ${afCopaFixtures.length} fixtures`);
+        }
+      }
+
+      // Fallback final: H2H via The Odds API se não há AH do Futodds
       if (!payload) {
         const h2h = await fetchH2hFallback(fx.home, fx.away);
         if (h2h && (h2h.home["0"] || h2h.away["0"])) {
