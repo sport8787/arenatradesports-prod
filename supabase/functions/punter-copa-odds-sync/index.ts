@@ -83,7 +83,7 @@ function parseFutoddsAhPayload(
   preliveData: any,
   homeTeam: string,
   awayTeam: string,
-): { home: Record<string, number>; away: Record<string, number> } {
+): OddsPayload {
   const home: Record<string, number> = {};
   const away: Record<string, number> = {};
   if (!preliveData) return { home, away };
@@ -155,25 +155,28 @@ function parseFutoddsAhPayload(
   return { home, away };
 }
 
-// ─── Fallback H2H via The Odds API ───────────────────────────────────────────
+// ─── Fallback H2H + Over/BTTS via The Odds API ───────────────────────────────
 // Copa pode não ter AH no Betfair para certos jogos antecipados; usa h2h como
 // fallback na linha "0" (equivalente a 1X2) para mycroft-punter-copa usar.
+// Também busca totals e btts_goals para aprovação mandatória de jogos do Brasil.
 const COPA_SPORT_KEY_CANDIDATES = [
   "soccer_fifa_world_cup",
   "soccer_world_cup_2026",
   "soccer_fifa_world_cup_2026",
 ];
 
+type OddsPayload = { home: Record<string, number>; away: Record<string, number>; [key: string]: any };
+
 async function fetchH2hFallback(
   homeTeam: string,
   awayTeam: string,
-): Promise<{ home: Record<string, number>; away: Record<string, number> } | null> {
+): Promise<OddsPayload | null> {
   if (!ODDS_API_KEY) return null;
   for (const sportKey of COPA_SPORT_KEY_CANDIDATES) {
     try {
       const url =
         `https://api.the-odds-api.com/v4/sports/${sportKey}/odds` +
-        `?apiKey=${ODDS_API_KEY}&regions=eu,uk,au,us&markets=h2h&oddsFormat=decimal`;
+        `?apiKey=${ODDS_API_KEY}&regions=eu,uk,au,us&markets=h2h,totals,btts_goals&oddsFormat=decimal`;
       const res = await fetch(url);
       if (!res.ok) continue;
       const data = await res.json();
@@ -186,23 +189,55 @@ async function fetchH2hFallback(
       const isInverted = namesMatch(ev.home_team, awayTeam);
       const h2hHome: Record<string, number> = {};
       const h2hAway: Record<string, number> = {};
+      const overOdds: Record<string, number> = {};
+      const underOdds: Record<string, number> = {};
+      let bttsYes: number | null = null;
+
       for (const bm of ev.bookmakers || []) {
         for (const mkt of bm.markets || []) {
-          if (mkt.key !== "h2h") continue;
-          for (const out of mkt.outcomes || []) {
-            const price: number = out.price;
-            if (typeof price !== "number") continue;
-            const isH = namesMatch(out.name, ev.home_team);
-            const isA = namesMatch(out.name, ev.away_team);
-            if (isH && !h2hHome["0"]) h2hHome["0"] = +price.toFixed(4);
-            else if (isA && !h2hAway["0"]) h2hAway["0"] = +price.toFixed(4);
+          if (mkt.key === "h2h") {
+            for (const out of mkt.outcomes || []) {
+              const price: number = out.price;
+              if (typeof price !== "number") continue;
+              const isH = namesMatch(out.name, ev.home_team);
+              const isA = namesMatch(out.name, ev.away_team);
+              if (isH && !h2hHome["0"]) h2hHome["0"] = +price.toFixed(4);
+              else if (isA && !h2hAway["0"]) h2hAway["0"] = +price.toFixed(4);
+            }
+          } else if (mkt.key === "totals") {
+            for (const out of mkt.outcomes || []) {
+              const price: number = out.price;
+              const point: number = out.point;
+              if (typeof price !== "number" || typeof point !== "number") continue;
+              const lk = String(point);
+              if (out.name === "Over" && !overOdds[lk]) overOdds[lk] = +price.toFixed(4);
+              else if (out.name === "Under" && !underOdds[lk]) underOdds[lk] = +price.toFixed(4);
+            }
+          } else if (mkt.key === "btts_goals") {
+            for (const out of mkt.outcomes || []) {
+              if (out.name === "Yes" && !bttsYes && typeof out.price === "number") {
+                bttsYes = +out.price.toFixed(4);
+              }
+            }
           }
         }
       }
+
       if (!h2hHome["0"] && !h2hAway["0"]) continue;
-      return isInverted
-        ? { home: h2hAway, away: h2hHome }
-        : { home: h2hHome, away: h2hAway };
+
+      const homePayload = isInverted ? h2hAway : h2hHome;
+      const awayPayload = isInverted ? h2hHome : h2hAway;
+
+      const result: OddsPayload = { home: homePayload, away: awayPayload };
+      if (overOdds["0.5"]) result.over_05 = overOdds["0.5"];
+      if (overOdds["1.5"]) result.over_15 = overOdds["1.5"];
+      if (overOdds["2.5"]) result.over_25 = overOdds["2.5"];
+      if (overOdds["3.5"]) result.over_35 = overOdds["3.5"];
+      if (underOdds["2.5"]) result.under_25 = underOdds["2.5"];
+      if (bttsYes) result.btts_yes = bttsYes;
+
+      console.log(`[copa-odds] H2H extra: over_15=${result.over_15 ?? "N/A"} over_25=${result.over_25 ?? "N/A"} btts=${result.btts_yes ?? "N/A"}`);
+      return result;
     } catch { /* tenta próximo */ }
   }
   return null;
@@ -274,7 +309,7 @@ Deno.serve(async (req) => {
                (namesMatch(uh, fx.away) && namesMatch(ua, fx.home));
       });
 
-      let payload: { home: Record<string, number>; away: Record<string, number> } | null = null;
+      let payload: OddsPayload | null = null;
       let source = "none";
 
       if (futEv) {

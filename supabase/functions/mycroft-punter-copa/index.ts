@@ -79,6 +79,50 @@ function vePct(prob: number, odd: number): number {
   return +((prob * odd - 1) * 100).toFixed(2);
 }
 
+/** Probabilidade de mais de `line` gols no total (Over line). */
+function probOver(xgH: number, xgA: number, line: number): number {
+  let prob = 0;
+  const lH = Math.max(0.05, xgH);
+  const lA = Math.max(0.05, xgA);
+  for (let h = 0; h <= 10; h++) {
+    for (let a = 0; a <= 10; a++) {
+      if (h + a > line) prob += poisson(h, lH) * poisson(a, lA);
+    }
+  }
+  return Math.min(0.98, Math.max(0.02, prob));
+}
+
+/** Probabilidade de ambas as equipes marcarem (BTTS). */
+function probBTTS(xgH: number, xgA: number): number {
+  const lH = Math.max(0.05, xgH);
+  const lA = Math.max(0.05, xgA);
+  return Math.min(0.98, Math.max(0.02, (1 - poisson(0, lH)) * (1 - poisson(0, lA))));
+}
+
+/** Verifica se o fixture envolve a Seleção Brasileira. */
+function isBrazilGame(fx: any): boolean {
+  const normalize = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const h = normalize(String(fx.home || ""));
+  const a = normalize(String(fx.away || ""));
+  return h.includes("brazil") || h.includes("brasil") || a.includes("brazil") || a.includes("brasil");
+}
+
+/** Lê uma chave de topo no payload do ah_odds_snapshot (ex: over_25, btts_yes). */
+async function getSnapOdd(supabase: any, fixtureId: string, key: string): Promise<number | null> {
+  const { data } = await supabase
+    .from("ah_odds_snapshot")
+    .select("payload")
+    .eq("fixture_id", fixtureId)
+    .order("captured_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!data?.payload) return null;
+  try {
+    const v = data.payload[key];
+    return typeof v === "number" ? v : null;
+  } catch { return null; }
+}
+
 // Stake conforme bloco + fase
 function pickBlock(ve: number, conf: number): "A" | "B" | "C" | null {
   if (ve >= 12 && conf >= 70) return "C";
@@ -357,6 +401,157 @@ async function analyzeFixture(supabase: any, fx: any, cfg: any) {
   };
 }
 
+// ───────── Aprovação mandatória Brasil ─────────
+// Requisito de negócio: todo jogo do Brasil DEVE ser aprovado para aparecer
+// na Arena Punter e permitir que o usuário acesse o chat Mycroft para análise.
+// Usa thresholds relaxados — DeepSeek fornece racional mas não pode vetar.
+async function brazilMandatoryApproval(supabase: any, fx: any, cfg: any): Promise<any> {
+  const ptsH = fx.home_fifa_pts ?? 1400;
+  const ptsA = fx.away_fifa_pts ?? 1300;
+  const diff = ptsH - ptsA;
+  const isMataMata = ["oitavas", "quartas", "semi", "final", "3lugar"].includes(fx.phase);
+
+  const xgH = fx.xg_last5?.home?.xg ?? synthXg(ptsH, ptsA);
+  const xgA = fx.xg_last5?.away?.xg ?? synthXg(ptsA, ptsH);
+  const xgSource = fx.xg_last5?.home?.source ?? "synth_fifa";
+
+  type BrCand = { market: string; selection: string; odd: number; prob: number; ve: number; ah_line: number | null };
+  const cands: BrCand[] = [];
+
+  // 1. Candidatos AH (thresholds relaxados: odd ≥ 1.20, sem VE mínimo)
+  for (const cand of ahLineCandidates(diff)) {
+    if (isMataMata && cand.isFavorite && cand.line <= -1.0) continue;
+    const odd = await getAhOdd(supabase, fx.fixture_id, cand.line, cand.side);
+    if (!odd || odd < 1.20) continue;
+    const prob = probAHCover(xgH, xgA, cand.line, cand.side);
+    const ve = vePct(prob, odd);
+    const selLabel = cand.line > 0 ? `+${cand.line}` : String(cand.line);
+    cands.push({ market: "Handicap Asiático", selection: `${cand.side === "home" ? fx.home : fx.away} ${selLabel}`, odd, prob, ve, ah_line: cand.line });
+  }
+
+  // 2. 1X2 Brasil vence
+  const brazilIsHome = String(fx.home || "").toLowerCase().includes("brazil") ||
+                       String(fx.home || "").toLowerCase().includes("brasil");
+  const brazilSide: "home" | "away" = brazilIsHome ? "home" : "away";
+  const brazilOdd = await getAhOdd(supabase, fx.fixture_id, 0, brazilSide);
+  if (brazilOdd && brazilOdd >= 1.20) {
+    const prob = probWin(xgH, xgA, brazilSide);
+    cands.push({ market: "Resultado 1X2", selection: `${brazilIsHome ? fx.home : fx.away} Vence`, odd: brazilOdd, prob, ve: vePct(prob, brazilOdd), ah_line: null });
+  }
+
+  // 3. Over 1.5 / Over 2.5 / BTTS (odds armazenadas pelo punter-copa-odds-sync)
+  const over15Odd = await getSnapOdd(supabase, fx.fixture_id, "over_15");
+  if (over15Odd && over15Odd >= 1.20) {
+    const prob = probOver(xgH, xgA, 1.5);
+    cands.push({ market: "Over 1.5 Gols", selection: "Over 1.5", odd: over15Odd, prob, ve: vePct(prob, over15Odd), ah_line: null });
+  }
+  const over25Odd = await getSnapOdd(supabase, fx.fixture_id, "over_25");
+  if (over25Odd && over25Odd >= 1.20) {
+    const prob = probOver(xgH, xgA, 2.5);
+    cands.push({ market: "Over 2.5 Gols", selection: "Over 2.5", odd: over25Odd, prob, ve: vePct(prob, over25Odd), ah_line: null });
+  }
+  const bttsOdd = await getSnapOdd(supabase, fx.fixture_id, "btts_yes");
+  if (bttsOdd && bttsOdd >= 1.20) {
+    const prob = probBTTS(xgH, xgA);
+    cands.push({ market: "Ambas Marcam", selection: "Sim", odd: bttsOdd, prob, ve: vePct(prob, bttsOdd), ah_line: null });
+  }
+
+  if (cands.length === 0) {
+    console.warn(`[copa] 🇧🇷 Brasil sem odds em snapshot: ${fx.home} x ${fx.away} — não é possível aprovar sem odd`);
+    return { fixture_id: fx.fixture_id, approved: false, vetos: ["brasil: sem odds disponíveis no snapshot"], ve: 0, confidence: 0 };
+  }
+
+  // Ordena por VE (melhor primeiro); mesmo VE negativo → pick least bad
+  cands.sort((a, b) => b.ve - a.ve);
+  const best = cands[0];
+  const conf = Math.round(best.prob * 100);
+  const block = pickBlock(best.ve, conf) ?? "A";
+  const stake = getStake(cfg, block, isMataMata);
+
+  // DeepSeek: racional técnico (não veta — aprovação é mandatória)
+  let rationale = `🇧🇷 Brasil (aprovação mandatória). ${best.selection} | Odd ${best.odd} | VE ${best.ve.toFixed(1)}% | Prob ${conf}% | λ (${xgSource}): H ${xgH.toFixed(2)}/A ${xgA.toFixed(2)}.`;
+  try {
+    const sys = "Você é o Mycroft. Responde em pt-br, frio e dedutivo. JSON com {rationale:string}. Esta é aprovação mandatória para jogo do Brasil — forneça apenas racional técnico, não pode recusar.";
+    const usr = `Copa 2026 — ${fx.phase}\n${fx.home} x ${fx.away}\nMercado: ${best.market} (${best.selection})\nOdd: ${best.odd} | VE: ${best.ve.toFixed(1)}% | Prob: ${conf}%\nFIFA: ${ptsH} vs ${ptsA} | λ: H ${xgH.toFixed(2)}/A ${xgA.toFixed(2)}\n\nRacional técnico em ≤4 linhas. Devolva JSON.`;
+    const out = await callDeepseek(sys, usr, { temperature: 0.2, max_tokens: 400, timeoutMs: 15000 });
+    const parsed = JSON.parse(out);
+    if (parsed?.rationale) rationale = `🇧🇷 ${parsed.rationale}`;
+  } catch (e) {
+    console.warn(`[copa] brasil rationale IA falhou ${fx.fixture_id}:`, (e as Error).message);
+  }
+
+  console.log(`[copa] 🇧🇷 Brasil mandatório aprovado: ${fx.home} x ${fx.away} | ${best.market} (${best.selection}) | VE ${best.ve.toFixed(1)}% | Bloco ${block}`);
+
+  return {
+    fixture_id: fx.fixture_id,
+    approved: true,
+    signal: {
+      fixture_id: fx.fixture_id,
+      home: fx.home,
+      away: fx.away,
+      commence_time: fx.commence_time,
+      phase: fx.phase,
+      market: best.market,
+      selection: best.selection,
+      ah_line: best.ah_line,
+      odd: best.odd,
+      prob: best.prob,
+      ve_pct: best.ve,
+      edge_pct: best.ve,
+      confidence: conf,
+      block,
+      stake_pct: stake,
+      rationale,
+      vetos: [],
+      copa_badge: true,
+    },
+  };
+}
+
+// ───────── Bridge: persiste sinal Copa em punter_sinais (Arena Punter) ─────────
+// Permite que os jogos da Copa apareçam na tela Arena Punter e no chat Mycroft.
+async function writeToPunterSinais(supabase: any, s: any) {
+  const matchId = `${s.home}_${s.away}_${s.commence_time}`
+    .replace(/\s+/g, "_")
+    .replace(/\+00:00/g, "Z");
+  const matchDate = s.commence_time ? s.commence_time.slice(0, 10) : new Date().toISOString().slice(0, 10);
+  try {
+    // Dedup para evitar duplicata no mesmo match+market
+    await supabase.from("punter_sinais").delete().eq("match_id", matchId).eq("market", s.market || "N/A");
+    const { error } = await supabase.from("punter_sinais").insert({
+      match_id:              matchId,
+      home_team:             s.home,
+      away_team:             s.away,
+      league:                "Copa do Mundo 2026",
+      market:                s.market,
+      bookmaker:             "Copa 2026",
+      odd:                   s.odd,
+      fair_odd:              s.prob ? +(1 / s.prob).toFixed(4) : null,
+      implied_probability:   s.odd  ? +((1 / s.odd) * 100).toFixed(2) : null,
+      estimated_probability: s.prob ? +(s.prob * 100).toFixed(2) : null,
+      value_percentage:      s.ve_pct,
+      verdict:               "APROVADO",
+      confidence:            s.confidence,
+      stake_percentage:      s.stake_pct,
+      stake_percentage_original: s.stake_pct,
+      thesis:                s.rationale,
+      analysis:              s.rationale,
+      risk_factors:          `Copa do Mundo 2026 — ${s.phase || "grupos"}`,
+      analyzed_by:           "mycroft-copa",
+      status:                "pending",
+      stake_confirmed:       true,
+      match_date:            matchDate,
+      commence_time:         s.commence_time,
+      dismissed:             false,
+      resultado:             null,
+    });
+    if (error) console.warn("[copa-punter] punter_sinais write error:", error.message);
+    else console.log(`[copa-punter] ✅ Arena Punter: ${s.home} x ${s.away} | ${s.market}`);
+  } catch (e) {
+    console.warn("[copa-punter] punter_sinais write falhou:", (e as Error).message);
+  }
+}
+
 // ───────── Telegram ─────────
 async function sendTelegram(text: string) {
   const token = Deno.env.get("TELEGRAM_BOT_CONFIG");
@@ -429,7 +624,12 @@ Deno.serve(async (req) => {
     const results = [];
     for (const fx of fixtures || []) {
       try {
-        const r = await analyzeFixture(supabase, fx, cfg);
+        let r = await analyzeFixture(supabase, fx, cfg);
+        // Brasil: se análise normal não aprovou, aplica aprovação mandatória
+        if (!r.approved && isBrazilGame(fx)) {
+          console.log(`[copa-punter] 🇧🇷 Brasil não aprovado via análise normal — aprovação mandatória: ${fx.home} x ${fx.away}`);
+          r = await brazilMandatoryApproval(supabase, fx, cfg);
+        }
         results.push(r);
       } catch (e) {
         console.error(`[copa-punter] erro fixture ${fx.fixture_id}:`, (e as Error).message);
@@ -437,9 +637,15 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 3) Exposição máxima por rodada (mantém os de maior VE)
+    // 3) Exposição máxima por rodada (mantém os de maior VE; Brasil mandatório entra primeiro)
     const approved = results.filter(r => r.approved && r.signal);
-    approved.sort((a: any, b: any) => (b.signal.ve_pct - a.signal.ve_pct));
+    approved.sort((a: any, b: any) => {
+      // Brasil mandatório tem prioridade sobre limite de exposição
+      const aBr = isBrazilGame(a.signal) ? 1 : 0;
+      const bBr = isBrazilGame(b.signal) ? 1 : 0;
+      if (bBr !== aBr) return bBr - aBr;
+      return b.signal.ve_pct - a.signal.ve_pct;
+    });
     const maxExposure = cfg?.max_exposicao_rodada ?? 8;
     let totalStake = 0;
     const final: any[] = [];
@@ -488,6 +694,8 @@ Deno.serve(async (req) => {
             rationale:    s.rationale,
           }, { onConflict: "fixture_id,selection" });
         if (entradaErr) console.warn("[copa-punter] copa_punter_entradas:", entradaErr.message);
+        // Persiste em punter_sinais para aparecer na Arena Punter e no chat Mycroft
+        await writeToPunterSinais(supabase, s);
         await sendTelegram(
           `🏆 <b>COPA 2026 — ${s.phase.toUpperCase()}</b>\n` +
           `<b>${s.home}</b> x <b>${s.away}</b>\n` +
