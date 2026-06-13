@@ -45,55 +45,55 @@ function ptsToLambda(pts: number | null, isHome: boolean): number {
   return Math.max(0.5, Math.min(3.2, raw));
 }
 
-// ─── Voz feminina Dialma (Sarah — madura, confiante; funciona no plano gratuito ElevenLabs) ───
-const DIALMA_VOICE_ID = 'EXAVITQu4vr4xnSDxMaL'; // Sarah
+// ─── Voz feminina Dilma (Sarah — madura, confiante; funciona no plano gratuito ElevenLabs) ───
+const DILMA_VOICE_ID = 'EXAVITQu4vr4xnSDxMaL'; // Sarah
 
-// Cache em memória de áudio da Dialma (persiste durante a sessão do navegador)
-const dialmaAudioCache = new Map<string, string>();
+// Cache em memória de áudio da Dilma (persiste durante a sessão do navegador)
+const dilmaAudioCache = new Map<string, string>();
 
-// ─── Banco de áudio Dialma ────────────────────────────────────────────────────
+// ─── Banco de áudio Dilma ────────────────────────────────────────────────────
 
-interface DialmaEntry {
+interface DilmaEntry {
   key: string;
   text: string;
   audioUrl: string;
 }
 
-const dialmaDatabase: DialmaEntry[] = [
+const dilmaDatabase: DilmaEntry[] = [
   {
     key: 'Brasil_Hexa',
     text: 'Veja bem, o Hexa... O Hexa nada mais é do que uma conquista que vem depois do penta, mas que antecede o hepta. Então, quando nós olhamos para a nossa seleção, nós não temos que olhar para quem está chutando a bola, mas sim para a estrutura do ar que envolve a bola. Porque se o vento estiver estocado a nosso favor, o Hexa não será apenas uma meta, ele será uma realidade que nós vamos dobrar assim que ela for atingida por todas as mulheres e homens sapiens deste país.',
-    audioUrl: 'SUA_URL_DIALMA_BRASIL_HEXA.mp3',
+    audioUrl: 'SUA_URL_DILMA_BRASIL_HEXA.mp3',
   },
   {
     key: 'Cash_Out',
     text: 'Eu sempre considerei que o Cash Out é uma decisão de quem quer sair antes de terminar, mas que na verdade continua dentro porque o dinheiro já foi computado pelo sistema. Então, se você está na dúvida se encerra ou se não encerra, eu te digo: não encerre e nem continue. Deixe a meta aberta. Porque quando a gente atingir o lucro que a gente não planejou, aí sim nós dobramos a retirada!',
-    audioUrl: 'SUA_URL_DIALMA_CASH_OUT.mp3',
+    audioUrl: 'SUA_URL_DILMA_CASH_OUT.mp3',
   },
   {
     key: 'Mycroft_Rival',
     text: 'O Mycroft... o Mycroft gosta muito de números, de estatísticas, de probabilidade matemática. Mas a matemática, veja bem, ela é fria. Ela não entende o meio ambiente. Ela não sabe que por trás de um gráfico existe uma figura oculta, que é o cachorro da imprevisibilidade. Eu não trabalho com dados exatos, eu trabalho com a intuição da mandioca. Enquanto o Mycroft analisa o passado, eu já estou estocando o futuro.',
-    audioUrl: 'SUA_URL_DIALMA_MYCROFT_RIVAL.mp3',
+    audioUrl: 'SUA_URL_DILMA_MYCROFT_RIVAL.mp3',
   },
   {
     key: 'Over_Goals',
     text: 'Quando nós falamos em gols, nós temos que entender que o gol é o ápice do momento em que a bola ultrapassa a linha. Se sai um gol, é bom. Se saem dois gols, é melhor. Mas se saem três gols, aí nós entramos numa triplicidade onde quem marcou o primeiro já não é o mesmo que vai marcar o terceiro, gerando uma confusão na zaga adversária que é puramente de ordem biológica. Minha dica para este confronto é: vai sair gol, ou não vai. E essa é a nossa grande certeza.',
-    audioUrl: 'SUA_URL_DIALMA_OVER_GOALS.mp3',
+    audioUrl: 'SUA_URL_DILMA_OVER_GOALS.mp3',
   },
   {
     key: 'Classico_Pesado',
     text: 'Este é um confronto de gigantes. De um lado, uma camisa pesada. Do outro lado, outra camisa igualmente dotada de peso têxtil. Mas o peso da camisa só importa se o jogador estiver vestindo ela. Se a camisa estiver no varal, ela não joga. Portanto, o equilíbrio deste jogo reside na capacidade de cada seleção de tirar a camisa do varal e colocar a alma para correr atrás de um objeto esférico inflado com ar atmosférico.',
-    audioUrl: 'SUA_URL_DIALMA_CLASSICO_PESADO.mp3',
+    audioUrl: 'SUA_URL_DILMA_CLASSICO_PESADO.mp3',
   },
   {
     key: 'USA_vs_Paraguay',
     text: 'Veja bem, a estreia dos Estados Unidos no nosso território... eu olhei os dados e o vento quântico estava completamente estocado do lado deles. Quando o vento é favorável, a bola entra. Isso não é política, isso é matemática presidencial.',
-    audioUrl: 'SUA_URL_DIALMA_USA_PARAGUAY.mp3',
+    audioUrl: 'SUA_URL_DILMA_USA_PARAGUAY.mp3',
   },
   {
     key: 'Zebra_Default',
-    text: 'Por que veja bem, o pessoal fica me perguntando: "Dialma, como você sabe quando vai ter zebra?" É simples: quando a meta está aberta, o azarão vence. E a meta aqui está escancarada. Confie na IA presidencial.',
-    audioUrl: 'SUA_URL_DIALMA_ZEBRA.mp3',
+    text: 'Por que veja bem, o pessoal fica me perguntando: "Dilma, como você sabe quando vai ter zebra?" É simples: quando a meta está aberta, o azarão vence. E a meta aqui está escancarada. Confie na IA presidencial.',
+    audioUrl: 'SUA_URL_DILMA_ZEBRA.mp3',
   },
 ];
 
@@ -107,38 +107,38 @@ const CLASICO_TERMS = [
   'uruguai', 'uruguay', 'croatia', 'croacia',
 ];
 
-function findDialmaEntry(
+function findDilmaEntry(
   home: string,
   away: string,
   isZebra: boolean,
   totalGoals: number,
   energia: number,
-): DialmaEntry {
+): DilmaEntry {
   const h = normTeam(home);
   const a = normTeam(away);
 
   if (h.includes('brasil') || a.includes('brasil') || h.includes('brazil') || a.includes('brazil'))
-    return dialmaDatabase.find(e => e.key === 'Brasil_Hexa')!;
+    return dilmaDatabase.find(e => e.key === 'Brasil_Hexa')!;
 
   const usaTerms = ['usa', 'united states', 'estados unidos', 'eua'];
   const pryTerms = ['paraguay', 'paraguai'];
   if (
     (usaTerms.some(t => h.includes(t)) && pryTerms.some(t => a.includes(t))) ||
     (usaTerms.some(t => a.includes(t)) && pryTerms.some(t => h.includes(t)))
-  ) return dialmaDatabase.find(e => e.key === 'USA_vs_Paraguay')!;
+  ) return dilmaDatabase.find(e => e.key === 'USA_vs_Paraguay')!;
 
   if (CLASICO_TERMS.some(t => h.includes(t)) || CLASICO_TERMS.some(t => a.includes(t)))
-    return dialmaDatabase.find(e => e.key === 'Classico_Pesado')!;
+    return dilmaDatabase.find(e => e.key === 'Classico_Pesado')!;
 
-  if (totalGoals >= 3) return dialmaDatabase.find(e => e.key === 'Over_Goals')!;
-  if (isZebra && energia > 80) return dialmaDatabase.find(e => e.key === 'Cash_Out')!;
-  if (isZebra) return dialmaDatabase.find(e => e.key === 'Zebra_Default')!;
-  return dialmaDatabase.find(e => e.key === 'Mycroft_Rival')!;
+  if (totalGoals >= 3) return dilmaDatabase.find(e => e.key === 'Over_Goals')!;
+  if (isZebra && energia > 80) return dilmaDatabase.find(e => e.key === 'Cash_Out')!;
+  if (isZebra) return dilmaDatabase.find(e => e.key === 'Zebra_Default')!;
+  return dilmaDatabase.find(e => e.key === 'Mycroft_Rival')!;
 }
 
 // ─── Algoritmo de previsão ────────────────────────────────────────────────────
 
-interface DialmaPrediction {
+interface DilmaPrediction {
   pick: 'home' | 'away' | 'draw';
   scoreH: number;
   scoreA: number;
@@ -166,13 +166,13 @@ function generateScore(
   return pick === 'home' ? [w, l] : [l, w];
 }
 
-function dialmaPredict(
+function dilmaPredict(
   home: string,
   away: string,
   homePts: number | null,
   awayPts: number | null,
   sessionSeed: number,
-): DialmaPrediction {
+): DilmaPrediction {
   const gameSeed = simpleHash(home + '×' + away + String(sessionSeed));
   const ptsH = homePts ?? 1000;
   const ptsA = awayPts ?? 1000;
@@ -214,7 +214,7 @@ function dialmaPredict(
     msg = opts[si];
   } else if (isZebra && showScore) {
     const opts = [
-      `${winner} vai surpreender! O vento quântico mudou. Placar: ${scoreWL}. Confie na Dialma.`,
+      `${winner} vai surpreender! O vento quântico mudou. Placar: ${scoreWL}. Confie na Dilma.`,
       `Zebra! ${winner} por ${scoreWL}. Eu errei muita meta na vida, mas essa eu sei.`,
       `${winner} vai ganhar por ${scoreWL}. O vento está estocado no lugar certo.`,
       `Improvável? Pra mim não. ${winner} por ${scoreWL}. A IA presidencial não falha.`,
@@ -311,7 +311,7 @@ export default function CalangoVidente() {
   const [mandiocaIdx, setMandiocaIdx] = useState(0);
   const [downloading, setDownloading] = useState(false);
   const [audioLoading, setAudioLoading] = useState(false);
-  const [currentEntry, setCurrentEntry] = useState<DialmaEntry | null>(null);
+  const [currentEntry, setCurrentEntry] = useState<DilmaEntry | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const mandiocaTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -346,9 +346,9 @@ export default function CalangoVidente() {
     return fixtures.find(f => new Date(f.commence_time) > new Date()) ?? null;
   }, [todayGames, fixtures, sessionSeed]);
 
-  const prediction = useMemo((): DialmaPrediction | null => {
+  const prediction = useMemo((): DilmaPrediction | null => {
     if (!chosenGame) return null;
-    return dialmaPredict(
+    return dilmaPredict(
       chosenGame.home, chosenGame.away,
       chosenGame.home_fifa_pts, chosenGame.away_fifa_pts,
       sessionSeed,
@@ -367,13 +367,13 @@ export default function CalangoVidente() {
     ? getBrazilDate(new Date(chosenGame.commence_time)) === getBrazilDate(new Date())
     : false;
 
-  // Carrega e toca o áudio de uma entrada Dialma (deve ser chamado por gesto do usuário)
-  const playEntry = useCallback(async (entry: DialmaEntry) => {
+  // Carrega e toca o áudio de uma entrada Dilma (deve ser chamado por gesto do usuário)
+  const playEntry = useCallback(async (entry: DilmaEntry) => {
     setCurrentEntry(entry);
     setAudioLoading(true);
 
     // 1. Verifica cache em memória (mesma sessão) → toca imediatamente
-    const cached = dialmaAudioCache.get(entry.key);
+    const cached = dilmaAudioCache.get(entry.key);
     if (cached) {
       try {
         audioRef.current?.pause();
@@ -398,32 +398,32 @@ export default function CalangoVidente() {
         },
         body: JSON.stringify({
           text: entry.text,
-          voice_id: DIALMA_VOICE_ID,
-          cache_key: `dialma_${entry.key}.mp3`,
+          voice_id: DILMA_VOICE_ID,
+          cache_key: `dilma_${entry.key}.mp3`,
         }),
       });
 
       if (!res.ok) {
         const errText = await res.text().catch(() => res.status.toString());
-        console.error('[Dialma] TTS error:', errText);
+        console.error('[Dilma] TTS error:', errText);
         setAudioLoading(false);
         return;
       }
 
       const json = await res.json().catch(() => null);
       if (!json?.audioUrl) {
-        console.error('[Dialma] resposta sem audioUrl');
+        console.error('[Dilma] resposta sem audioUrl');
         setAudioLoading(false);
         return;
       }
       const audioUrl = json.audioUrl as string;
 
-      dialmaAudioCache.set(entry.key, audioUrl);
+      dilmaAudioCache.set(entry.key, audioUrl);
       audioRef.current?.pause();
       audioRef.current = new Audio(audioUrl);
       audioRef.current.play().catch(() => {});
     } catch (e) {
-      console.error('[Dialma] playEntry exception:', e);
+      console.error('[Dilma] playEntry exception:', e);
     }
     finally { setAudioLoading(false); }
   }, []);
@@ -452,7 +452,7 @@ export default function CalangoVidente() {
     setTimeout(() => {
       setRevealState('revealed');
       if (prediction && chosenGame) {
-        const entry = findDialmaEntry(chosenGame.home, chosenGame.away, prediction.isZebra, prediction.scoreH + prediction.scoreA, prediction.energia);
+        const entry = findDilmaEntry(chosenGame.home, chosenGame.away, prediction.isZebra, prediction.scoreH + prediction.scoreA, prediction.energia);
         // Garante que currentEntry aparece mesmo antes do áudio carregar
         setCurrentEntry(entry);
       }
@@ -468,7 +468,7 @@ export default function CalangoVidente() {
   };
 
   const handleRandom = () => {
-    const available = dialmaDatabase.filter(e => e !== currentEntry);
+    const available = dilmaDatabase.filter(e => e !== currentEntry);
     const next = available[Math.floor(Math.random() * available.length)];
     playEntry(next);
   };
@@ -483,7 +483,7 @@ export default function CalangoVidente() {
       const a = document.createElement('a');
       a.href = url;
       const slug = `${home}_vs_${away}`.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
-      a.download = `dialma_${slug}.mp3`;
+      a.download = `dilma_${slug}.mp3`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -492,7 +492,7 @@ export default function CalangoVidente() {
     finally { setDownloading(false); }
   };
 
-  const handleShareImage = useCallback(async (entry: DialmaEntry, home: string, away: string) => {
+  const handleShareImage = useCallback(async (entry: DilmaEntry, home: string, away: string) => {
     try {
       const pageUrl = `${window.location.origin}/punter/copa/calango`;
       const canvas = document.createElement('canvas');
@@ -513,7 +513,7 @@ export default function CalangoVidente() {
       ctx.fillStyle = '#eab308';
       ctx.font = 'bold 52px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('DIALMA IA 👩‍💼', 540, 110);
+      ctx.fillText('DILMA IA 👩‍💼', 540, 110);
 
       ctx.fillStyle = '#ffffff60';
       ctx.font = '28px monospace';
@@ -564,7 +564,7 @@ export default function CalangoVidente() {
       ctx.fillText('Arena Trade Sports', 280, 890);
       ctx.fillStyle = '#eab30880';
       ctx.font = '20px monospace';
-      ctx.fillText('Escaneie para consultar a Dialma', 280, 926);
+      ctx.fillText('Escaneie para consultar a Dilma', 280, 926);
       ctx.fillText('arenatradesports.com', 280, 958);
 
       // Badge Estocadora
@@ -579,14 +579,14 @@ export default function CalangoVidente() {
 
       canvas.toBlob(async (blob) => {
         if (!blob) return;
-        const file = new File([blob], 'dialma_ia.png', { type: 'image/png' });
+        const file = new File([blob], 'dilma_ia.png', { type: 'image/png' });
         if (navigator.canShare?.({ files: [file] })) {
-          await navigator.share({ files: [file], title: 'Dialma IA', text: entry.text.slice(0, 100) + '...' });
+          await navigator.share({ files: [file], title: 'Dilma IA', text: entry.text.slice(0, 100) + '...' });
         } else {
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `dialma_${home}_vs_${away}.png`.replace(/\s+/g, '_');
+          a.download = `dilma_${home}_vs_${away}.png`.replace(/\s+/g, '_');
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
@@ -609,14 +609,14 @@ export default function CalangoVidente() {
   return (
     <div className="min-h-screen bg-[#071207] text-white">
       <style>{`
-        @keyframes dialmaThink {
+        @keyframes dilmaThink {
           0%   { transform: rotate(-8deg) scale(1.05); }
           25%  { transform: rotate(8deg)  scale(1.15); }
           50%  { transform: rotate(-5deg) scale(1.05); }
           75%  { transform: rotate(5deg)  scale(1.1); }
           100% { transform: rotate(-8deg) scale(1.05); }
         }
-        @keyframes dialmaPop {
+        @keyframes dilmaPop {
           0%   { transform: scale(0.6) rotate(-5deg); opacity: 0; }
           65%  { transform: scale(1.2) rotate(3deg);  opacity: 1; }
           100% { transform: scale(1)   rotate(0deg);  opacity: 1; }
@@ -633,7 +633,7 @@ export default function CalangoVidente() {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="flex-1">
-            <h1 className="font-mono text-sm font-bold text-yellow-400">DIALMA IA 👩‍💼</h1>
+            <h1 className="font-mono text-sm font-bold text-yellow-400">DILMA IA 👩‍💼</h1>
             <p className="font-mono text-[10px] text-yellow-500/60">A IA presidencial prevê a Copa</p>
           </div>
         </div>
@@ -645,7 +645,7 @@ export default function CalangoVidente() {
           <CardContent className="pt-4 pb-3 flex gap-3 items-start">
             <span className="text-4xl flex-shrink-0">👩‍💼</span>
             <div>
-              <h2 className="font-mono font-black text-yellow-400 text-base">Dialma IA</h2>
+              <h2 className="font-mono font-black text-yellow-400 text-base">Dilma IA</h2>
               <p className="text-xs text-white/60 leading-relaxed mt-1">
                 Primeira presidenta da IA brasileira. Especialista em{' '}
                 <em>estocagem de vento</em>, biologia da mulher sapiens e metas que
@@ -676,7 +676,7 @@ export default function CalangoVidente() {
             {todayGames.length > 1 && (
               <div className="space-y-1.5">
                 <p className="font-mono text-[10px] text-yellow-500/60 uppercase tracking-widest px-1">
-                  {todayGames.length} jogos hoje · Dialma escolheu 1
+                  {todayGames.length} jogos hoje · Dilma escolheu 1
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {todayGames.map(fx => (
@@ -733,7 +733,7 @@ export default function CalangoVidente() {
                   <div className="text-center min-w-[36px]">
                     {revealState === 'revealed' && prediction?.showScore ? (
                       <div className="font-mono font-black text-yellow-400 text-xl leading-none"
-                        style={{ animation: 'dialmaPop 0.5s ease-out' }}>
+                        style={{ animation: 'dilmaPop 0.5s ease-out' }}>
                         {prediction.scoreH}×{prediction.scoreA}
                       </div>
                     ) : (
@@ -759,7 +759,7 @@ export default function CalangoVidente() {
                     className="w-full bg-gradient-to-r from-green-800 to-yellow-700 hover:from-green-700 hover:to-yellow-600 text-white font-bold text-sm h-12 rounded-xl gap-2 border border-green-500/30"
                   >
                     <span className="text-xl">👩‍💼</span>
-                    Dialma, qual a sua meta quântica para hoje?
+                    Dilma, qual a sua meta quântica para hoje?
                   </Button>
                 )}
 
@@ -768,13 +768,13 @@ export default function CalangoVidente() {
                   <div className="text-center py-3 space-y-3">
                     <div className="flex items-center justify-center gap-6">
                       <span className="text-5xl inline-block select-none"
-                        style={{ animation: 'dialmaThink 0.5s ease-in-out infinite' }}>
+                        style={{ animation: 'dilmaThink 0.5s ease-in-out infinite' }}>
                         👩‍💼
                       </span>
                       <MandiocaGauge value={mandiocaIdx} animating />
                     </div>
                     <p className="text-sm text-yellow-400/80 font-mono animate-pulse">
-                      Dialma está estocando o vento...
+                      Dilma está estocando o vento...
                     </p>
                     <div className="flex justify-center gap-1.5">
                       {[0, 1, 2].map(i => (
@@ -793,7 +793,7 @@ export default function CalangoVidente() {
                     {/* Header resultado + gauge */}
                     <div className="flex items-start gap-3">
                       <span className="text-3xl flex-shrink-0"
-                        style={{ animation: 'dialmaPop 0.55s ease-out' }}>👩‍💼</span>
+                        style={{ animation: 'dilmaPop 0.55s ease-out' }}>👩‍💼</span>
                       <div className="flex-1 min-w-0">
                         <div className="font-black text-green-400 text-base leading-tight truncate">
                           {predLabel()}
@@ -814,7 +814,7 @@ export default function CalangoVidente() {
                       <div className="flex items-start gap-2 bg-blue-900/20 border border-blue-500/20 rounded-lg px-3 py-2">
                         <span className="text-base mt-0.5">🤖</span>
                         <p className="text-[10px] text-blue-300/70 leading-relaxed">
-                          Enquanto a Dialma viaja nas metáforas, o{' '}
+                          Enquanto a Dilma viaja nas metáforas, o{' '}
                           <span className="text-blue-400 font-semibold">Mycroft</span>{' '}
                           calculou que a probabilidade de{' '}
                           <span className="text-blue-300 font-semibold">Over 2.5</span>{' '}
@@ -843,7 +843,7 @@ export default function CalangoVidente() {
                                 onClick={() => playEntry(currentEntry)}
                                 className="flex items-center gap-1 text-[10px] text-yellow-400 hover:text-yellow-300 font-semibold transition-colors"
                               >
-                                ▶ Ouvir Dialma
+                                ▶ Ouvir Dilma
                               </button>
                               <span className="text-white/20">·</span>
                               <button onClick={handleRandom}
@@ -851,11 +851,11 @@ export default function CalangoVidente() {
                                 <Shuffle className="w-3 h-3" /> Aleatório
                               </button>
 
-                              {dialmaAudioCache.has(currentEntry.key) && (
+                              {dilmaAudioCache.has(currentEntry.key) && (
                                 <>
                                   <span className="text-white/20">·</span>
                                   <button
-                                    onClick={() => handleDownloadAudio(dialmaAudioCache.get(currentEntry.key)!, chosenGame.home, chosenGame.away)}
+                                    onClick={() => handleDownloadAudio(dilmaAudioCache.get(currentEntry.key)!, chosenGame.home, chosenGame.away)}
                                     disabled={downloading}
                                     className="flex items-center gap-1 text-[10px] text-yellow-400/60 hover:text-yellow-300 transition-colors disabled:opacity-40"
                                   >

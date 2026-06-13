@@ -4,7 +4,7 @@
  * POST body:
  *   text       string   — texto a narrar (max 600 chars)
  *   voice_id?  string   — ID da voz (padrão: Rachel = 21m00Tcm4TlvDq8ikWAM)
- *   cache_key? string   — ex: "dialma_Brasil_Hexa.mp3"; se fornecido, faz
+ *   cache_key? string   — ex: "dilma_Brasil_Hexa.mp3"; se fornecido, faz
  *                         lookup/upload no bucket audio-cache do Supabase Storage
  *                         e retorna JSON { audioUrl } em vez de bytes brutos.
  *

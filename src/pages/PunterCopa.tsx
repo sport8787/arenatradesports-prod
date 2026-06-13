@@ -692,7 +692,7 @@ export default function PunterCopa() {
                   />
                   <FeatureButton
                     emoji="👩‍💼"
-                    label="Dialma IA"
+                    label="Dilma IA"
                     subtitle="A IA presidencial prevê a Copa com metas quânticas"
                     color="green"
                     onClick={() => navigate('/punter/copa/calango')}
