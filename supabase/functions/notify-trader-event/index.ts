@@ -121,12 +121,12 @@ function buildTelegramMessage(p: Payload): string {
 
   if (p.event_type === 'CANCELADO') {
     return (
-      `⚠️ <b>ENTRADA CANCELADA — Arena Trader Sports</b>\n\n` +
+      `🚨 <b>FECHAR POSIÇÃO / FAZER CASHOUT — Arena Trader Sports</b>\n\n` +
       `${matchLine}\n` +
       `${leagueLine}` +
       `📊 Placar: <b>${score}</b> • ${minute}\n` +
-      `❌ Era: <b>${p.previous_market ?? p.market}</b> @ ${p.previous_odd?.toFixed(2) ?? '—'} (${p.previous_confidence ?? '—'}%)\n\n` +
-      `<i>Mycroft detectou condição adversa. Não entre.</i>`
+      `❌ Sinal anterior: <b>${p.previous_market ?? p.market}</b> @ ${p.previous_odd?.toFixed(2) ?? '—'} (${p.previous_confidence ?? '—'}%)\n\n` +
+      `<i>Mycroft detectou condição adversa. Faça cashout ou feche sua posição agora.</i>`
     );
   }
 
