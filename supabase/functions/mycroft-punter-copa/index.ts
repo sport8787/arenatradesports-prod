@@ -456,9 +456,20 @@ async function brazilMandatoryApproval(supabase: any, fx: any, cfg: any): Promis
     cands.push({ market: "Ambas Marcam", selection: "Sim", odd: bttsOdd, prob, ve: vePct(prob, bttsOdd), ah_line: null });
   }
 
+  // Fallback sintético: sem odds no snapshot → usa FIFA ranking + modelo xG
+  // Garante que jogos do Brasil SEMPRE aparecem na Arena Punter (aprovação mandatória).
   if (cands.length === 0) {
-    console.warn(`[copa] 🇧🇷 Brasil sem odds em snapshot: ${fx.home} x ${fx.away} — não é possível aprovar sem odd`);
-    return { fixture_id: fx.fixture_id, approved: false, vetos: ["brasil: sem odds disponíveis no snapshot"], ve: 0, confidence: 0 };
+    const prob = probWin(xgH, xgA, brazilSide);
+    const syntheticOdd = +Math.max(1.20, Math.min(4.00, 1 / Math.max(0.25, prob))).toFixed(2);
+    cands.push({
+      market: "Resultado 1X2",
+      selection: `${brazilIsHome ? fx.home : fx.away} Vence`,
+      odd: syntheticOdd,
+      prob,
+      ve: vePct(prob, syntheticOdd),
+      ah_line: null,
+    });
+    console.warn(`[copa] 🇧🇷 Brasil sem snapshot → odd sintética ${syntheticOdd} (FIFA: ${ptsH}vs${ptsA} | λH${xgH.toFixed(2)}/λA${xgA.toFixed(2)})`);
   }
 
   // Ordena por VE (melhor primeiro); mesmo VE negativo → pick least bad

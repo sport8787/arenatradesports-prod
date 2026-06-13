@@ -34,21 +34,87 @@ const ODDS_API_KEY = Deno.env.get("THE_ODDS_API_KEY") || Deno.env.get("ODDS_API_
 
 const HORIZON_HOURS = 48;
 
-// Aliases para variações de nome entre provedores
+// Aliases para variações de nome entre provedores (PT-BR ↔ EN e variantes FIFA)
 const TEAM_ALIASES: Record<string, string> = {
+  // Inglês ↔ Turco/FIFA
   "turkiye": "turkey",
   "turkey": "turkiye",
+  // Irã
   "ir iran": "iran",
   "iran": "ir iran",
+  // Coréia
   "korea republic": "south korea",
   "south korea": "korea republic",
+  "coreia do sul": "south korea",
   "korea dpr": "north korea",
+  // Costa do Marfim
   "ivory coast": "cote d ivoire",
   "cote divoire": "cote d ivoire",
+  // República Tcheca
   "czechia": "czech republic",
   "czech republic": "czechia",
+  // EUA
   "united states": "usa",
   "usa": "united states",
+  "estados unidos": "usa",
+  // PT-BR → EN (Copa do Mundo 2026)
+  "brasil": "brazil",
+  "brazil": "brasil",
+  "alemanha": "germany",
+  "germany": "alemanha",
+  "espanha": "spain",
+  "spain": "espanha",
+  "franca": "france",
+  "france": "franca",
+  "holanda": "netherlands",
+  "paises baixos": "netherlands",
+  "netherlands": "holanda",
+  "belgica": "belgium",
+  "belgium": "belgica",
+  "suica": "switzerland",
+  "switzerland": "suica",
+  "croacia": "croatia",
+  "croatia": "croacia",
+  "servia": "serbia",
+  "serbia": "servia",
+  "marrocos": "morocco",
+  "morocco": "marrocos",
+  "camaroes": "cameroon",
+  "cameroon": "camaroes",
+  "gana": "ghana",
+  "ghana": "gana",
+  "egito": "egypt",
+  "egypt": "egito",
+  "africa do sul": "south africa",
+  "south africa": "africa do sul",
+  "nigeria": "nigeria",
+  "equador": "ecuador",
+  "ecuador": "equador",
+  "uruguai": "uruguay",
+  "uruguay": "uruguai",
+  "paraguai": "paraguay",
+  "paraguay": "paraguai",
+  "japao": "japan",
+  "japan": "japao",
+  "arabia saudita": "saudi arabia",
+  "saudi arabia": "arabia saudita",
+  "nova zelandia": "new zealand",
+  "new zealand": "nova zelandia",
+  "polonia": "poland",
+  "poland": "polonia",
+  "hungria": "hungary",
+  "hungary": "hungria",
+  "suecia": "sweden",
+  "sweden": "suecia",
+  "noruega": "norway",
+  "norway": "noruega",
+  "dinamarca": "denmark",
+  "denmark": "dinamarca",
+  "romenia": "romania",
+  "romania": "romenia",
+  "turquia": "turkey",
+  "eslovaquia": "slovakia",
+  "slovakia": "eslovaquia",
 };
 
 function normalizeName(name: string): string {
@@ -163,6 +229,7 @@ const COPA_SPORT_KEY_CANDIDATES = [
   "soccer_fifa_world_cup",
   "soccer_world_cup_2026",
   "soccer_fifa_world_cup_2026",
+  "soccer_world_cup",
 ];
 
 type OddsPayload = { home: Record<string, number>; away: Record<string, number>; [key: string]: any };
