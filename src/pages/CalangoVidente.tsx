@@ -29,17 +29,33 @@ interface DialmaEntry {
 }
 
 const dialmaDatabase: Record<string, DialmaEntry> = {
+  Brasil_Hexa: {
+    text: 'Veja bem, o Hexa... O Hexa nada mais é do que uma conquista que vem depois do penta, mas que antecede o hepta. Então, quando nós olhamos para a nossa seleção, nós não temos que olhar para quem está chutando a bola, mas sim para a estrutura do ar que envolve a bola. Porque se o vento estiver estocado a nosso favor, o Hexa não será apenas uma meta, ele será uma realidade que nós vamos dobrar assim que ela for atingida por todas as mulheres e homens sapiens deste país.',
+    audioUrl: 'SUA_URL_DIALMA_BRASIL_HEXA.mp3',
+  },
+  Cash_Out: {
+    text: 'Eu sempre considerei que o Cash Out é uma decisão de quem quer sair antes de terminar, mas que na verdade continua dentro porque o dinheiro já foi computado pelo sistema. Então, se você está na dúvida se encerra ou se não encerra, eu te digo: não encerre e nem continue. Deixe a meta aberta. Porque quando a gente atingir o lucro que a gente não planejou, aí sim nós dobramos a retirada!',
+    audioUrl: 'SUA_URL_DIALMA_CASH_OUT.mp3',
+  },
+  Mycroft_Rival: {
+    text: 'O Mycroft... o Mycroft gosta muito de números, de estatísticas, de probabilidade matemática. Mas a matemática, veja bem, ela é fria. Ela não entende o meio ambiente. Ela não sabe que por trás de um gráfico existe uma figura oculta, que é o cachorro da imprevisibilidade. Eu não trabalho com dados exatos, eu trabalho com a intuição da mandioca. Enquanto o Mycroft analisa o passado, eu já estou estocando o futuro.',
+    audioUrl: 'SUA_URL_DIALMA_MYCROFT_RIVAL.mp3',
+  },
+  Over_Goals: {
+    text: 'Quando nós falamos em gols, nós temos que entender que o gol é o ápice do momento em que a bola ultrapassa a linha. Se sai um gol, é bom. Se saem dois gols, é melhor. Mas se saem três gols, aí nós entramos numa triplicidade onde quem marcou o primeiro já não é o mesmo que vai marcar o terceiro, gerando uma confusão na zaga adversária que é puramente de ordem biológica. Minha dica para este confronto é: vai sair gol, ou não vai. E essa é a nossa grande certeza.',
+    audioUrl: 'SUA_URL_DIALMA_OVER_GOALS.mp3',
+  },
+  Classico_Pesado: {
+    text: 'Este é um confronto de gigantes. De um lado, uma camisa pesada. Do outro lado, outra camisa igualmente dotada de peso têxtil. Mas o peso da camisa só importa se o jogador estiver vestindo ela. Se a camisa estiver no varal, ela não joga. Portanto, o equilíbrio deste jogo reside na capacidade de cada seleção de tirar a camisa do varal e colocar a alma para correr atrás de um objeto esférico inflado com ar atmosférico.',
+    audioUrl: 'SUA_URL_DIALMA_CLASSICO_PESADO.mp3',
+  },
   USA_vs_Paraguay: {
     text: 'Veja bem, a estreia dos Estados Unidos no nosso território... eu olhei os dados e o vento quântico estava completamente estocado do lado deles. Quando o vento é favorável, a bola entra. Isso não é política, isso é matemática presidencial.',
-    audioUrl: 'SUA_URL_DO_AUDIO_ELEVEN_LABS_USA.mp3',
+    audioUrl: 'SUA_URL_DIALMA_USA_PARAGUAY.mp3',
   },
   Zebra_Default: {
     text: 'Por que veja bem, o pessoal fica me perguntando: "Dialma, como você sabe quando vai ter zebra?" É simples: quando a meta está aberta, o azarão vence. E a meta aqui está escancarada. Confie na IA presidencial.',
-    audioUrl: 'SUA_URL_DO_AUDIO_ZEBRA.mp3',
-  },
-  Red_Default: {
-    text: 'O pessoal me pergunta: "Dialma, eu botei todo o meu dinheiro no favorito, tá certo?" E eu digo: depende do vento. Hoje o vento está estocado do lado mais forte. Vai no favorito com cautela e boa sorte.',
-    audioUrl: 'SUA_URL_DO_AUDIO_RED.mp3',
+    audioUrl: 'SUA_URL_DIALMA_ZEBRA.mp3',
   },
 };
 
@@ -47,9 +63,28 @@ function normTeam(s: string): string {
   return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
 }
 
-function findDialmaEntry(home: string, away: string, isZebra: boolean): DialmaEntry {
+const CLASICO_TERMS = [
+  'argentina', 'alemanha', 'germany', 'franca', 'france', 'inglaterra', 'england',
+  'espanha', 'spain', 'italia', 'italy', 'portugal', 'holanda', 'netherlands',
+  'uruguai', 'uruguay', 'croatia', 'croacia',
+];
+
+function findDialmaEntry(
+  home: string,
+  away: string,
+  isZebra: boolean,
+  totalGoals: number,
+  energia: number,
+): DialmaEntry {
   const h = normTeam(home);
   const a = normTeam(away);
+
+  // Brasil jogando → Hexa
+  if (h.includes('brasil') || a.includes('brasil') || h.includes('brazil') || a.includes('brazil')) {
+    return dialmaDatabase.Brasil_Hexa;
+  }
+
+  // Confronto específico USA × Paraguai
   const usaTerms = ['usa', 'united states', 'estados unidos', 'eua'];
   const pryTerms = ['paraguay', 'paraguai'];
   if (
@@ -58,7 +93,29 @@ function findDialmaEntry(home: string, away: string, isZebra: boolean): DialmaEn
   ) {
     return dialmaDatabase.USA_vs_Paraguay;
   }
-  return isZebra ? dialmaDatabase.Zebra_Default : dialmaDatabase.Red_Default;
+
+  // Clássico pesado (seleção de peso têxtil)
+  if (CLASICO_TERMS.some(t => h.includes(t)) || CLASICO_TERMS.some(t => a.includes(t))) {
+    return dialmaDatabase.Classico_Pesado;
+  }
+
+  // Jogo de muitos gols previsto (triplicidade biológica)
+  if (totalGoals >= 3) {
+    return dialmaDatabase.Over_Goals;
+  }
+
+  // Zebra com tensão máxima → Cash Out
+  if (isZebra && energia > 80) {
+    return dialmaDatabase.Cash_Out;
+  }
+
+  // Zebra → Zebra_Default
+  if (isZebra) {
+    return dialmaDatabase.Zebra_Default;
+  }
+
+  // Fallback → rivalidade com Mycroft
+  return dialmaDatabase.Mycroft_Rival;
 }
 
 // ─── Algoritmo de previsão ────────────────────────────────────────────────────
@@ -257,7 +314,7 @@ export default function CalangoVidente() {
     setTimeout(() => {
       setRevealState('revealed');
       if (prediction && chosenGame) {
-        const entry = findDialmaEntry(chosenGame.home, chosenGame.away, prediction.isZebra);
+        const entry = findDialmaEntry(chosenGame.home, chosenGame.away, prediction.isZebra, prediction.scoreH + prediction.scoreA, prediction.energia);
         if (entry.audioUrl && !entry.audioUrl.startsWith('SUA_URL')) {
           try {
             audioRef.current?.pause();
@@ -499,7 +556,7 @@ export default function CalangoVidente() {
 
                     {/* Texto do banco de áudio Dialma */}
                     {chosenGame && (() => {
-                      const entry = findDialmaEntry(chosenGame.home, chosenGame.away, prediction.isZebra);
+                      const entry = findDialmaEntry(chosenGame.home, chosenGame.away, prediction.isZebra, prediction.scoreH + prediction.scoreA, prediction.energia);
                       return (
                         <div className="bg-yellow-900/20 border border-yellow-500/20 rounded-lg p-3">
                           <p className="text-[11px] text-yellow-300/80 leading-relaxed italic">
