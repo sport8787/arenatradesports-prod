@@ -410,18 +410,13 @@ export default function CalangoVidente() {
         return;
       }
 
-      const contentType = res.headers.get('Content-Type') ?? '';
-      let audioUrl: string;
-
-      if (contentType.includes('application/json')) {
-        const json = await res.json();
-        if (!json.audioUrl) { console.error('[Dialma] sem audioUrl na resposta JSON'); setAudioLoading(false); return; }
-        audioUrl = json.audioUrl as string;
-      } else {
-        // Bytes brutos audio/mpeg — cria URL de objeto temporária
-        const blob = await res.blob();
-        audioUrl = URL.createObjectURL(blob);
+      const json = await res.json().catch(() => null);
+      if (!json?.audioUrl) {
+        console.error('[Dialma] resposta sem audioUrl');
+        setAudioLoading(false);
+        return;
       }
+      const audioUrl = json.audioUrl as string;
 
       dialmaAudioCache.set(entry.key, audioUrl);
       audioRef.current?.pause();

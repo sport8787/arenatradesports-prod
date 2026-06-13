@@ -130,16 +130,21 @@ Deno.serve(async (req) => {
       // Falha no upload → devolve bytes brutos como fallback
     }
 
-    // ── Retorna bytes brutos (sem cache_key ou upload falhou) ─────────────────
-    return new Response(audioBuffer, {
-      status: 200,
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'audio/mpeg',
-        'Content-Length': String(audioBuffer.byteLength),
-        'Cache-Control': 'private, max-age=3600',
+    // ── Fallback: base64 data URL (funciona em mobile e sem bucket Storage) ──
+    const uint8 = new Uint8Array(audioBuffer);
+    let binary = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < uint8.length; i += chunkSize) {
+      binary += String.fromCharCode(...uint8.subarray(i, i + chunkSize));
+    }
+    const base64 = btoa(binary);
+    return new Response(
+      JSON.stringify({ audioUrl: `data:audio/mpeg;base64,${base64}` }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       },
-    });
+    );
   } catch (e) {
     console.error('[elevenlabs-tts] exception:', e);
     return new Response(JSON.stringify({ error: String((e as Error).message) }), {

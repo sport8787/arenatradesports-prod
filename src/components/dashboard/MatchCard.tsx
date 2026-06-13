@@ -80,7 +80,7 @@ function TeamLogo({ logo, team }: { logo: string; team: string }) {
   if (isUrl(logo) && !imgError) {
     return <img src={logo} alt={team} className="w-8 h-8 object-contain rounded-full" onError={() => setImgError(true)} />;
   }
-  return <span className="text-2xl">{logo || '⚽'}</span>;
+  return <span className="text-2xl">{isUrl(logo) ? '⚽' : (logo || '⚽')}</span>;
 }
 
 // Status badge config
