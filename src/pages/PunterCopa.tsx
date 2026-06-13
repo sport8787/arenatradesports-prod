@@ -691,9 +691,9 @@ export default function PunterCopa() {
                     onClick={() => navigate('/punter/copa/bolao')}
                   />
                   <FeatureButton
-                    emoji="🦎"
-                    label="Calango Vidente"
-                    subtitle="Previsões do oráculo ancestral da Caatinga"
+                    emoji="👩‍💼"
+                    label="Dialma IA"
+                    subtitle="A IA presidencial prevê a Copa com metas quânticas"
                     color="green"
                     onClick={() => navigate('/punter/copa/calango')}
                   />

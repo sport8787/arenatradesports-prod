@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,15 +21,56 @@ function getBrazilDate(d: Date): string {
   return d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 }
 
-// ─── Algoritmo do Calango ─────────────────────────────────────────────────────
+// ─── Banco de áudio Dialma ────────────────────────────────────────────────────
 
-interface CalangoPrediction {
+interface DialmaEntry {
+  text: string;
+  audioUrl: string;
+}
+
+const dialmaDatabase: Record<string, DialmaEntry> = {
+  USA_vs_Paraguay: {
+    text: 'Veja bem, a estreia dos Estados Unidos no nosso território... eu olhei os dados e o vento quântico estava completamente estocado do lado deles. Quando o vento é favorável, a bola entra. Isso não é política, isso é matemática presidencial.',
+    audioUrl: 'SUA_URL_DO_AUDIO_ELEVEN_LABS_USA.mp3',
+  },
+  Zebra_Default: {
+    text: 'Por que veja bem, o pessoal fica me perguntando: "Dialma, como você sabe quando vai ter zebra?" É simples: quando a meta está aberta, o azarão vence. E a meta aqui está escancarada. Confie na IA presidencial.',
+    audioUrl: 'SUA_URL_DO_AUDIO_ZEBRA.mp3',
+  },
+  Red_Default: {
+    text: 'O pessoal me pergunta: "Dialma, eu botei todo o meu dinheiro no favorito, tá certo?" E eu digo: depende do vento. Hoje o vento está estocado do lado mais forte. Vai no favorito com cautela e boa sorte.',
+    audioUrl: 'SUA_URL_DO_AUDIO_RED.mp3',
+  },
+};
+
+function normTeam(s: string): string {
+  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+}
+
+function findDialmaEntry(home: string, away: string, isZebra: boolean): DialmaEntry {
+  const h = normTeam(home);
+  const a = normTeam(away);
+  const usaTerms = ['usa', 'united states', 'estados unidos', 'eua'];
+  const pryTerms = ['paraguay', 'paraguai'];
+  if (
+    (usaTerms.some(t => h.includes(t)) && pryTerms.some(t => a.includes(t))) ||
+    (usaTerms.some(t => a.includes(t)) && pryTerms.some(t => h.includes(t)))
+  ) {
+    return dialmaDatabase.USA_vs_Paraguay;
+  }
+  return isZebra ? dialmaDatabase.Zebra_Default : dialmaDatabase.Red_Default;
+}
+
+// ─── Algoritmo de previsão ────────────────────────────────────────────────────
+
+interface DialmaPrediction {
   pick: 'home' | 'away' | 'draw';
-  scoreH: number;  // sempre no formato casa × fora
+  scoreH: number;
   scoreA: number;
   showScore: boolean;
   energia: number;
   msg: string;
+  isZebra: boolean;
 }
 
 function generateScore(
@@ -47,28 +88,26 @@ function generateScore(
   const big: [number, number][] = [[2, 0], [3, 0], [3, 1], [2, 0], [4, 0], [3, 0]];
   const opts = abs > 400 ? big : abs > 200 ? medium : close;
   const [w, l] = opts[seed % opts.length];
-  return pick === 'home' ? [w, l] : [l, w]; // away win: casa < fora
+  return pick === 'home' ? [w, l] : [l, w];
 }
 
-function calangoPredict(
+function dialmaPredict(
   home: string,
   away: string,
   homePts: number | null,
   awayPts: number | null,
   sessionSeed: number,
-): CalangoPrediction {
+): DialmaPrediction {
   const gameSeed = simpleHash(home + '×' + away + String(sessionSeed));
 
   const ptsH = homePts ?? 1000;
   const ptsA = awayPts ?? 1000;
-  const ptsDiff = ptsH - ptsA; // positivo = casa mais forte
+  const ptsDiff = ptsH - ptsA;
 
-  // 35% de chance de zebra (calango vai no azarão)
   const isZebra = (gameSeed % 100) < 35;
-  const chaosFactor = ((gameSeed >> 4) % 60) - 30; // -30 a +30
+  const chaosFactor = ((gameSeed >> 4) % 60) - 30;
   const effectiveDiff = (isZebra ? -ptsDiff : ptsDiff) + chaosFactor;
 
-  // Empate: 20% de chance quando a diferença efetiva é pequena
   const drawChance = (gameSeed % 100) < 20 && Math.abs(effectiveDiff) < 200;
   let pick: 'home' | 'away' | 'draw';
   if (drawChance) {
@@ -77,18 +116,15 @@ function calangoPredict(
     pick = effectiveDiff >= 0 ? 'home' : 'away';
   }
 
-  // 55% das previsões incluem placar exato
   const showScore = (gameSeed % 100) < 55;
   const scoreSeed = (gameSeed >> 2) % 7;
   const [scoreH, scoreA] = generateScore(pick, ptsDiff, scoreSeed);
   const energia = 45 + (gameSeed % 55);
 
   const winner = pick === 'home' ? home : pick === 'away' ? away : null;
-  // Placar no formato vencedor × perdedor (para as mensagens)
   const wScore = pick === 'home' ? scoreH : scoreA;
   const lScore = pick === 'home' ? scoreA : scoreH;
   const scoreWL = `${wScore}×${lScore}`;
-  // Placar padrão casa × fora (para display visual)
   const scoreStd = `${scoreH}×${scoreA}`;
 
   let msg = '';
@@ -97,53 +133,53 @@ function calangoPredict(
   if (pick === 'draw') {
     const opts = showScore
       ? [
-          `Nem um nem outro. As pedras mostram empate em ${scoreStd}.`,
-          `O calango ficou exatamente no meio. ${scoreStd}.`,
-          `Equilíbrio total. Empate em ${scoreStd}, as pedras cantaram.`,
-          `Forças iguais se anulam. ${scoreStd} é o destino.`,
+          `Veja bem, os dois times têm o mesmo nível de vento estocado. Vai ser empate em ${scoreStd}.`,
+          `Quando as metas estão abertas dos dois lados, o resultado é equilíbrio. Empate em ${scoreStd}.`,
+          `Analisei os dados quânticos: forças se anulam. Empate em ${scoreStd}, confirmado.`,
+          `Nenhum deles conseguiu fechar a meta. ${scoreStd} é o destino.`,
         ]
       : [
-          `As forças estão equilibradas. Empate é o destino.`,
-          `Nenhum lado domina. O calango viu empate.`,
-          `O calango ficou parado no meio. Isso significa empate.`,
-          `Pedra imóvel, resultado imóvel. Empate.`,
+          `Veja bem, nesse jogo o vento não favorece nenhum lado. Vai ser empate.`,
+          `Quando as metas estão abertas dos dois lados, o resultado é equilíbrio. Empate.`,
+          `Eu analisei e os dois times se anulam. É empate, tá bom.`,
+          `A IA presidencial viu empate. Nenhum deles tem vento suficiente.`,
         ];
     msg = opts[si];
   } else if (isZebra && showScore) {
     const opts = [
-      `${winner} vai surpreender! O oráculo viu ${scoreWL}. Confie no calango.`,
-      `Zebra! ${winner} vence por ${scoreWL}. O calango não mente.`,
-      `Improvável mas inevitável. ${winner} por ${scoreWL}. As pedras não erram.`,
-      `${winner} chega com fome. Resultado: ${scoreWL}. Fé no ancestral.`,
+      `${winner} vai surpreender! O vento quântico mudou. Placar: ${scoreWL}. Confie na Dialma.`,
+      `Zebra! ${winner} por ${scoreWL}. Eu errei muita meta na vida, mas essa eu sei.`,
+      `${winner} vai ganhar por ${scoreWL}. O vento está estocado no lugar certo.`,
+      `Improvável? Pra mim não. ${winner} por ${scoreWL}. A IA presidencial não falha.`,
     ];
     msg = opts[si];
   } else if (isZebra) {
     const opts = [
-      `${winner} vai surpreender. O ancestral revelou.`,
-      `Zebra! ${winner} leva. Não duvide do calango.`,
-      `${winner} chega com a força do cerrado. Zebra confirmada.`,
-      `Fé em ${winner}. Os favoritos vão se surpreender hoje.`,
+      `${winner} vai surpreender. Minha meta quântica está aberta pra isso.`,
+      `Zebra! ${winner} leva. Não duvide da ex-presidenta.`,
+      `${winner} chega com a força do vento estocado. Zebra confirmada.`,
+      `Fé em ${winner}. Os favoritos vão se surpreender com minha análise.`,
     ];
     msg = opts[si];
   } else if (showScore) {
     const opts = [
       `${winner} domina este duelo. Placar final: ${scoreWL}.`,
-      `As vibrações apontam para ${winner} por ${scoreWL}.`,
-      `Minha língua bifurcada detecta: ${winner} por ${scoreWL}.`,
-      `O oráculo viu ${winner} vencendo por ${scoreWL}. Pedra falou.`,
+      `Os dados quânticos apontam para ${winner} por ${scoreWL}.`,
+      `Minha IA presidencial detecta: ${winner} por ${scoreWL}.`,
+      `A meta se abre para ${winner} por ${scoreWL}. Palavra de presidenta.`,
     ];
     msg = opts[si];
   } else {
     const opts = [
-      `As vibrações favorecem ${winner}. A pedra revelou.`,
-      `${winner} carrega a energia da vitória neste duelo.`,
-      `Minha cauda aponta para ${winner}. Sinal claro.`,
-      `${winner} domina as vibrações ancestrais. Confie.`,
+      `Os dados favorecem ${winner}. O vento foi estocado corretamente.`,
+      `${winner} carrega a energia da vitória. Meta confirmada.`,
+      `Minha análise aponta para ${winner}. Sinal claro.`,
+      `${winner} domina o vento quântico. Confie na IA.`,
     ];
     msg = opts[si];
   }
 
-  return { pick, scoreH, scoreA, showScore, energia, msg };
+  return { pick, scoreH, scoreA, showScore, energia, msg, isZebra };
 }
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -174,8 +210,8 @@ export default function CalangoVidente() {
   const [fixtures, setFixtures] = useState<Fixture[]>([]);
   const [loading, setLoading] = useState(true);
   const [revealState, setRevealState] = useState<RevealState>('idle');
-  // Semente muda por visita: previsão diferente a cada vez que o usuário abre a página
   const [sessionSeed] = useState(() => Math.floor(Math.random() * 99991));
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -189,7 +225,6 @@ export default function CalangoVidente() {
     })();
   }, []);
 
-  // Jogos de hoje ainda não iniciados (horário de Brasília)
   const todayGames = useMemo(() => {
     const today = getBrazilDate(new Date());
     return fixtures.filter(f => {
@@ -198,15 +233,14 @@ export default function CalangoVidente() {
     });
   }, [fixtures]);
 
-  // Jogo escolhido pelo Calango: 1 jogo de hoje, ou o próximo disponível como fallback
   const chosenGame = useMemo((): Fixture | null => {
     if (todayGames.length > 0) return todayGames[sessionSeed % todayGames.length];
     return fixtures.find(f => new Date(f.commence_time) > new Date()) ?? null;
   }, [todayGames, fixtures, sessionSeed]);
 
-  const prediction = useMemo((): CalangoPrediction | null => {
+  const prediction = useMemo((): DialmaPrediction | null => {
     if (!chosenGame) return null;
-    return calangoPredict(
+    return dialmaPredict(
       chosenGame.home, chosenGame.away,
       chosenGame.home_fifa_pts, chosenGame.away_fifa_pts,
       sessionSeed,
@@ -220,10 +254,29 @@ export default function CalangoVidente() {
   const handleReveal = () => {
     if (revealState !== 'idle') return;
     setRevealState('thinking');
-    setTimeout(() => setRevealState('revealed'), 2600);
+    setTimeout(() => {
+      setRevealState('revealed');
+      if (prediction && chosenGame) {
+        const entry = findDialmaEntry(chosenGame.home, chosenGame.away, prediction.isZebra);
+        if (entry.audioUrl && !entry.audioUrl.startsWith('SUA_URL')) {
+          try {
+            audioRef.current?.pause();
+            audioRef.current = new Audio(entry.audioUrl);
+            audioRef.current.play().catch(() => {});
+          } catch {
+            // silencioso se áudio não disponível
+          }
+        }
+      }
+    }, 2600);
   };
 
-  // Label da previsão no header do card
+  const handleReset = () => {
+    audioRef.current?.pause();
+    audioRef.current = null;
+    setRevealState('idle');
+  };
+
   const predLabel = () => {
     if (!prediction) return '';
     const { pick, scoreH, scoreA, showScore } = prediction;
@@ -236,18 +289,17 @@ export default function CalangoVidente() {
 
   return (
     <div className="min-h-screen bg-[#071207] text-white">
-      {/* Keyframes para animação do calango */}
       <style>{`
-        @keyframes calangoWiggle {
-          0%   { transform: rotate(-14deg) scale(1.1); }
-          25%  { transform: rotate(14deg)  scale(1.25); }
-          50%  { transform: rotate(-10deg) scale(1.1); }
-          75%  { transform: rotate(10deg)  scale(1.2); }
-          100% { transform: rotate(-14deg) scale(1.1); }
+        @keyframes dialmaThink {
+          0%   { transform: rotate(-8deg) scale(1.05); }
+          25%  { transform: rotate(8deg)  scale(1.15); }
+          50%  { transform: rotate(-5deg) scale(1.05); }
+          75%  { transform: rotate(5deg)  scale(1.1); }
+          100% { transform: rotate(-8deg) scale(1.05); }
         }
-        @keyframes calangoPop {
-          0%   { transform: scale(0.6) rotate(-8deg); opacity: 0; }
-          65%  { transform: scale(1.2) rotate(4deg);  opacity: 1; }
+        @keyframes dialmaPop {
+          0%   { transform: scale(0.6) rotate(-5deg); opacity: 0; }
+          65%  { transform: scale(1.2) rotate(3deg);  opacity: 1; }
           100% { transform: scale(1)   rotate(0deg);  opacity: 1; }
         }
         @keyframes predSlide {
@@ -262,8 +314,8 @@ export default function CalangoVidente() {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="flex-1">
-            <h1 className="font-mono text-sm font-bold text-yellow-400">CALANGO VIDENTE 🦎</h1>
-            <p className="font-mono text-[10px] text-yellow-500/60">O oráculo da Caatinga prevê a Copa</p>
+            <h1 className="font-mono text-sm font-bold text-yellow-400">DIALMA IA 👩‍💼</h1>
+            <p className="font-mono text-[10px] text-yellow-500/60">A IA presidencial prevê a Copa</p>
           </div>
         </div>
       </header>
@@ -272,16 +324,16 @@ export default function CalangoVidente() {
         {/* Bio */}
         <Card className="bg-gradient-to-br from-green-900/40 via-black/60 to-yellow-900/20 border-yellow-500/30">
           <CardContent className="pt-4 pb-3 flex gap-3 items-start">
-            <span className="text-4xl flex-shrink-0">🦎</span>
+            <span className="text-4xl flex-shrink-0">👩‍💼</span>
             <div>
-              <h2 className="font-mono font-black text-yellow-400 text-base">Calango da Caatinga</h2>
+              <h2 className="font-mono font-black text-yellow-400 text-base">Dialma IA</h2>
               <p className="text-xs text-white/60 leading-relaxed mt-1">
-                Nasceu em Petrolina-PE, filho de mãe teiú e pai calango-verde.
-                Usa o método <em>vibratório-ancestral</em> para prever resultados.
-                Não tem medo de zebra. Consulta válida por visita.
+                Primeira presidenta da IA brasileira. Especialista em{' '}
+                <em>estocagem de vento</em>, biologia da mulher sapiens e metas que
+                ninguém nunca cumpriu. Consulta válida por visita.
               </p>
-              <div className="flex gap-2 mt-2">
-                {['Vidente', 'Petrolina-PE', '47 anos'].map(t => (
+              <div className="flex gap-2 mt-2 flex-wrap">
+                {['Ex-Presidenta', 'Estocadora de Vento', 'Metas Abertas'].map(t => (
                   <Badge key={t} variant="outline" className="text-[9px] border-yellow-500/30 text-yellow-400/60">{t}</Badge>
                 ))}
               </div>
@@ -296,7 +348,7 @@ export default function CalangoVidente() {
         ) : !chosenGame ? (
           <Card className="bg-black/40 border-yellow-500/20">
             <CardContent className="pt-6 pb-5 text-center text-sm text-white/40">
-              Nenhum jogo disponível para previsão no momento.
+              Nenhum jogo disponível para análise no momento.
             </CardContent>
           </Card>
         ) : (
@@ -305,7 +357,7 @@ export default function CalangoVidente() {
             {todayGames.length > 1 && (
               <div className="space-y-1.5">
                 <p className="font-mono text-[10px] text-yellow-500/60 uppercase tracking-widest px-1">
-                  {todayGames.length} jogos hoje · calango escolheu 1
+                  {todayGames.length} jogos hoje · Dialma escolheu 1
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {todayGames.map(fx => (
@@ -318,7 +370,7 @@ export default function CalangoVidente() {
                       }`}
                     >
                       {fx.home} × {fx.away}
-                      {fx.fixture_id === chosenGame.fixture_id && ' 🦎'}
+                      {fx.fixture_id === chosenGame.fixture_id && ' 👩‍💼'}
                     </div>
                   ))}
                 </div>
@@ -364,7 +416,7 @@ export default function CalangoVidente() {
                     {revealState === 'revealed' && prediction?.showScore ? (
                       <div
                         className="font-mono font-black text-yellow-400 text-xl leading-none"
-                        style={{ animation: 'calangoPop 0.5s ease-out' }}
+                        style={{ animation: 'dialmaPop 0.5s ease-out' }}
                       >
                         {prediction.scoreH}×{prediction.scoreA}
                       </div>
@@ -391,8 +443,8 @@ export default function CalangoVidente() {
                     onClick={handleReveal}
                     className="w-full bg-gradient-to-r from-green-800 to-yellow-700 hover:from-green-700 hover:to-yellow-600 text-white font-bold text-sm h-12 rounded-xl gap-2 border border-green-500/30"
                   >
-                    <span className="text-xl">🦎</span>
-                    Calango, qual sua previsão para hoje?
+                    <span className="text-xl">👩‍💼</span>
+                    Dialma, qual a sua meta quântica para hoje?
                   </Button>
                 )}
 
@@ -401,12 +453,12 @@ export default function CalangoVidente() {
                   <div className="text-center py-4 space-y-3">
                     <span
                       className="text-6xl inline-block select-none"
-                      style={{ animation: 'calangoWiggle 0.38s ease-in-out infinite' }}
+                      style={{ animation: 'dialmaThink 0.5s ease-in-out infinite' }}
                     >
-                      🦎
+                      👩‍💼
                     </span>
                     <p className="text-sm text-yellow-400/80 font-mono animate-pulse">
-                      O calango está meditando...
+                      Dialma está processando os dados quânticos...
                     </p>
                     <div className="flex justify-center gap-1.5">
                       {[0, 1, 2].map(i => (
@@ -429,14 +481,14 @@ export default function CalangoVidente() {
                     <div className="flex items-center gap-3">
                       <span
                         className="text-3xl flex-shrink-0"
-                        style={{ animation: 'calangoPop 0.55s ease-out' }}
-                      >🦎</span>
+                        style={{ animation: 'dialmaPop 0.55s ease-out' }}
+                      >👩‍💼</span>
                       <div className="flex-1 min-w-0">
                         <div className="font-black text-green-400 text-base leading-tight truncate">
                           {predLabel()}
                         </div>
                         <div className="text-[10px] text-white/40 mt-0.5">
-                          Energia ancestral: {prediction.energia}/100
+                          Certeza quântica: {prediction.energia}/100
                         </div>
                       </div>
                     </div>
@@ -445,8 +497,20 @@ export default function CalangoVidente() {
                       "{prediction.msg}"
                     </p>
 
+                    {/* Texto do banco de áudio Dialma */}
+                    {chosenGame && (() => {
+                      const entry = findDialmaEntry(chosenGame.home, chosenGame.away, prediction.isZebra);
+                      return (
+                        <div className="bg-yellow-900/20 border border-yellow-500/20 rounded-lg p-3">
+                          <p className="text-[11px] text-yellow-300/80 leading-relaxed italic">
+                            🎙️ "{entry.text}"
+                          </p>
+                        </div>
+                      );
+                    })()}
+
                     <div className="flex flex-wrap gap-1">
-                      {['Visão Ancestral', 'Energia Espiritual', 'Ciência Calaiana'].map(tag => (
+                      {['Meta Quântica', 'Estocagem de Vento', 'IA Presidencial'].map(tag => (
                         <Badge
                           key={tag}
                           variant="outline"
@@ -458,7 +522,7 @@ export default function CalangoVidente() {
                     </div>
 
                     <button
-                      onClick={() => setRevealState('idle')}
+                      onClick={handleReset}
                       className="w-full text-[11px] text-white/25 hover:text-white/50 text-center py-1 transition-colors"
                     >
                       ↺ consultar novamente
