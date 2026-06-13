@@ -43,12 +43,13 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Aceita snake_case (voice_id) e camelCase (voiceId) para compatibilidade
     const voiceId: string =
-      body.voice_id ??
+      body.voice_id ?? body.voiceId ??
       Deno.env.get('ELEVENLABS_VOICE_ID') ??
       '21m00Tcm4TlvDq8ikWAM'; // Rachel — voz feminina padrão
 
-    const cacheKey: string | null = body.cache_key ?? null;
+    const cacheKey: string | null = body.cache_key ?? body.cacheKey ?? null;
 
     // ── Supabase Storage cache ─────────────────────────────────────────────────
     let supabase: ReturnType<typeof createClient> | null = null;

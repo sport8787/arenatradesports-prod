@@ -384,23 +384,45 @@ export default function CalangoVidente() {
       return;
     }
 
-    // 2. Chama edge function (verifica Storage antes de gastar crédito ElevenLabs)
+    // 2. Chama edge function via fetch direto (supabase.functions.invoke não lida com audio/mpeg)
     try {
-      const { data, error } = await supabase.functions.invoke('elevenlabs-tts', {
-        body: {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+
+      const res = await fetch(`${supabaseUrl}/functions/v1/elevenlabs-tts`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: supabaseKey,
+          Authorization: `Bearer ${supabaseKey}`,
+        },
+        body: JSON.stringify({
           text: entry.text,
           voice_id: DIALMA_VOICE_ID,
           cache_key: `dialma_${entry.key}.mp3`,
-        },
+        }),
       });
 
-      if (error || !data?.audioUrl) {
-        console.error('[Dialma] TTS error:', error);
+      if (!res.ok) {
+        const errText = await res.text().catch(() => res.status.toString());
+        console.error('[Dialma] TTS error:', errText);
         setAudioLoading(false);
         return;
       }
 
-      const audioUrl = data.audioUrl as string;
+      const contentType = res.headers.get('Content-Type') ?? '';
+      let audioUrl: string;
+
+      if (contentType.includes('application/json')) {
+        const json = await res.json();
+        if (!json.audioUrl) { console.error('[Dialma] sem audioUrl na resposta JSON'); setAudioLoading(false); return; }
+        audioUrl = json.audioUrl as string;
+      } else {
+        // Bytes brutos audio/mpeg — cria URL de objeto temporária
+        const blob = await res.blob();
+        audioUrl = URL.createObjectURL(blob);
+      }
+
       dialmaAudioCache.set(entry.key, audioUrl);
       audioRef.current?.pause();
       audioRef.current = new Audio(audioUrl);
