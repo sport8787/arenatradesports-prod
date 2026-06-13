@@ -45,6 +45,12 @@ function ptsToLambda(pts: number | null, isHome: boolean): number {
   return Math.max(0.5, Math.min(3.2, raw));
 }
 
+// ─── Voz feminina Dialma (Rachel — ElevenLabs, plano gratuito compatível) ────
+const DIALMA_VOICE_ID = '21m00Tcm4TlvDq8ikWAM'; // Rachel
+
+// Cache em memória de áudio da Dialma (persiste durante a sessão do navegador)
+const dialmaAudioCache = new Map<string, string>();
+
 // ─── Banco de áudio Dialma ────────────────────────────────────────────────────
 
 interface DialmaEntry {
@@ -304,6 +310,7 @@ export default function CalangoVidente() {
   const [sessionSeed] = useState(() => Math.floor(Math.random() * 99991));
   const [mandiocaIdx, setMandiocaIdx] = useState(0);
   const [downloading, setDownloading] = useState(false);
+  const [audioLoading, setAudioLoading] = useState(false);
   const [currentEntry, setCurrentEntry] = useState<DialmaEntry | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const mandiocaTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -360,15 +367,61 @@ export default function CalangoVidente() {
     ? getBrazilDate(new Date(chosenGame.commence_time)) === getBrazilDate(new Date())
     : false;
 
-  const playEntry = useCallback((entry: DialmaEntry) => {
+  const playEntry = useCallback(async (entry: DialmaEntry) => {
     setCurrentEntry(entry);
-    if (entry.audioUrl && !entry.audioUrl.startsWith('SUA_URL')) {
+    setAudioLoading(true);
+
+    // 1. Verifica cache em memória (mesma sessão)
+    const cached = dialmaAudioCache.get(entry.key);
+    if (cached) {
       try {
         audioRef.current?.pause();
-        audioRef.current = new Audio(entry.audioUrl);
+        audioRef.current = new Audio(cached);
         audioRef.current.play().catch(() => {});
       } catch { /* silencioso */ }
+      setAudioLoading(false);
+      return;
     }
+
+    // 2. Chama edge function (que verifica Storage antes de gastar crédito)
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+      const res = await fetch(`${supabaseUrl}/functions/v1/elevenlabs-tts`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+        },
+        body: JSON.stringify({
+          text: entry.text,
+          voice_id: DIALMA_VOICE_ID,
+          cache_key: `dialma_${entry.key}.mp3`,
+        }),
+      });
+
+      if (!res.ok) { setAudioLoading(false); return; }
+
+      const contentType = res.headers.get('content-type') ?? '';
+      let audioUrl: string;
+
+      if (contentType.includes('application/json')) {
+        // Edge function retornou URL pública do Storage
+        const data = await res.json();
+        audioUrl = data.audioUrl as string;
+      } else {
+        // Fallback: bytes brutos → blob URL temporário
+        const blob = await res.blob();
+        audioUrl = URL.createObjectURL(blob);
+      }
+
+      dialmaAudioCache.set(entry.key, audioUrl);
+      audioRef.current?.pause();
+      audioRef.current = new Audio(audioUrl);
+      audioRef.current.play().catch(() => {});
+    } catch { /* silencioso */ }
+    finally { setAudioLoading(false); }
   }, []);
 
   const handleReveal = () => {
@@ -774,19 +827,24 @@ export default function CalangoVidente() {
                     {/* Áudio + controles */}
                     {currentEntry && (
                       <div className="bg-yellow-900/20 border border-yellow-500/20 rounded-lg p-3 space-y-2">
-                        <p className="text-[11px] text-yellow-300/80 leading-relaxed italic">
-                          🎙️ "{currentEntry.text}"
-                        </p>
+                        <div className="flex items-start gap-2">
+                          {audioLoading && (
+                            <Loader2 className="w-3 h-3 text-yellow-400/60 animate-spin flex-shrink-0 mt-0.5" />
+                          )}
+                          <p className="text-[11px] text-yellow-300/80 leading-relaxed italic">
+                            🎙️ "{currentEntry.text}"
+                          </p>
+                        </div>
 
                         {/* Controles de áudio */}
                         <div className="flex items-center gap-2 pt-1">
-                          <button onClick={handleReplay} title="Repetir"
-                            className="flex items-center gap-1 text-[10px] text-yellow-400/60 hover:text-yellow-300 transition-colors">
+                          <button onClick={handleReplay} title="Repetir" disabled={audioLoading}
+                            className="flex items-center gap-1 text-[10px] text-yellow-400/60 hover:text-yellow-300 transition-colors disabled:opacity-40">
                             <RotateCcw className="w-3 h-3" /> Repetir
                           </button>
                           <span className="text-white/20">·</span>
-                          <button onClick={handleRandom} title="Aleatório"
-                            className="flex items-center gap-1 text-[10px] text-yellow-400/60 hover:text-yellow-300 transition-colors">
+                          <button onClick={handleRandom} title="Aleatório" disabled={audioLoading}
+                            className="flex items-center gap-1 text-[10px] text-yellow-400/60 hover:text-yellow-300 transition-colors disabled:opacity-40">
                             <Shuffle className="w-3 h-3" /> Aleatório
                           </button>
 

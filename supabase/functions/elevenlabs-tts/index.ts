@@ -1,12 +1,19 @@
 /**
  * elevenlabs-tts — Gera áudio TTS via ElevenLabs e retorna como audio/mpeg.
  *
- * POST body: { text: string, voice_id?: string }
+ * POST body:
+ *   text       string   — texto a narrar (max 600 chars)
+ *   voice_id?  string   — ID da voz (padrão: Rachel = 21m00Tcm4TlvDq8ikWAM)
+ *   cache_key? string   — ex: "dialma_Brasil_Hexa.mp3"; se fornecido, faz
+ *                         lookup/upload no bucket audio-cache do Supabase Storage
+ *                         e retorna JSON { audioUrl } em vez de bytes brutos.
  *
  * Secrets necessários (Supabase Dashboard → Project Settings → Edge Functions):
  *   ELEVENLABS_API_KEY   — chave da API ElevenLabs
- *   ELEVENLABS_VOICE_ID  — ID da voz (padrão: Rachel = 21m00Tcm4TlvDq8ikWAM)
+ *   ELEVENLABS_VOICE_ID  — ID de voz padrão (opcional; fallback = Rachel)
  */
+
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -29,18 +36,46 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const text: string = (body.text ?? '').trim();
-    if (!text || text.length > 300) {
-      return new Response(JSON.stringify({ error: 'text invalido ou muito longo (max 300 chars)' }), {
+    if (!text || text.length > 600) {
+      return new Response(JSON.stringify({ error: 'text invalido ou muito longo (max 600 chars)' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const voiceId =
+    const voiceId: string =
       body.voice_id ??
       Deno.env.get('ELEVENLABS_VOICE_ID') ??
-      'N2lVS1w4EtoT3dr4eOWO'; // Callum — voz oficial do Horus
+      '21m00Tcm4TlvDq8ikWAM'; // Rachel — voz feminina padrão
 
+    const cacheKey: string | null = body.cache_key ?? null;
+
+    // ── Supabase Storage cache ─────────────────────────────────────────────────
+    let supabase: ReturnType<typeof createClient> | null = null;
+    if (cacheKey) {
+      supabase = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      );
+
+      // Verifica se já existe no cache
+      const { data: existing } = await supabase.storage
+        .from('audio-cache')
+        .list('', { search: cacheKey });
+
+      if (existing && existing.length > 0) {
+        const { data: { publicUrl } } = supabase.storage
+          .from('audio-cache')
+          .getPublicUrl(cacheKey);
+        console.log(`[elevenlabs-tts] cache hit: ${cacheKey}`);
+        return new Response(JSON.stringify({ audioUrl: publicUrl }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // ── Chamada ElevenLabs ─────────────────────────────────────────────────────
     const ttsRes = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
       {
@@ -54,10 +89,10 @@ Deno.serve(async (req) => {
           text,
           model_id: 'eleven_multilingual_v2',
           voice_settings: {
-            stability: 0.45,
-            similarity_boost: 0.80,
-            style: 0.0,
-            use_speaker_boost: true,
+            stability: body.stability ?? 0.50,
+            similarity_boost: body.similarityBoost ?? 0.75,
+            style: body.style ?? 0.20,
+            use_speaker_boost: body.useSpeakerBoost ?? true,
           },
         }),
       }
@@ -74,6 +109,27 @@ Deno.serve(async (req) => {
 
     const audioBuffer = await ttsRes.arrayBuffer();
 
+    // ── Upload ao Storage e retorna URL pública ────────────────────────────────
+    if (cacheKey && supabase) {
+      const { error: uploadError } = await supabase.storage
+        .from('audio-cache')
+        .upload(cacheKey, audioBuffer, { contentType: 'audio/mpeg', upsert: true });
+
+      if (!uploadError) {
+        const { data: { publicUrl } } = supabase.storage
+          .from('audio-cache')
+          .getPublicUrl(cacheKey);
+        console.log(`[elevenlabs-tts] cached: ${cacheKey} (${audioBuffer.byteLength} bytes)`);
+        return new Response(JSON.stringify({ audioUrl: publicUrl }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      console.error('[elevenlabs-tts] storage upload error:', uploadError);
+      // Falha no upload → devolve bytes brutos como fallback
+    }
+
+    // ── Retorna bytes brutos (sem cache_key ou upload falhou) ─────────────────
     return new Response(audioBuffer, {
       status: 200,
       headers: {
