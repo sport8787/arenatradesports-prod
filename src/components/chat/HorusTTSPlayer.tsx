@@ -57,7 +57,6 @@ export default function HorusTTSPlayer({ text }: HorusTTSPlayerProps) {
           },
           body: JSON.stringify({
             text: cleanText,
-            voiceId: CALLUM_VOICE_ID,
             stability: 0.45,
             similarityBoost: 0.75,
             style: 0.60,

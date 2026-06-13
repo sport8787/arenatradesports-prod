@@ -60,7 +60,6 @@ export default function HorusTraderVoice({ message, muted }: HorusTraderVoicePro
           },
           body: JSON.stringify({
             text: cleanText,
-            voiceId: 'JBFqnCBsd6RMkjVDRZzb',
             stability: 0.45,
             similarityBoost: 0.8,
             style: 0.6,

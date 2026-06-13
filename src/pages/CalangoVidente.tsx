@@ -398,7 +398,6 @@ export default function CalangoVidente() {
         },
         body: JSON.stringify({
           text: entry.text,
-          voice_id: DIALMA_VOICE_ID,
           cache_key: `dialma_${entry.key}.mp3`,
         }),
       });
