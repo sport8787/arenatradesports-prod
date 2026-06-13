@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, RotateCcw, Shuffle, Share2, Download } from 'lucide-react';
+import { ArrowLeft, Loader2, Shuffle, Share2, Download } from 'lucide-react';
 import QRCode from 'qrcode';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -367,11 +367,12 @@ export default function CalangoVidente() {
     ? getBrazilDate(new Date(chosenGame.commence_time)) === getBrazilDate(new Date())
     : false;
 
+  // Carrega e toca o áudio de uma entrada Dialma (deve ser chamado por gesto do usuário)
   const playEntry = useCallback(async (entry: DialmaEntry) => {
     setCurrentEntry(entry);
     setAudioLoading(true);
 
-    // 1. Verifica cache em memória (mesma sessão)
+    // 1. Verifica cache em memória (mesma sessão) → toca imediatamente
     const cached = dialmaAudioCache.get(entry.key);
     if (cached) {
       try {
@@ -383,44 +384,30 @@ export default function CalangoVidente() {
       return;
     }
 
-    // 2. Chama edge function (que verifica Storage antes de gastar crédito)
+    // 2. Chama edge function (verifica Storage antes de gastar crédito ElevenLabs)
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
-      const res = await fetch(`${supabaseUrl}/functions/v1/elevenlabs-tts`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`,
-        },
-        body: JSON.stringify({
+      const { data, error } = await supabase.functions.invoke('elevenlabs-tts', {
+        body: {
           text: entry.text,
           voice_id: DIALMA_VOICE_ID,
           cache_key: `dialma_${entry.key}.mp3`,
-        }),
+        },
       });
 
-      if (!res.ok) { setAudioLoading(false); return; }
-
-      const contentType = res.headers.get('content-type') ?? '';
-      let audioUrl: string;
-
-      if (contentType.includes('application/json')) {
-        // Edge function retornou URL pública do Storage
-        const data = await res.json();
-        audioUrl = data.audioUrl as string;
-      } else {
-        // Fallback: bytes brutos → blob URL temporário
-        const blob = await res.blob();
-        audioUrl = URL.createObjectURL(blob);
+      if (error || !data?.audioUrl) {
+        console.error('[Dialma] TTS error:', error);
+        setAudioLoading(false);
+        return;
       }
 
+      const audioUrl = data.audioUrl as string;
       dialmaAudioCache.set(entry.key, audioUrl);
       audioRef.current?.pause();
       audioRef.current = new Audio(audioUrl);
       audioRef.current.play().catch(() => {});
-    } catch { /* silencioso */ }
+    } catch (e) {
+      console.error('[Dialma] playEntry exception:', e);
+    }
     finally { setAudioLoading(false); }
   }, []);
 
@@ -449,7 +436,8 @@ export default function CalangoVidente() {
       setRevealState('revealed');
       if (prediction && chosenGame) {
         const entry = findDialmaEntry(chosenGame.home, chosenGame.away, prediction.isZebra, prediction.scoreH + prediction.scoreA, prediction.energia);
-        playEntry(entry);
+        // Garante que currentEntry aparece mesmo antes do áudio carregar
+        setCurrentEntry(entry);
       }
     }, 2600);
   };
@@ -460,11 +448,6 @@ export default function CalangoVidente() {
     setRevealState('idle');
     setMandiocaIdx(0);
     setCurrentEntry(null);
-  };
-
-  const handleReplay = () => {
-    if (!currentEntry) return;
-    playEntry(currentEntry);
   };
 
   const handleRandom = () => {
@@ -827,48 +810,53 @@ export default function CalangoVidente() {
                     {/* Áudio + controles */}
                     {currentEntry && (
                       <div className="bg-yellow-900/20 border border-yellow-500/20 rounded-lg p-3 space-y-2">
-                        <div className="flex items-start gap-2">
-                          {audioLoading && (
-                            <Loader2 className="w-3 h-3 text-yellow-400/60 animate-spin flex-shrink-0 mt-0.5" />
-                          )}
-                          <p className="text-[11px] text-yellow-300/80 leading-relaxed italic">
-                            🎙️ "{currentEntry.text}"
-                          </p>
-                        </div>
+                        <p className="text-[11px] text-yellow-300/80 leading-relaxed italic">
+                          🎙️ "{currentEntry.text}"
+                        </p>
 
                         {/* Controles de áudio */}
-                        <div className="flex items-center gap-2 pt-1">
-                          <button onClick={handleReplay} title="Repetir" disabled={audioLoading}
-                            className="flex items-center gap-1 text-[10px] text-yellow-400/60 hover:text-yellow-300 transition-colors disabled:opacity-40">
-                            <RotateCcw className="w-3 h-3" /> Repetir
-                          </button>
-                          <span className="text-white/20">·</span>
-                          <button onClick={handleRandom} title="Aleatório" disabled={audioLoading}
-                            className="flex items-center gap-1 text-[10px] text-yellow-400/60 hover:text-yellow-300 transition-colors disabled:opacity-40">
-                            <Shuffle className="w-3 h-3" /> Aleatório
-                          </button>
-
-                          {currentEntry.audioUrl && !currentEntry.audioUrl.startsWith('SUA_URL') && (
+                        <div className="flex items-center gap-2 pt-1 flex-wrap">
+                          {audioLoading ? (
+                            <span className="flex items-center gap-1 text-[10px] text-yellow-400/50">
+                              <Loader2 className="w-3 h-3 animate-spin" /> Carregando voz...
+                            </span>
+                          ) : (
                             <>
+                              <button
+                                onClick={() => playEntry(currentEntry)}
+                                className="flex items-center gap-1 text-[10px] text-yellow-400 hover:text-yellow-300 font-semibold transition-colors"
+                              >
+                                ▶ Ouvir Dialma
+                              </button>
+                              <span className="text-white/20">·</span>
+                              <button onClick={handleRandom}
+                                className="flex items-center gap-1 text-[10px] text-yellow-400/60 hover:text-yellow-300 transition-colors">
+                                <Shuffle className="w-3 h-3" /> Aleatório
+                              </button>
+
+                              {dialmaAudioCache.has(currentEntry.key) && (
+                                <>
+                                  <span className="text-white/20">·</span>
+                                  <button
+                                    onClick={() => handleDownloadAudio(dialmaAudioCache.get(currentEntry.key)!, chosenGame.home, chosenGame.away)}
+                                    disabled={downloading}
+                                    className="flex items-center gap-1 text-[10px] text-yellow-400/60 hover:text-yellow-300 transition-colors disabled:opacity-40"
+                                  >
+                                    <Download className="w-3 h-3" />
+                                    {downloading ? 'Baixando...' : 'Baixar'}
+                                  </button>
+                                </>
+                              )}
+
                               <span className="text-white/20">·</span>
                               <button
-                                onClick={() => handleDownloadAudio(currentEntry.audioUrl, chosenGame.home, chosenGame.away)}
-                                disabled={downloading}
-                                className="flex items-center gap-1 text-[10px] text-yellow-400/60 hover:text-yellow-300 transition-colors disabled:opacity-40"
+                                onClick={() => handleShareImage(currentEntry, chosenGame.home, chosenGame.away)}
+                                className="flex items-center gap-1 text-[10px] text-yellow-400/60 hover:text-yellow-300 transition-colors"
                               >
-                                <Download className="w-3 h-3" />
-                                {downloading ? 'Baixando...' : 'Baixar'}
+                                <Share2 className="w-3 h-3" /> Compartilhar
                               </button>
                             </>
                           )}
-
-                          <span className="text-white/20">·</span>
-                          <button
-                            onClick={() => handleShareImage(currentEntry, chosenGame.home, chosenGame.away)}
-                            className="flex items-center gap-1 text-[10px] text-yellow-400/60 hover:text-yellow-300 transition-colors"
-                          >
-                            <Share2 className="w-3 h-3" /> Compartilhar
-                          </button>
                         </div>
                       </div>
                     )}
