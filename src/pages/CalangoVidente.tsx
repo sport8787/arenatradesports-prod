@@ -45,8 +45,8 @@ function ptsToLambda(pts: number | null, isHome: boolean): number {
   return Math.max(0.5, Math.min(3.2, raw));
 }
 
-// ─── Voz feminina Dialma (Rachel — ElevenLabs, plano gratuito compatível) ────
-const DIALMA_VOICE_ID = '21m00Tcm4TlvDq8ikWAM'; // Rachel
+// ─── Voz feminina Dialma (Sarah — madura, confiante; funciona no plano gratuito ElevenLabs) ───
+const DIALMA_VOICE_ID = 'EXAVITQu4vr4xnSDxMaL'; // Sarah
 
 // Cache em memória de áudio da Dialma (persiste durante a sessão do navegador)
 const dialmaAudioCache = new Map<string, string>();
@@ -398,6 +398,7 @@ export default function CalangoVidente() {
         },
         body: JSON.stringify({
           text: entry.text,
+          voice_id: DIALMA_VOICE_ID,
           cache_key: `dialma_${entry.key}.mp3`,
         }),
       });
