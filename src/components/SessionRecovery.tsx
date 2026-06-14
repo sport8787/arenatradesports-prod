@@ -55,10 +55,11 @@ export default function SessionRecovery() {
         /* noop */
       }
     };
-    window.addEventListener('beforeunload', save);
+    // Apenas pagehide — beforeunload desabilita o Back-Forward Cache do browser,
+    // causando reload completo ao voltar para a aba/app. pagehide cobre os
+    // mesmos cenários (navegação real + kill de aba) sem quebrar o BFCache.
     window.addEventListener('pagehide', save);
     return () => {
-      window.removeEventListener('beforeunload', save);
       window.removeEventListener('pagehide', save);
     };
   }, []);
