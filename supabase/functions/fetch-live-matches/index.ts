@@ -151,6 +151,14 @@ serve(async (req) => {
       "club friendly": "club friendlies",
       "club friendlies": "club friendlies",
       "friendlies clubs": "club friendlies",
+      // BetsAPI/Futodds usa nomes diferentes para ligas brasileiras
+      "brazil serie b": "brasileirao serie b",
+      "brazil campeonato serie b": "brasileirao serie b",
+      "brazil campeonato brasileiro serie b": "brasileirao serie b",
+      "brasileirao serie b": "brasileirao serie b",
+      "brazil serie a": "brasileirao serie a",
+      "brazil campeonato serie a": "brasileirao serie a",
+      "brazil campeonato brasileiro serie a": "brasileirao serie a",
     };
     const allowedNameSet = new Set(allowedRows.map(r => normName(r.name)));
     // === Filtro per-fixture com tracking de motivo de rejeição ===
