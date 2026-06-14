@@ -16,7 +16,7 @@ const fdEndedCache = new Map<string, any[]>();
 async function getFutoddsEndedByDate(dateStr: string): Promise<any[]> {
   if (fdEndedCache.has(dateStr)) return fdEndedCache.get(dateStr)!;
   try {
-    const data = await getFutoddsEnded({ date: dateStr });
+    const data = await getFutoddsEnded({ date_from: dateStr, date_to: dateStr, limit: "100" });
     fdEndedCache.set(dateStr, data || []);
     return data || [];
   } catch (e) {
@@ -803,11 +803,108 @@ serve(async (req) => {
     await settleVirtualBet("virtual_bets_punter", b);
   }
 
+  // ── PUNTER_ANALYSES: liquida diretamente a tabela fonte da UI /punter/liquidacoes ──
+  // A página lê punter_analyses.result; punter_sinais.resultado é tabela operacional.
+  // Settle aqui garante que ROI/% Acerto aparecem na UI sem depender de sync entre tabelas.
+  let settledAnalyses = 0;
+  {
+    const analysesCutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+    const windowStart = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: pendingAnalyses } = await sb
+      .from("punter_analyses")
+      .select("id, home_team, away_team, market, odd, stake_percentage, commence_time, verdict")
+      .in("verdict", ["APROVADO", "APROVADO_SITUACIONAL"])
+      .is("result", null)
+      .gte("commence_time", windowStart)
+      .lt("commence_time", analysesCutoff)
+      .order("commence_time", { ascending: true })
+      .limit(100);
+
+    for (const a of (pendingAnalyses || []) as any[]) {
+      const home = a.home_team || "";
+      const away = a.away_team || "";
+      const startIso = a.commence_time || new Date().toISOString();
+
+      try {
+        const resolved = await resolveFixtureForSettlement(home, away, startIso, a.market || "", sb);
+        const fx = resolved.fx;
+        if (!fx) { notFound++; continue; }
+
+        const res = calcularResultado(a.market, home, away, fx);
+        if (!res) { unsupported++; continue; }
+
+        const stake = Number(a.stake_percentage) || 1;
+        const odd = Number(a.odd) || 1.7;
+        const profit = calcPnl(res, stake, odd);
+        const dbR = dbResult(res);
+
+        await sb.from("punter_analyses").update({
+          result: dbR.toUpperCase(),   // CHECK constraint: 'GREEN'|'RED'|'VOID'
+          final_score_home: fx.goalsHome,
+          final_score_away: fx.goalsAway,
+          profit_loss: Number(profit.toFixed(2)),
+          settled_at: new Date().toISOString(),
+        } as any).eq("id", a.id).is("result", null);
+
+        settledAnalyses++;
+        results.push({ id: a.id, match: `${home} ${fx.goalsHome}-${fx.goalsAway} ${away}`, market: a.market, result: res, fonte: resolved.fonte, source: "punter_analyses" });
+      } catch (e) {
+        console.error("err punter_analyses", a.id, e);
+      }
+    }
+  }
+
+  // ── COPA 2026: liquida punter_copa_signals (nenhuma função prévia cobria esta tabela) ──
+  let settledCopa = 0;
+  {
+    const copaCutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+    const { data: copaPending } = await sb
+      .from("punter_copa_signals")
+      .select("id, home, away, market, selection, ah_line, odd, stake_pct, commence_time, status")
+      .or("status.eq.APROVADO,status.is.null")
+      .is("resultado", null)
+      .lt("commence_time", copaCutoff)
+      .order("commence_time", { ascending: true })
+      .limit(100);
+
+    for (const s of (copaPending || []) as any[]) {
+      const home = s.home || "";
+      const away = s.away || "";
+      const startIso = s.commence_time || new Date().toISOString();
+      const marketStr = s.market || s.selection || "";
+
+      try {
+        const resolved = await resolveFixtureForSettlement(home, away, startIso, marketStr, sb);
+        const fx = resolved.fx;
+        if (!fx) { notFound++; continue; }
+
+        const res = calcularResultado(marketStr, home, away, fx);
+        if (!res) { unsupported++; continue; }
+
+        const odd = Number(s.odd) || 1.7;
+        const pl = calcPnl(res, 1, odd); // 1 unidade por sinal Copa
+        const dbR = dbResult(res);
+
+        await sb.from("punter_copa_signals").update({
+          resultado: dbR.toUpperCase(),
+          profit_loss: Number(pl.toFixed(2)),
+        } as any).eq("id", s.id).is("resultado", null);
+
+        settledCopa++;
+        results.push({ id: s.id, match: `${home} ${fx.goalsHome}-${fx.goalsAway} ${away}`, market: marketStr, result: res, fonte: resolved.fonte, source: "punter_copa_signals" });
+      } catch (e) {
+        console.error("err copa", s.id, e);
+      }
+    }
+  }
+
   return new Response(
     JSON.stringify({
       success: true,
       checked: items.length,
       settled,
+      settled_analyses: settledAnalyses,
+      settled_copa: settledCopa,
       not_found: notFound,
       unsupported,
       af_dates_fetched: afDateCache.size,

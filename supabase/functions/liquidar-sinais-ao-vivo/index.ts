@@ -85,7 +85,7 @@ async function futoddsByDate(ymd: string): Promise<any[]> {
   const KEY = Deno.env.get("FUTODDS_API_KEY");
   if (!KEY) return [];
   try {
-    const res = await fetch(`${FUTODDS_BASE}/matches-ended?date=${ymd}`, {
+    const res = await fetch(`${FUTODDS_BASE}/matches-ended?date_from=${ymd}&date_to=${ymd}&limit=100`, {
       headers: { Authorization: `Bearer ${KEY}`, "X-API-Key": KEY, Accept: "application/json" },
     });
     if (!res.ok) { await res.text(); return []; }
