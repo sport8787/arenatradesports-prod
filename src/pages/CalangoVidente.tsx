@@ -45,8 +45,8 @@ function ptsToLambda(pts: number | null, isHome: boolean): number {
   return Math.max(0.5, Math.min(3.2, raw));
 }
 
-// ─── Voz feminina Dilma (Sarah — madura, confiante; funciona no plano gratuito ElevenLabs) ───
-const DILMA_VOICE_ID = 'EXAVITQu4vr4xnSDxMaL'; // Sarah
+// ─── Voz Dilma IA ───────────────────────────────────────────────────────────
+const DILMA_VOICE_ID = 'yIPvP4gx7pjfSgD4ISe0';
 
 // Cache em memória de áudio da Dilma (persiste durante a sessão do navegador)
 const dilmaAudioCache = new Map<string, string>();
