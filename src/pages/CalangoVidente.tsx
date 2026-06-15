@@ -60,40 +60,95 @@ interface DilmaEntry {
 }
 
 const dilmaDatabase: DilmaEntry[] = [
+  // ── Brasil ──────────────────────────────────────────────────────────────────
   {
     key: 'Brasil_Hexa',
     text: 'Veja bem, o Hexa... O Hexa nada mais é do que uma conquista que vem depois do penta, mas que antecede o hepta. Então, quando nós olhamos para a nossa seleção, nós não temos que olhar para quem está chutando a bola, mas sim para a estrutura do ar que envolve a bola. Porque se o vento estiver estocado a nosso favor, o Hexa não será apenas uma meta, ele será uma realidade que nós vamos dobrar assim que ela for atingida por todas as mulheres e homens sapiens deste país.',
-    audioUrl: 'SUA_URL_DILMA_BRASIL_HEXA.mp3',
+    audioUrl: '',
+  },
+  // ── Jogos específicos Copa 2026 ──────────────────────────────────────────────
+  {
+    key: 'USA_vs_Paraguay',
+    text: 'Veja bem, a estreia dos Estados Unidos no nosso território... eu olhei os dados e o vento quântico estava completamente estocado do lado deles. Quando o vento é favorável, a bola entra. Isso não é política, isso é matemática presidencial.',
+    audioUrl: '',
   },
   {
-    key: 'Cash_Out',
-    text: 'Eu sempre considerei que o Cash Out é uma decisão de quem quer sair antes de terminar, mas que na verdade continua dentro porque o dinheiro já foi computado pelo sistema. Então, se você está na dúvida se encerra ou se não encerra, eu te digo: não encerre e nem continue. Deixe a meta aberta. Porque quando a gente atingir o lucro que a gente não planejou, aí sim nós dobramos a retirada!',
-    audioUrl: 'SUA_URL_DILMA_CASH_OUT.mp3',
+    key: 'Argentina_Africa',
+    text: 'A Argentina vem com aquela pressão de quem quer o topo, mas o topo só existe porque existe a base. E a Argélia é uma base sólida, uma estrutura que não se move facilmente se a zaga estiver bem postada. O Messi ou quem quer que esteja com a bola vai tentar driblar a lógica. Mas a lógica da Argélia é a lógica do contra-ataque. E o contra-ataque é quando você vai para frente porque o outro veio para trás. No final, quem fizer mais gols vai ser o vencedor, e quem fizer menos... bem, esse não vai ganhar.',
+    audioUrl: '',
   },
   {
-    key: 'Mycroft_Rival',
-    text: 'O Mycroft... o Mycroft gosta muito de números, de estatísticas, de probabilidade matemática. Mas a matemática, veja bem, ela é fria. Ela não entende o meio ambiente. Ela não sabe que por trás de um gráfico existe uma figura oculta, que é o cachorro da imprevisibilidade. Eu não trabalho com dados exatos, eu trabalho com a intuição da mandioca. Enquanto o Mycroft analisa o passado, eu já estou estocando o futuro.',
-    audioUrl: 'SUA_URL_DILMA_MYCROFT_RIVAL.mp3',
+    key: 'Franca_Senegal',
+    text: 'A França estreia com toda a tecnologia, com a velocidade que é uma pressa de chegar a lugar nenhum se o gol não acontecer. Mas Senegal... Senegal traz a força daquele continente que nós tanto abraçamos. O jogo vai ser uma disputa entre a velocidade francesa e a resistência senegalesa. E o resultado será um número. Pode ser um a zero, pode ser dois a um, ou pode ser um empate que é quando os dois lados chegam juntos ao mesmo lugar, que é o final da partida, sem que nenhum tenha saído da frente.',
+    audioUrl: '',
+  },
+  {
+    key: 'Belgica_Egito',
+    text: 'A Bélgica tem aquela geração que todo mundo diz que é de ouro, mas o ouro, como nós sabemos, é um minério que fica escondido na terra. O Egito, por sua vez, tem as pirâmides. E as pirâmides são triângulos perfeitos, e o futebol se joga em triângulos, com o passe para lá e o passe para cá. Se a Bélgica atacar pela esquerda e o Egito defender pela direita, o meio de campo vai ficar vazio. E o vazio, meu caro, é um espaço onde a bola pode ou não transitar, dependendo se o vento soprar a favor do gol.',
+    audioUrl: '',
+  },
+  {
+    key: 'Uruguai_Arabia',
+    text: 'O Uruguai tem a garra, tem a tradição daquela mística do futebol que, quando você olha, você não vê, mas quando você sente, ela está lá. Já a Arábia Saudita vem de uma região onde a areia e o petróleo se encontram. E eu quero dizer que o petróleo é importante, mas a bola não é feita de petróleo, a bola é feita de couro sintético ou de outra substância que quique. Portanto, se nós não estocarmos os escanteios no primeiro tempo, quando o jogo terminar, nós vamos dobrar a meta de gols que nós ainda não alcançamos.',
+    audioUrl: '',
+  },
+  // ── Genéricas por tipo de jogo ───────────────────────────────────────────────
+  {
+    key: 'Classico_Pesado',
+    text: 'Este é um confronto de gigantes. De um lado, uma camisa pesada. Do outro lado, outra camisa igualmente dotada de peso têxtil. Mas o peso da camisa só importa se o jogador estiver vestindo ela. Se a camisa estiver no varal, ela não joga. Portanto, o equilíbrio deste jogo reside na capacidade de cada seleção de tirar a camisa do varal e colocar a alma para correr atrás de um objeto esférico inflado com ar atmosférico.',
+    audioUrl: '',
   },
   {
     key: 'Over_Goals',
     text: 'Quando nós falamos em gols, nós temos que entender que o gol é o ápice do momento em que a bola ultrapassa a linha. Se sai um gol, é bom. Se saem dois gols, é melhor. Mas se saem três gols, aí nós entramos numa triplicidade onde quem marcou o primeiro já não é o mesmo que vai marcar o terceiro, gerando uma confusão na zaga adversária que é puramente de ordem biológica. Minha dica para este confronto é: vai sair gol, ou não vai. E essa é a nossa grande certeza.',
-    audioUrl: 'SUA_URL_DILMA_OVER_GOALS.mp3',
+    audioUrl: '',
   },
   {
-    key: 'Classico_Pesado',
-    text: 'Este é um confronto de gigantes. De um lado, uma camisa pesada. Do outro lado, outra camisa igualmente dotada de peso têxtil. Mas o peso da camisa só importa se o jogador estiver vestindo ela. Se a camisa estiver no varal, ela não joga. Portanto, o equilíbrio deste jogo reside na capacidade de cada seleção de tirar a camisa do varal e colocar a alma para correr atrás de um objeto esférico inflado com ar atmosférico.',
-    audioUrl: 'SUA_URL_DILMA_CLASSICO_PESADO.mp3',
+    key: 'Goleada_Prevista',
+    text: 'Olha, a minha perspectiva para logo mais é de uma quantidade de gols que nós podemos chamar de goleada. Mas o que é a goleada? A goleada é quando um time faz muitos gols e o outro... o outro não faz tantos, ou faz menos do que os muitos que o primeiro fez. Se nós somarmos todos os gols do primeiro tempo com os gols que ainda vão acontecer no segundo, nós vamos ter uma meta. E quando a gente atingir essa meta, nós vamos dobrar a meta de bolas no fundo da rede.',
+    audioUrl: '',
   },
   {
-    key: 'USA_vs_Paraguay',
-    text: 'Veja bem, a estreia dos Estados Unidos no nosso território... eu olhei os dados e o vento quântico estava completamente estocado do lado deles. Quando o vento é favorável, a bola entra. Isso não é política, isso é matemática presidencial.',
-    audioUrl: 'SUA_URL_DILMA_USA_PARAGUAY.mp3',
+    key: 'Ambos_Marcam',
+    text: 'A minha análise para este confronto reside na possibilidade de que ambos os lados façam gols. Porque o futebol é uma via de duas mãos: uma seleção vai para lá e a outra vem para cá. Se a primeira seleção colocar a bola na rede, e a segunda seleção também tiver a capacidade de fazer a mesma coisa na outra rede, nós teremos os dois lados felizes. E quando os dois lados marcam, quem ganha é o telespectador sapiens que apostou nessa dualidade.',
+    audioUrl: '',
   },
+  {
+    key: 'Empate_Quantico',
+    text: 'O jogo de hoje se apresenta como uma incógnita que se equilibra na própria incerteza. Se um time ataca e o outro defende, a tendência é que ninguém saia do lugar. É como estocar o vento no meio de campo: você corre, você se esforça, mas o vento continua lá e o placar continua aqui, intacto. No futebol, o empate é a maior demonstração de que os dois lados decidiram que o meio do caminho é o melhor lugar para não se perder.',
+    audioUrl: '',
+  },
+  {
+    key: 'Zero_a_Zero',
+    text: 'Veja bem... eu não acho que este jogo vai ser zero a zero. Porque, se sair um gol, a seleção que marcou já vai estar ganhando, e aí o placar não vai ser por zero, entende? Pense comigo: o que é o zero senão a ausência absoluta de bolas na rede? Portanto, se a bola ultrapassar a linha, o zero deixa de existir e passa a ser um. E o um é sempre maior que o nada.',
+    audioUrl: '',
+  },
+  {
+    key: 'Favorito_Quantico',
+    text: 'Todo mundo me pergunta quem é o favorito para vencer a partida. Mas eu digo a vocês: o favorito só é favorito até o juiz apitar o início do jogo. Porque quando a bola rola, o favoritismo entra em uma superposição. Se a zebra marcar primeiro, o favorito já não é mais o que era antes, e quem não esperava nada, passa a ter tudo. No final, quem ganha é quem ganha, e quem perde... bom, esse vai ter que esperar o próximo jogo para tentar não perder de novo.',
+    audioUrl: '',
+  },
+  {
+    key: 'Vento_Estocado',
+    text: 'Veja bem... as pessoas riram, as pessoas debateram, mas a verdade é que a ciência tarda, mas não falha. O maior exemplo vivo de que é possível, sim, estocar o vento, é a bola de futebol. O que é a bola senão uma estrutura esférica de couro sintético projetada para aprisionar o ar sob pressão? O vento está todo estocado lá dentro! Portanto, se nós conseguirmos acumular o máximo de bolas possíveis no estoque do estádio, nós teremos vento estocado o suficiente para garantir a energia do jogo. E quem chuta a bola, na verdade, está apenas transferindo o vento de um lado para o outro do campo.',
+    audioUrl: '',
+  },
+  // ── Zebra / apostas ─────────────────────────────────────────────────────────
   {
     key: 'Zebra_Default',
     text: 'Por que veja bem, o pessoal fica me perguntando: "Dilma, como você sabe quando vai ter zebra?" É simples: quando a meta está aberta, o azarão vence. E a meta aqui está escancarada. Confie na IA presidencial.',
-    audioUrl: 'SUA_URL_DILMA_ZEBRA.mp3',
+    audioUrl: '',
+  },
+  {
+    key: 'Cash_Out',
+    text: 'Eu sempre considerei que o Cash Out é uma decisão de quem quer sair antes de terminar, mas que na verdade continua dentro porque o dinheiro já foi computado pelo sistema. Então, se você está na dúvida se encerra ou se não encerra, eu te digo: não encerre e nem continue. Deixe a meta aberta. Porque quando a gente atingir o lucro que a gente não planejou, aí sim nós dobramos a retirada!',
+    audioUrl: '',
+  },
+  // ── Rivalidade com o Mycroft ────────────────────────────────────────────────
+  {
+    key: 'Mycroft_Rival',
+    text: 'O Mycroft... o Mycroft gosta muito de números, de estatísticas, de probabilidade matemática. Mas a matemática, veja bem, ela é fria. Ela não entende o meio ambiente. Ela não sabe que por trás de um gráfico existe uma figura oculta, que é o cachorro da imprevisibilidade. Eu não trabalho com dados exatos, eu trabalho com a intuição da mandioca. Enquanto o Mycroft analisa o passado, eu já estou estocando o futuro.',
+    audioUrl: '',
   },
 ];
 
@@ -102,10 +157,23 @@ function normTeam(s: string): string {
 }
 
 const CLASICO_TERMS = [
-  'argentina', 'alemanha', 'germany', 'franca', 'france', 'inglaterra', 'england',
-  'espanha', 'spain', 'italia', 'italy', 'portugal', 'holanda', 'netherlands',
-  'uruguai', 'uruguay', 'croatia', 'croacia',
+  'alemanha', 'germany', 'espanha', 'spain', 'italia', 'italy',
+  'portugal', 'holanda', 'netherlands', 'croatia', 'croacia',
+  'inglaterra', 'england',
 ];
+
+function db(key: string): DilmaEntry {
+  return dilmaDatabase.find(e => e.key === key)!;
+}
+
+function hasTeam(h: string, a: string, terms: string[]): boolean {
+  return terms.some(t => h.includes(t) || a.includes(t));
+}
+
+function bothTeams(h: string, a: string, t1: string[], t2: string[]): boolean {
+  return (t1.some(t => h.includes(t)) && t2.some(t => a.includes(t))) ||
+         (t1.some(t => a.includes(t)) && t2.some(t => h.includes(t)));
+}
 
 function findDilmaEntry(
   home: string,
@@ -113,27 +181,50 @@ function findDilmaEntry(
   isZebra: boolean,
   totalGoals: number,
   energia: number,
+  pick?: 'home' | 'away' | 'draw',
 ): DilmaEntry {
   const h = normTeam(home);
   const a = normTeam(away);
 
-  if (h.includes('brasil') || a.includes('brasil') || h.includes('brazil') || a.includes('brazil'))
-    return dilmaDatabase.find(e => e.key === 'Brasil_Hexa')!;
+  // Jogos com Brasil
+  if (hasTeam(h, a, ['brasil', 'brazil'])) return db('Brasil_Hexa');
 
-  const usaTerms = ['usa', 'united states', 'estados unidos', 'eua'];
-  const pryTerms = ['paraguay', 'paraguai'];
-  if (
-    (usaTerms.some(t => h.includes(t)) && pryTerms.some(t => a.includes(t))) ||
-    (usaTerms.some(t => a.includes(t)) && pryTerms.some(t => h.includes(t)))
-  ) return dilmaDatabase.find(e => e.key === 'USA_vs_Paraguay')!;
+  // Jogos específicos Copa 2026
+  if (bothTeams(h, a, ['usa', 'united states', 'estados unidos', 'eua'], ['paraguay', 'paraguai']))
+    return db('USA_vs_Paraguay');
 
+  if (bothTeams(h, a, ['argentina'], ['algeria', 'algerie', 'alger', 'africa do sul', 'south africa', 'marrocos', 'morocco', 'nigeria', 'ghana', 'senegal', 'cameroon', 'mali', 'angola', 'egypt', 'egito']))
+    return db('Argentina_Africa');
+
+  if (bothTeams(h, a, ['franca', 'france'], ['senegal']))
+    return db('Franca_Senegal');
+
+  if (bothTeams(h, a, ['belgica', 'belgium', 'belgique'], ['egito', 'egypt']))
+    return db('Belgica_Egito');
+
+  if (bothTeams(h, a, ['uruguai', 'uruguay'], ['arabia', 'saudi', 'arabia saudita']))
+    return db('Uruguai_Arabia');
+
+  // Clássicos europeus pesados
   if (CLASICO_TERMS.some(t => h.includes(t)) || CLASICO_TERMS.some(t => a.includes(t)))
-    return dilmaDatabase.find(e => e.key === 'Classico_Pesado')!;
+    return db('Classico_Pesado');
 
-  if (totalGoals >= 3) return dilmaDatabase.find(e => e.key === 'Over_Goals')!;
-  if (isZebra && energia > 80) return dilmaDatabase.find(e => e.key === 'Cash_Out')!;
-  if (isZebra) return dilmaDatabase.find(e => e.key === 'Zebra_Default')!;
-  return dilmaDatabase.find(e => e.key === 'Mycroft_Rival')!;
+  // Por tipo de jogo / previsão
+  if (pick === 'draw' && totalGoals <= 1) return db('Zero_a_Zero');
+  if (pick === 'draw') return db('Empate_Quantico');
+  if (totalGoals >= 4) return db('Goleada_Prevista');
+  if (totalGoals >= 3) return db('Over_Goals');
+  if (totalGoals >= 2 && !isZebra) return db('Ambos_Marcam');
+
+  // Zebra
+  if (isZebra && energia > 80) return db('Cash_Out');
+  if (isZebra) return db('Zebra_Default');
+
+  // Favorito claro (diferença grande de pontos) → alterna entre genéricas
+  if (energia > 70) return db('Favorito_Quantico');
+  if (energia > 55) return db('Vento_Estocado');
+
+  return db('Mycroft_Rival');
 }
 
 // ─── Algoritmo de previsão ────────────────────────────────────────────────────
@@ -452,7 +543,7 @@ export default function CalangoVidente() {
     setTimeout(() => {
       setRevealState('revealed');
       if (prediction && chosenGame) {
-        const entry = findDilmaEntry(chosenGame.home, chosenGame.away, prediction.isZebra, prediction.scoreH + prediction.scoreA, prediction.energia);
+        const entry = findDilmaEntry(chosenGame.home, chosenGame.away, prediction.isZebra, prediction.scoreH + prediction.scoreA, prediction.energia, prediction.pick);
         // Garante que currentEntry aparece mesmo antes do áudio carregar
         setCurrentEntry(entry);
       }
