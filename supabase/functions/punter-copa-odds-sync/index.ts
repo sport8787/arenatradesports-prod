@@ -476,8 +476,16 @@ Deno.serve(async (req) => {
         const isInverted =
           namesMatch(String(futEv.home_team_name ?? futEv.home_name ?? futEv.home ?? ""), fx.away);
         try {
-          const preliveData = await getFutoddsPreliveOdds(eventId, "asian_handicap");
+          // Sem filtro market_type: Betfair usa tipos em MAIÚSCULAS (ex: ASIAN_HANDICAP),
+          // então passamos "asian_handicap" minúsculo quebra o filtro do lado da API.
+          // Deixamos o FutOdds retornar todos os mercados disponíveis e filtramos
+          // internamente via parseFutoddsAhPayload (que busca "ASIAN" ou "HANDICAP").
+          const preliveData = await getFutoddsPreliveOdds(eventId);
           if (preliveData) {
+            const markets = Array.isArray(preliveData?.markets) ? preliveData.markets
+                          : Array.isArray(preliveData) ? preliveData : [];
+            const marketTypes = markets.map((m: any) => m?.market_type ?? m?.type ?? "?").join(", ");
+            console.log(`[copa-odds] FutOdds prelive event_id=${eventId} — mercados disponíveis: ${marketTypes || "nenhum"}`);
             const parsed = parseFutoddsAhPayload(preliveData, fx.home, fx.away);
             const allKeys = [...Object.keys(parsed.home), ...Object.keys(parsed.away)];
             const hasAh = allKeys.some((k) => k !== "0" && k !== "0.0");
@@ -488,9 +496,11 @@ Deno.serve(async (req) => {
                 `[copa-odds] ✅ Futodds AH ${fx.home} x ${fx.away} → home: ${Object.keys(payload.home).join(",")} | away: ${Object.keys(payload.away).join(",")}`,
               );
             } else {
-              // Futodds encontrou o evento mas sem linhas AH — pode ser só 1X2
-              console.log(`[copa-odds] Futodds sem AH para ${fx.home} x ${fx.away} (event_id=${eventId})`);
+              // Betfair não tem mercado AH para este fixture (apenas MATCH_ODDS/1X2)
+              console.log(`[copa-odds] Futodds sem AH para ${fx.home} x ${fx.away} (event_id=${eventId}) — mercados: ${marketTypes || "nenhum"}`);
             }
+          } else {
+            console.log(`[copa-odds] FutOdds prelive retornou null para event_id=${eventId}`);
           }
         } catch (e) {
           console.warn(`[copa-odds] getFutoddsPreliveOdds(${eventId}) falhou:`, (e as Error).message);
@@ -506,7 +516,7 @@ Deno.serve(async (req) => {
           if (bfFound.length > 0) {
             const bfEventId = String(bfFound[0].event_id ?? "");
             if (bfEventId) {
-              const preliveData = await getFutoddsPreliveOdds(bfEventId, "asian_handicap");
+              const preliveData = await getFutoddsPreliveOdds(bfEventId);
               if (preliveData) {
                 const isInverted = namesMatch(String(bfFound[0].home_team_name ?? ""), fx.away);
                 const parsed = parseFutoddsAhPayload(preliveData, fx.home, fx.away);
@@ -535,7 +545,7 @@ Deno.serve(async (req) => {
         if (copaEv) {
           const copaEventId = String(copaEv.event_id ?? "");
           try {
-            const preliveData = await getFutoddsPreliveOdds(copaEventId, "asian_handicap");
+            const preliveData = await getFutoddsPreliveOdds(copaEventId);
             if (preliveData) {
               const isInverted = namesMatch(String(copaEv.home_team_name ?? ""), fx.away);
               const parsed = parseFutoddsAhPayload(preliveData, fx.home, fx.away);
