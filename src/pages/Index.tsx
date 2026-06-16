@@ -124,29 +124,46 @@ export default function Index() {
         setAudioLabel(`Hórus: "Seja bem-vindo, ${userName}..."`);
         setAudioPlaying(true);
 
+        // cacheKey por username: gerado 1x via ElevenLabs, depois servido do Storage
+        const normalizedName = userName.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 30);
+        const welcomeCacheKey = `welcome-horus-${normalizedName}.mp3`;
+
         const ttsRes = await fetch(
           `https://${SUPABASE_PROJECT_REF}.supabase.co/functions/v1/elevenlabs-tts`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: TTS_GREETING(userName) }),
+            body: JSON.stringify({
+              text: TTS_GREETING(userName),
+              voiceId: 'N2lVS1w4EtoT3dr4eOWO', // Callum — voz do Hórus
+              cacheKey: welcomeCacheKey,
+            }),
           }
         );
 
         if (!cancelled && ttsRes.ok) {
-          const blob = await ttsRes.blob();
-          const url = URL.createObjectURL(blob);
-          const part1 = new Audio(url);
+          const contentType = ttsRes.headers.get('Content-Type') ?? '';
+          let audioUrl: string;
+
+          if (contentType.includes('application/json')) {
+            const json = await ttsRes.json();
+            audioUrl = json.audioUrl;
+          } else {
+            const blob = await ttsRes.blob();
+            audioUrl = URL.createObjectURL(blob);
+          }
+
+          const part1 = new Audio(audioUrl);
           audioRef.current = part1;
           part1.volume = 0.85;
 
           await new Promise<void>((resolve) => {
             part1.addEventListener('ended', () => {
-              URL.revokeObjectURL(url);
+              if (audioUrl.startsWith('blob:')) URL.revokeObjectURL(audioUrl);
               resolve();
             });
             part1.addEventListener('error', () => {
-              URL.revokeObjectURL(url);
+              if (audioUrl.startsWith('blob:')) URL.revokeObjectURL(audioUrl);
               resolve();
             });
             part1.play().catch(() => resolve());

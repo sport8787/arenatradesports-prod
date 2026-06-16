@@ -116,8 +116,10 @@ export function playHorusTrigger(trigger: HorusPunterTrigger): Promise<boolean> 
 }
 
 /**
- * Play a dynamic TTS phrase via ElevenLabs with session caching.
- * ✅ Now uses centralAudioQueue instead of direct Audio().
+ * Play a dynamic TTS phrase using Web Speech API (free, browser-native).
+ * Falls back to ElevenLabs only if Web Speech is not supported.
+ * Dynamic phrases (username + numbers) cannot be efficiently cached in ElevenLabs
+ * — using Web Speech eliminates per-scan API credit consumption.
  */
 export async function playHorusTTS(text: string): Promise<boolean> {
   if (!text || text.length < 5) return false;
@@ -125,11 +127,39 @@ export async function playHorusTTS(text: string): Promise<boolean> {
   const label = `punter_tts_${text.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '_')}`;
   if (isDuplicate(label)) return false;
 
-  // Check session memory cache first
-  const cacheKey = text.trim().toLowerCase();
-  const cachedUrl = ttsMemoryCache.get(cacheKey);
+  // Web Speech API: free, instant, no ElevenLabs credits consumed.
+  // Dynamic phrases like "Paulo, escaneei 20 jogos..." are unique per user/scan,
+  // so they can never be effectively cached in ElevenLabs Storage.
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    return new Promise((resolve) => {
+      try {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'pt-BR';
+        utterance.rate = 0.92;
+        utterance.pitch = 0.82;
+        utterance.volume = 1;
+
+        // Prefer pt-BR voice when available
+        const voices = window.speechSynthesis.getVoices();
+        const ptVoice = voices.find(v => v.lang === 'pt-BR')
+          ?? voices.find(v => v.lang.startsWith('pt'))
+          ?? null;
+        if (ptVoice) utterance.voice = ptVoice;
+
+        utterance.onend = () => resolve(true);
+        utterance.onerror = () => resolve(false);
+        window.speechSynthesis.speak(utterance);
+      } catch {
+        resolve(false);
+      }
+    });
+  }
+
+  // ElevenLabs fallback: only reached when browser lacks Web Speech API support.
+  const sessionKey = text.trim().toLowerCase();
+  const cachedUrl = ttsMemoryCache.get(sessionKey);
   if (cachedUrl) {
-    console.log(`[HorusPunterVoice] ✅ TTS from session cache via centralQueue: "${text.slice(0, 40)}..."`);
     return new Promise((resolve) => {
       centralAudioQueue.enqueue(cachedUrl, {
         label,
@@ -157,7 +187,6 @@ export async function playHorusTTS(text: string): Promise<boolean> {
           similarityBoost: 0.8,
           style: 0.6,
           speed: 1.1,
-          cacheKey: `punter-horus-${text.slice(0, 40).replace(/[^a-zA-Z0-9]/g, '_')}.mp3`,
         }),
       }
     );
@@ -178,10 +207,8 @@ export async function playHorusTTS(text: string): Promise<boolean> {
       audioUrl = URL.createObjectURL(blob);
     }
 
-    // Cache for future use in this session
-    ttsMemoryCache.set(cacheKey, audioUrl);
+    ttsMemoryCache.set(sessionKey, audioUrl);
 
-    console.log(`[HorusPunterVoice] ✅ TTS enqueuing via centralQueue: "${text.slice(0, 40)}..."`);
     return new Promise((resolve) => {
       centralAudioQueue.enqueue(audioUrl, {
         label,

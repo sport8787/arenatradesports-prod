@@ -94,6 +94,7 @@ Deno.serve(async (req) => {
             similarity_boost: body.similarityBoost ?? 0.75,
             style: body.style ?? 0.20,
             use_speaker_boost: body.useSpeakerBoost ?? true,
+            speed: body.speed ?? 1.0,
           },
         }),
       }
