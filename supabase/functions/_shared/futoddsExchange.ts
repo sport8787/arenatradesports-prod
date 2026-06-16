@@ -24,7 +24,7 @@ export interface ExchangeQuote {
   source: "futodds";
 }
 
-const CACHE_TTL_MS = 30_000;
+const CACHE_TTL_MS = 10_000;
 const cache = new Map<string, { at: number; payload: any }>();
 
 function norm(s: string): string {

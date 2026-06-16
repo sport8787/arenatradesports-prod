@@ -1,8 +1,7 @@
-// futodds-live-odd — Odd ao vivo via Futodds /matches-live-full (campo odds_live).
-// Mapeia mercado livre ("Over 2.5 Total", "BTTS Sim", "Casa", "Asian Handicap Home -1")
-// para a odd correta. Substitui fetch-sportmonks-live-odd como provedor primário.
-// Usa cache 30s compartilhado (_shared/futoddsCache.ts) para evitar bursts no provedor.
-import { fetchFutoddsList } from "../_shared/futoddsCache.ts";
+// futodds-live-odd — Odd ao vivo via Futodds.
+// 1) Usa /matches-betfair-live-odds?event_id=X (10s TTL) para odds Exchange reais.
+// 2) Fallback: /matches-live-full (30s TTL) campo odds_live/odds (atualiza ~1min no lado FutOdds).
+import { fetchFutoddsList, fetchFutoddsCached } from "../_shared/futoddsCache.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,21 +16,101 @@ interface Body {
   market: string;
 }
 
-function authHeaders(key: string) {
-  return { Authorization: `Bearer ${key}`, "X-API-Key": key, Accept: "application/json" };
+function norm(s: string) {
+  return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9 ]/g, "").trim();
 }
 
-function norm(s: string) {
-  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9 ]/g, "").trim();
+// Extrai odd do payload Exchange (/matches-betfair-live-odds): { markets: [{ market_type, runners: [...] }] }
+function pickFromExchangePayload(payload: any, market: string): { odd: number | null; key: string } {
+  if (!payload) return { odd: null, key: "no_exchange_payload" };
+  const m = market.toLowerCase().trim();
+
+  const markets: any[] = Array.isArray(payload?.markets) ? payload.markets
+    : Array.isArray(payload?.data?.markets) ? payload.data.markets
+    : Array.isArray(payload) ? payload
+    : [];
+
+  const lineMatch = m.match(/(\d+(?:\.\d+)?)/);
+  const lineNum = lineMatch ? parseFloat(lineMatch[1]) : null;
+
+  for (const mk of markets) {
+    const mType = String(mk?.market_type ?? mk?.name ?? mk?.type ?? "").toLowerCase();
+    const runners: any[] = Array.isArray(mk?.runners) ? mk.runners
+      : Array.isArray(mk?.selections) ? mk.selections : [];
+
+    // 1X2 / Match Odds
+    if (/match.?odds|h2h|1x2|moneyline/.test(mType)) {
+      for (const r of runners) {
+        const rn = String(r?.selection ?? r?.runner_name ?? r?.name ?? "").toLowerCase();
+        const back = r?.back?.[0]?.price ?? r?.back_price ?? r?.back ?? null;
+        if (back == null || Number(back) <= 1) continue;
+
+        const isHome = /\b(home|casa)\b/.test(m) && !/goals|gols|over|under/.test(m);
+        const isAway = /\b(away|fora|visitante)\b/.test(m) && !/goals|gols|over|under/.test(m);
+        const isDraw = /\b(draw|empate|x)\b/.test(m);
+
+        if (isHome && /home|1\b|casa/.test(rn)) return { odd: Number(back), key: `exchange.${mType}.home` };
+        if (isAway && /away|2\b|fora|visit/.test(rn)) return { odd: Number(back), key: `exchange.${mType}.away` };
+        if (isDraw && /draw|empate|\bx\b/.test(rn)) return { odd: Number(back), key: `exchange.${mType}.draw` };
+      }
+    }
+
+    // Over/Under gols
+    if (/over.?under|totals|goals/i.test(mType)) {
+      const isOver = /\bover\b|\bo\b/.test(m);
+      const isUnder = /\bunder\b|\bu\b/.test(m);
+      if (!isOver && !isUnder) continue;
+
+      for (const r of runners) {
+        const rn = String(r?.selection ?? r?.runner_name ?? r?.name ?? "").toLowerCase();
+        const rLine = parseFloat(String(r?.handicap ?? r?.line ?? r?.point ?? "NaN"));
+        const lineOk = lineNum == null || isNaN(rLine) || Math.abs(rLine - lineNum) < 0.01 || rn.includes(String(lineNum));
+        const back = r?.back?.[0]?.price ?? r?.back_price ?? r?.back ?? null;
+        if (back == null || Number(back) <= 1) continue;
+
+        if (isOver && /over/.test(rn) && lineOk) return { odd: Number(back), key: `exchange.${mType}.over${lineNum}` };
+        if (isUnder && /under/.test(rn) && lineOk) return { odd: Number(back), key: `exchange.${mType}.under${lineNum}` };
+      }
+    }
+
+    // BTTS
+    if (/btts|both.*score|ambas/i.test(mType)) {
+      const isYes = /\b(sim|yes)\b/.test(m);
+      const isNo = /\b(n[ãa]o|no)\b/.test(m);
+      for (const r of runners) {
+        const rn = String(r?.selection ?? r?.runner_name ?? r?.name ?? "").toLowerCase();
+        const back = r?.back?.[0]?.price ?? r?.back_price ?? r?.back ?? null;
+        if (back == null || Number(back) <= 1) continue;
+        if (isYes && /(yes|sim)/.test(rn)) return { odd: Number(back), key: `exchange.${mType}.btts_yes` };
+        if (isNo && /(no|n[ãa]o)/.test(rn)) return { odd: Number(back), key: `exchange.${mType}.btts_no` };
+      }
+    }
+
+    // Asian Handicap
+    if (/asian.?handicap|ah\b/i.test(mType)) {
+      const isHome = /\b(home|casa)\b/.test(m);
+      const isAway = /\b(away|fora)\b/.test(m);
+      for (const r of runners) {
+        const rn = String(r?.selection ?? r?.runner_name ?? r?.name ?? "").toLowerCase();
+        const rLine = parseFloat(String(r?.handicap ?? r?.line ?? r?.point ?? "NaN"));
+        const lineOk = lineNum == null || isNaN(rLine) || Math.abs(Math.abs(rLine) - Math.abs(lineNum ?? 0)) < 0.26;
+        const back = r?.back?.[0]?.price ?? r?.back_price ?? r?.back ?? null;
+        if (back == null || Number(back) <= 1) continue;
+        if (isHome && /home|1\b|casa/.test(rn) && lineOk) return { odd: Number(back), key: `exchange.${mType}.ah_home${lineNum}` };
+        if (isAway && /away|2\b|fora/.test(rn) && lineOk) return { odd: Number(back), key: `exchange.${mType}.ah_away${lineNum}` };
+      }
+    }
+  }
+
+  return { odd: null, key: "no_exchange_match" };
 }
 
 function pickFromOddsLive(odds: any, market: string): { odd: number | null; key: string } {
   const m = market.toLowerCase().trim();
   const lineMatch = m.match(/(\d+(?:\.\d+)?)/);
-  const line = lineMatch ? lineMatch[1].replace(".", "") : null; // "2.5" -> "25"
+  const line = lineMatch ? lineMatch[1].replace(".", "") : null;
   const lineKey = line ? (line.length === 1 ? line + "5" : line) : null;
-  // ex: 2.5 -> "25", 0.5 -> "05", 1.5 -> "15"
 
   const isOver = /\bover\b|\bo\b/.test(m);
   const isUnder = /\bunder\b|\bu\b/.test(m);
@@ -42,7 +121,6 @@ function pickFromOddsLive(odds: any, market: string): { odd: number | null; key:
   const isBtts = /btts|ambas\s*marcam|both\s*teams\s*to\s*score/.test(m);
   const isCorners = /corner|escanteio/.test(m);
 
-  // 1X2
   if (/\b(home|casa)\b/.test(m) && !isHomeGoals && !isOver && !isUnder) {
     const v = odds?.ft_result?.home; if (v) return { odd: Number(v), key: "ft_result.home" };
   }
@@ -53,7 +131,6 @@ function pickFromOddsLive(odds: any, market: string): { odd: number | null; key:
     const v = odds?.ft_result?.draw; if (v) return { odd: Number(v), key: "ft_result.draw" };
   }
 
-  // BTTS
   if (isBtts) {
     const yes = /\b(sim|yes)\b/.test(m); const no = /\b(n[ãa]o|no)\b/.test(m);
     const bucket = is1H ? odds?.btts_1h : is2H ? odds?.btts_2h : odds?.btts;
@@ -61,7 +138,6 @@ function pickFromOddsLive(odds: any, market: string): { odd: number | null; key:
     if (no  && bucket?.no)  return { odd: Number(bucket.no),  key: (is1H?"btts_1h":is2H?"btts_2h":"btts")+".no"  };
   }
 
-  // Over/Under (corners → escanteios)
   if ((isOver || isUnder) && lineKey) {
     const sideKey = `${isOver ? "over" : "under"}_${lineKey}`;
     if (isCorners) {
@@ -106,6 +182,7 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Carrega lista de jogos ao vivo (30s TTL — apenas para localizar o jogo e obter event_id)
     let list: any[];
     try {
       list = await fetchFutoddsList("/matches-live-full", { ttlMs: 30_000 });
@@ -130,7 +207,34 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Tenta odds_live primeiro (atualiza a cada minuto), cai em odds (pré + ajustada por minuto)
+    // 1. Tenta /matches-betfair-live-odds (Exchange real-time, 10s TTL — preços back/lay reais)
+    const betfairEventId = String(match.event_id ?? match.id_betfair ?? "").trim();
+    if (betfairEventId) {
+      try {
+        const exchangeRaw = await fetchFutoddsCached(
+          "/matches-betfair-live-odds",
+          { event_id: betfairEventId },
+          { ttlMs: 10_000 },
+        );
+        const exchangePayload = exchangeRaw?.data ?? exchangeRaw;
+        const exchangePick = pickFromExchangePayload(exchangePayload, market);
+        if (exchangePick.odd != null && exchangePick.odd > 1) {
+          return new Response(JSON.stringify({
+            odd: exchangePick.odd,
+            source: "futodds_exchange",
+            key: exchangePick.key,
+            match_id: match.id,
+            event_id: betfairEventId,
+            minute: match.elapsed,
+            score: match.scores,
+          }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+      } catch (e) {
+        console.warn(`[futodds-live-odd] exchange fallback: ${(e as Error).message}`);
+      }
+    }
+
+    // 2. Fallback: odds_live do /matches-live-full (atualiza ~1min no lado FutOdds)
     let pick = pickFromOddsLive(match.odds_live, market);
     let bucket = "odds_live";
     if (pick.odd == null) {

@@ -25,8 +25,8 @@ export default function OddsComparator({ matchId, homeTeam, awayTeam, market }: 
   useEffect(() => {
     if (!matchId) return;
     fetchOdds();
-    // Phase 3: refresh real Betfair line every 30s
-    const id = setInterval(fetchOdds, 30_000);
+    // FutOdds permite polling a cada 10s — Exchange real-time
+    const id = setInterval(fetchOdds, 10_000);
     return () => clearInterval(id);
   }, [matchId, market]);
 
