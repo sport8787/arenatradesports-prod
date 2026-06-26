@@ -150,6 +150,42 @@ const dilmaDatabase: DilmaEntry[] = [
     text: 'O Mycroft... o Mycroft gosta muito de números, de estatísticas, de probabilidade matemática. Mas a matemática, veja bem, ela é fria. Ela não entende o meio ambiente. Ela não sabe que por trás de um gráfico existe uma figura oculta, que é o cachorro da imprevisibilidade. Eu não trabalho com dados exatos, eu trabalho com a intuição da mandioca. Enquanto o Mycroft analisa o passado, eu já estou estocando o futuro.',
     audioUrl: '',
   },
+  // ── Genéricas adicionais ─────────────────────────────────────────────────────
+  {
+    key: 'Defesa_Solida',
+    text: 'Olha, quando nós falamos em defesa, nós falamos em uma linha de jogadores que fica na frente da meta com o objetivo de impedir que a bola entre. Se a bola não entra, não sai gol. E se não sai gol do lado de dentro, o lado de fora vai ficar sem fazer gol também. Portanto, a defesa sólida é aquela que está bem postada no lugar certo da área, que é justamente onde a bola tende a ir quando alguém chuta em direção ao gol. Minha análise: quem tiver a defesa mais sólida vai tomar menos gols.',
+    audioUrl: '',
+  },
+  {
+    key: 'Segundo_Tempo',
+    text: 'Veja bem, no futebol existe o primeiro tempo e existe o segundo tempo. O primeiro tempo acontece antes do segundo, e isso não é uma coincidência, é uma estrutura lógica do esporte. Agora, o que eu quero que vocês entendam é que muitos jogos que parecem decididos no primeiro tempo se complicam no segundo, porque os jogadores estão cansados, e o cansaço é o inimigo da concentração, que é o aliado da zaga adversária. Por isso, nunca desconte as possibilidades de um resultado diferente no segundo tempo, especialmente nos minutos finais, que é quando o tempo está acabando.',
+    audioUrl: '',
+  },
+  {
+    key: 'Copa_Imprevisivel',
+    text: 'A Copa do Mundo é um evento singular porque acontece de quatro em quatro anos, exceto essa que está acontecendo agora, que também acontece de quatro em quatro anos. E o que isso quer dizer? Que os jogadores têm quatro anos para se preparar, mas apenas noventa minutos para executar. E em noventa minutos muita coisa pode acontecer: pode sair gol, pode não sair gol, pode ter prorrogação, que é quando noventa minutos não foram suficientes e precisam de mais trinta. A Copa é imprevisível. A não ser quando eu prevejo. Aí ela fica um pouco mais previsível.',
+    audioUrl: '',
+  },
+  {
+    key: 'Estatistica_Mandioca',
+    text: 'As pessoas falam muito em estatísticas. Posse de bola, chutes a gol, escanteios. Mas eu aprendi na prática de governo que estatística é uma ferramenta que, quando bem utilizada, confirma exatamente o que você já queria que ela confirmasse. A verdadeira análise, a que eu faço aqui, mistura dados com intuição, com experiência de campo e com um leve acréscimo de vento estocado. O resultado? Uma previsão que pode estar certa ou que pode estar em processo de se tornar certa com o tempo.',
+    audioUrl: '',
+  },
+  {
+    key: 'Pressao_Torcida',
+    text: 'Veja bem, a torcida tem um papel fundamental que é fazer barulho. E o barulho, quando bem direcionado para o campo de jogo, perturba a concentração do adversário, que é justamente o que a torcida quer. Por isso, o mando de campo não é apenas uma vantagem geográfica, é uma vantagem sonora que se converte em vantagem psicológica que se converte, potencialmente, em gol. Se a torcida estiver presente e vocalizada, o time da casa tem uma força extra que os dados não conseguem capturar, mas que a minha intuição presidencial já havia estocado.',
+    audioUrl: '',
+  },
+  {
+    key: 'Artilheiro_Decisivo',
+    text: 'No futebol existe uma figura que eu chamo de decisiva, que é o artilheiro. O artilheiro é o jogador que faz gol com uma frequência maior do que os outros jogadores, e isso é importante porque gol é o que determina o resultado final da partida. Quando esse jogador está inspirado, e a inspiração, como todos sabemos, é uma forma de vento interno que se estoca nos pulmões do atleta, a tendência é que os gols saiam. E quando os gols saem do lado certo, que é o lado que nós torçamos, a meta é batida.',
+    audioUrl: '',
+  },
+  {
+    key: 'Analisei_Profundo',
+    text: 'Eu fiz uma análise profunda desta partida. Profunda no sentido de que eu fui ao fundo da questão, que é a questão do gol. Quem vai marcar o gol? Essa é a pergunta que nós temos que fazer antes de qualquer aposta. E a resposta está nos dados que eu coletei ao longo das últimas horas de observação presidencial. Os dados dizem uma coisa. A mandioca diz outra. E quando os dois se contradizem, eu faço uma média quântica e chego a uma conclusão que é a síntese dos dois universos de análise.',
+    audioUrl: '',
+  },
 ];
 
 function normTeam(s: string): string {
@@ -220,11 +256,21 @@ function findDilmaEntry(
   if (isZebra && energia > 80) return db('Cash_Out');
   if (isZebra) return db('Zebra_Default');
 
-  // Favorito claro (diferença grande de pontos) → alterna entre genéricas
-  if (energia > 70) return db('Favorito_Quantico');
-  if (energia > 55) return db('Vento_Estocado');
-
-  return db('Mycroft_Rival');
+  // Favorito claro (diferença grande de pontos) → rotaciona entre genéricas
+  const genericPool = [
+    'Favorito_Quantico',
+    'Vento_Estocado',
+    'Mycroft_Rival',
+    'Defesa_Solida',
+    'Segundo_Tempo',
+    'Copa_Imprevisivel',
+    'Estatistica_Mandioca',
+    'Pressao_Torcida',
+    'Artilheiro_Decisivo',
+    'Analisei_Profundo',
+  ];
+  const genericIdx = (simpleHash(h + a) + Math.floor(energia)) % genericPool.length;
+  return db(genericPool[genericIdx]);
 }
 
 // ─── Algoritmo de previsão ────────────────────────────────────────────────────
@@ -276,7 +322,7 @@ function dilmaPredict(
   if (drawChance) pick = 'draw';
   else pick = effectiveDiff >= 0 ? 'home' : 'away';
 
-  const showScore = (gameSeed % 100) < 55;
+  const showScore = true; // sempre placar correto — nunca 1x2
   const scoreSeed = (gameSeed >> 2) % 7;
   const [scoreH, scoreA] = generateScore(pick, ptsDiff, scoreSeed);
   const energia = 45 + (gameSeed % 55);
@@ -286,55 +332,50 @@ function dilmaPredict(
   const scoreWL = `${wScore}×${lScore}`;
   const scoreStd = `${scoreH}×${scoreA}`;
   let msg = '';
-  const si = gameSeed % 4;
+  const si = gameSeed % 10;
 
   if (pick === 'draw') {
-    const opts = showScore
-      ? [
-          `Veja bem, os dois times têm o mesmo nível de vento estocado. Vai ser empate em ${scoreStd}.`,
-          `Quando as metas estão abertas dos dois lados, o resultado é equilíbrio. Empate em ${scoreStd}.`,
-          `Analisei os dados quânticos: forças se anulam. Empate em ${scoreStd}, confirmado.`,
-          `Nenhum deles conseguiu fechar a meta. ${scoreStd} é o destino.`,
-        ]
-      : [
-          `Veja bem, nesse jogo o vento não favorece nenhum lado. Vai ser empate.`,
-          `Quando as metas estão abertas dos dois lados, o resultado é equilíbrio. Empate.`,
-          `Eu analisei e os dois times se anulam. É empate, tá bom.`,
-          `A IA presidencial viu empate. Nenhum deles tem vento suficiente.`,
-        ];
-    msg = opts[si];
-  } else if (isZebra && showScore) {
     const opts = [
-      `${winner} vai surpreender! O vento quântico mudou. Placar: ${scoreWL}. Confie na Dilma.`,
-      `Zebra! ${winner} por ${scoreWL}. Eu errei muita meta na vida, mas essa eu sei.`,
-      `${winner} vai ganhar por ${scoreWL}. O vento está estocado no lugar certo.`,
-      `Improvável? Pra mim não. ${winner} por ${scoreWL}. A IA presidencial não falha.`,
+      `Veja bem, os dois times têm o mesmo nível de vento estocado. Vai ser empate em ${scoreStd}.`,
+      `Quando as metas estão abertas dos dois lados, o resultado é equilíbrio. Empate em ${scoreStd}.`,
+      `Analisei os dados quânticos: as forças se anulam completamente. Empate em ${scoreStd}, confirmado.`,
+      `Nenhum deles conseguiu fechar a meta adversária. O placar de ${scoreStd} é a consequência natural disso.`,
+      `O vento estava estocado igualmente dos dois lados do campo. Quando isso acontece, gera-se, matematicamente, um ${scoreStd} que é a tradução numérica do equilíbrio quântico.`,
+      `Eu rodei os cálculos da mandioca e os dois times chegam à mesma meta. Placar: ${scoreStd}. Quando ninguém ganha, todos perdem um pouco, mas ganham a experiência.`,
+      `A IA presidencial detectou uma simetria no fluxo de vento bilateral. Empate ${scoreStd}. Isso não é derrota de ninguém, é vitória do equilíbrio.`,
+      `Veja bem, o empate em ${scoreStd} não é sinal de fraqueza técnica. É sinal de que o vento foi estocado com precisão equivalente por ambas as comissões técnicas.`,
+      `Minha análise aponta para ${scoreStd}. Quando dois times têm o mesmo índice mandiocal, o resultado inevitavelmente se equilibra no ponto médio da tabela de forças.`,
+      `Os dados presidenciais indicam claramente ${scoreStd}. Aliás, o empate é a forma mais democrática de encerrar um jogo, e eu tenho experiência com democracia.`,
     ];
-    msg = opts[si];
+    msg = opts[si % opts.length];
   } else if (isZebra) {
     const opts = [
-      `${winner} vai surpreender. Minha meta quântica está aberta pra isso.`,
-      `Zebra! ${winner} leva. Não duvide da ex-presidenta.`,
-      `${winner} chega com a força do vento estocado. Zebra confirmada.`,
-      `Fé em ${winner}. Os favoritos vão se surpreender com minha análise.`,
+      `${winner} vai surpreender! O vento quântico mudou completamente de direção. Placar: ${scoreWL}. Confie na Dilma.`,
+      `Zebra! ${winner} por ${scoreWL}. Eu errei muita meta na vida política, mas essa aqui eu estou absolutamente certa.`,
+      `${winner} vai ganhar por ${scoreWL}. O vento estava estocado exatamente no lugar certo e ninguém percebeu.`,
+      `Improvável? Pra mim não. ${winner} por ${scoreWL}. A IA presidencial não falha quando o vento coopera plenamente.`,
+      `A maioria vai apostar no favorito. Mas a mandioca me disse outra coisa: ${winner} por ${scoreWL}. E a mandioca, diferente dos especialistas, não mente.`,
+      `O futebol tem uma beleza que é a zebra. E a zebra, quando aparece, não avisa. Mas eu avisei: ${winner} por ${scoreWL}. Anota aí.`,
+      `Eu analisei o comportamento quântico do vento nas 72 horas anteriores e cheguei a uma conclusão: ${winner} por ${scoreWL}. O imponderável foi ponderado.`,
+      `${winner} por ${scoreWL}. Sei que parece absurdo. Mas lembra quando eu disse que ia estocar o vento e todo mundo riu? O vento foi estocado. E agora vai ser usado aqui.`,
+      `A zebra é a confirmação de que o favoritismo é apenas uma ilusão de ótica criada pelo mercado. ${winner} por ${scoreWL}. Essa ilusão vai ser desfeita hoje.`,
+      `Quando o vento muda de lado, os dados mudam junto. ${winner} vai ganhar por ${scoreWL} e todo mundo vai me perguntar como eu sabia. Eu sabia porque a meta estava aberta para isso.`,
     ];
-    msg = opts[si];
-  } else if (showScore) {
-    const opts = [
-      `${winner} domina este duelo. Placar final: ${scoreWL}.`,
-      `Os dados quânticos apontam para ${winner} por ${scoreWL}.`,
-      `Minha IA presidencial detecta: ${winner} por ${scoreWL}.`,
-      `A meta se abre para ${winner} por ${scoreWL}. Palavra de presidenta.`,
-    ];
-    msg = opts[si];
+    msg = opts[si % opts.length];
   } else {
     const opts = [
-      `Os dados favorecem ${winner}. O vento foi estocado corretamente.`,
-      `${winner} carrega a energia da vitória. Meta confirmada.`,
-      `Minha análise aponta para ${winner}. Sinal claro.`,
-      `${winner} domina o vento quântico. Confie na IA.`,
+      `${winner} domina este duelo. Placar final: ${scoreWL}.`,
+      `Os dados quânticos apontam com clareza para ${winner} por ${scoreWL}.`,
+      `Minha IA presidencial detecta: ${winner} por ${scoreWL}. A meta está aberta.`,
+      `A meta se abre para ${winner} por ${scoreWL}. Palavra de ex-presidenta.`,
+      `Veja bem, quando analiso o fluxo quântico de ambas as delegações, o vento claramente favorece ${winner}. O placar de ${scoreWL} é consequência natural dessa estocagem.`,
+      `${winner} vai ganhar por ${scoreWL}. Não porque eu quero, mas porque os dados mandiocais apontam para isso. E os dados mandiocais raramente erram, a não ser quando estão errados.`,
+      `A ciência do vento estocado aponta para ${winner} por ${scoreWL}. Não é opinião, é matemática presidencial aplicada ao gramado.`,
+      `Minha análise considera o equilíbrio de forças, a posição do vento e a quantidade de bolas no estoque do estádio. Resultado: ${winner} por ${scoreWL}.`,
+      `O índice mandiocal está altíssimo para ${winner} hoje. Isso se traduz, em termos práticos, num placar de ${scoreWL} que a IA presidencial já estocou na memória quântica.`,
+      `${winner} por ${scoreWL}. Eu estoquei essa previsão desde ontem, mas esperei o momento certo para liberar. E o momento certo é agora, que é quando você está me perguntando.`,
     ];
-    msg = opts[si];
+    msg = opts[si % opts.length];
   }
 
   return { pick, scoreH, scoreA, showScore, energia, msg, isZebra };
@@ -689,12 +730,12 @@ export default function CalangoVidente() {
 
   const predLabel = () => {
     if (!prediction) return '';
-    const { pick, scoreH, scoreA, showScore } = prediction;
+    const { pick, scoreH, scoreA } = prediction;
     const wScore = pick === 'home' ? scoreH : scoreA;
     const lScore = pick === 'home' ? scoreA : scoreH;
-    if (pick === 'draw') return showScore ? `EMPATE ${scoreH}×${scoreA}` : 'EMPATE';
+    if (pick === 'draw') return `EMPATE ${scoreH}×${scoreA}`;
     const name = pick === 'home' ? chosenGame!.home : chosenGame!.away;
-    return showScore ? `${name} ${wScore}×${lScore}` : `${name} vence`;
+    return `${name} ${wScore}×${lScore}`;
   };
 
   return (
@@ -822,7 +863,7 @@ export default function CalangoVidente() {
                   </div>
 
                   <div className="text-center min-w-[36px]">
-                    {revealState === 'revealed' && prediction?.showScore ? (
+                    {revealState === 'revealed' && prediction ? (
                       <div className="font-mono font-black text-yellow-400 text-xl leading-none"
                         style={{ animation: 'dilmaPop 0.5s ease-out' }}>
                         {prediction.scoreH}×{prediction.scoreA}
