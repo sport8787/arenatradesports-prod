@@ -243,7 +243,7 @@ async function analisarJogo(fixture: any): Promise<any | null> {
 
   const oddsData = await getOddsHA(teams.home.name, teams.away.name, league.id, fix.id);
   if (!oddsData.favOdd || !oddsData.undOdd) return null;
-  if (oddsData.favOdd > 2.20) return null;
+  if (oddsData.favOdd > 2.40) return null;
 
   const isFavHome = oddsData.favOdd < oddsData.undOdd;
   const favTeamId = isFavHome ? teams.home.id : teams.away.id;
@@ -304,8 +304,8 @@ async function analisarJogo(fixture: any): Promise<any | null> {
   const { linha, tipo } = getLinhaPorOddFavorito(oddsData.favOdd, true);
   const oddHA = oddsData.haOdds[linha] ?? null;
 
-  // Filtro range odd HA aceitável
-  if (!oddHA || oddHA < 1.80 || oddHA > 2.20) return null;
+  // Filtro range odd HA aceitável (ampliado: cobre favoritos claros do Brasileirão ~1.65-1.75)
+  if (!oddHA || oddHA < 1.65 || oddHA > 2.40) return null;
 
   const status = getStatus(confianca);
   if (status === 'DESCARTADO') return null;
