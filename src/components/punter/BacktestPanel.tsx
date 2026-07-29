@@ -451,7 +451,7 @@ export default function BacktestPanel({ onClose }: Props) {
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs text-muted-foreground">{leagueName} — {season}/{season + 1}</p>
+                      <p className="text-xs text-muted-foreground">{leagueName} — {TIME_WINDOWS.find(w => w.key === selectedWindow)?.label ?? ''}</p>
                       <p className="text-2xl font-orbitron font-bold mt-1">
                         <span className={metrics.roi_total >= 0 ? 'text-success' : 'text-destructive'}>
                           {metrics.roi_total >= 0 ? '+' : ''}{metrics.roi_total.toFixed(2)}% ROI

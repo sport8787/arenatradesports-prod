@@ -26,7 +26,10 @@ Deno.serve(async (req) => {
       if (data.length < 100) break;
     }
     const br = results.filter((l) => l.country_id === 5);
-    return new Response(JSON.stringify({ total: results.length, brazil: br }, null, 2), {
+    // Ligas relevantes para o backtest
+    const KEY_NAMES = ['premier league','la liga','serie a','bundesliga','ligue 1','brasileirão','brasileirao','champions','europa league','libertadores','sudamericana','eredivisie','primeira liga'];
+    const key = results.filter((l) => KEY_NAMES.some(k => l.name.toLowerCase().includes(k)));
+    return new Response(JSON.stringify({ total: results.length, brazil: br, key_leagues: key, all: results }, null, 2), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
