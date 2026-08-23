@@ -42,6 +42,9 @@ export interface LiveResult {
   source: "futodds" | "sportmonks" | "apifootball";
   fallback_reason?: string;
   count: number;
+  sm_count?: number;
+  sm_error?: string;
+  fd_count?: number;
 }
 
 async function tryFutodds(): Promise<LiveResult> {
@@ -234,9 +237,13 @@ async function mergeProviders(): Promise<LiveResult> {
     fixtures: merged,
     source: dominantSource as LiveResult["source"],
     count: merged.length,
+    sm_count: sm.length,
+    sm_error: smErr ?? undefined,
+    fd_count: fd.length,
     fallback_reason: [
       addedFromAf > 0 ? `af_copa_${addedFromAf}` : null,
       addedFromFutodds > 0 ? `futodds_filled_${addedFromFutodds}` : null,
+      smErr ? `sm_error:${smErr}` : null,
     ].filter(Boolean).join("+") || undefined,
   };
 }

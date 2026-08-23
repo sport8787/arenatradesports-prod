@@ -236,8 +236,10 @@ export async function fetchInplay(
   }
 
   // 2) Cache miss → bate na Sportmonks
+  // Plano ativo: Pro + Pressure Index & xG → inclui xgfixture ao vivo.
+  // inplayodds removido (requer plano separado de odds).
   const url = smUrl("/football/livescores/inplay", {
-    include: "scores;participants;state;league;statistics;xgfixture;periods;inplayodds",
+    include: "scores;participants;state;league;statistics;xgfixture;periods",
     per_page: "100",
   });
   const res = await resilientFetch(url, {
