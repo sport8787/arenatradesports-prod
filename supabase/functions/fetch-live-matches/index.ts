@@ -309,7 +309,8 @@ serve(async (req) => {
         const r = await getFixtureStats({
           sm_id: f.fixture.sm_id,
           af_id: f._source === "apifootball" ? String(f.fixture.id) : undefined,
-          raw: f._raw,
+          // Futodds: _futodds_stats vive na fixture (não em f._raw); passa f inteiro.
+          raw: f._source === "futodds" ? f : f._raw,
           _source: f._source,
         });
         if (!r.stats) return null;
