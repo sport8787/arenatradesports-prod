@@ -157,6 +157,11 @@ export async function getFutoddsLive(): Promise<FutoddsLiveResult> {
 export function extractFutoddsStats(fixture: any): NormalizedStats | null {
   const s = fixture?._futodds_stats;
   if (!s) return null;
+  // Futodds retorna {} (vazio) para ligas sem cobertura — todos os campos ficam 0.
+  // Retorna null para indicar ausência de dados e evitar análise com stats zeradas.
+  const hasData = s.possession_home || s.possession_away || s.shots_on_target_home ||
+                  s.shots_on_target_away || s.dangerous_attacks_home || s.dangerous_attacks_away;
+  if (!hasData) return null;
   return {
     possession_home: s.possession_home,
     possession_away: s.possession_away,
