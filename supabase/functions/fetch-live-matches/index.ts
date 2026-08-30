@@ -114,11 +114,17 @@ serve(async (req) => {
     let allFixtures: any[] = [];
     let providerUsed: string = "futodds";
     let providerFallbackReason: string | undefined;
+    let smCount: number | undefined;
+    let smError: string | undefined;
+    let fdCount: number | undefined;
     try {
       const lr = await getLiveMatches();
       allFixtures = lr.fixtures;
       providerUsed = lr.source;
       providerFallbackReason = lr.fallback_reason;
+      smCount = lr.sm_count;
+      smError = lr.sm_error;
+      fdCount = lr.fd_count;
       console.log(`[FetchLive] provider=${providerUsed} count=${allFixtures.length}${providerFallbackReason ? ` fallback=${providerFallbackReason}` : ''}`);
     } catch (e) {
       console.error('[FetchLive] liveProvider falhou:', (e as Error).message);
@@ -309,7 +315,8 @@ serve(async (req) => {
         const r = await getFixtureStats({
           sm_id: f.fixture.sm_id,
           af_id: f._source === "apifootball" ? String(f.fixture.id) : undefined,
-          raw: f._raw,
+          // Futodds: _futodds_stats vive na fixture (não em f._raw); passa f inteiro.
+          raw: f._source === "futodds" ? f : f._raw,
           _source: f._source,
         });
         if (!r.stats) return null;
@@ -697,6 +704,10 @@ serve(async (req) => {
         finished: staleIds.length,
         scheduled: scheduledCount,
         run_ms: Math.round(performance.now() - tStartRun),
+        provider: providerUsed,
+        sm_count: smCount,
+        sm_error: smError ?? null,
+        fd_count: fdCount,
         matches: results,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

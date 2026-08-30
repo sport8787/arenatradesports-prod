@@ -43,20 +43,28 @@ async function fdGet(path: string, params: Record<string, string> = {}): Promise
 
 /** Converte um item /matches-betfair-live (ou /matches-live-full) → shape API-Football compatível. */
 function toAfFixture(m: any): any {
-  // Stats: arrays [home, away] em /matches-betfair-live
+  // Stats: /matches-betfair-live usa arrays [home, away].
+  // /matches-ended e alguns live retornam objetos { home: x, away: y }.
+  // Suporta ambos os formatos + aliases de campo.
   const stats = m.stats || {};
-  const arr = (k: string) => Array.isArray(stats[k]) ? stats[k] : [null, null];
-  const [posH, posA] = arr("possession");
-  const [atkH, atkA] = arr("attacks");
-  const [datkH, datkA] = arr("dangerous_attacks");
-  const [onH, onA] = arr("on_target");
-  const [offH, offA] = arr("off_target");
-  const [corH, corA] = arr("corners");
-  const [xgH, xgA] = arr("xg");
-  // Alguns payloads usam "expected_goals" em vez de "xg"
-  const [xgH2, xgA2] = arr("expected_goals");
-  const xgHome = Number(xgH ?? xgH2) || 0;
-  const xgAway = Number(xgA ?? xgA2) || 0;
+  function pair(keys: string[]): [number | null, number | null] {
+    for (const k of keys) {
+      const v = stats[k];
+      if (Array.isArray(v)) return [v[0] ?? null, v[1] ?? null];
+      if (v !== null && v !== undefined && typeof v === 'object')
+        return [v.home ?? null, v.away ?? null];
+    }
+    return [null, null];
+  }
+  const [posH, posA] = pair(["possession"]);
+  const [atkH, atkA] = pair(["attacks"]);
+  const [datkH, datkA] = pair(["dangerous_attacks"]);
+  const [onH, onA] = pair(["on_target", "shots_on_target"]);
+  const [offH, offA] = pair(["off_target", "shots_off_target"]);
+  const [corH, corA] = pair(["corners"]);
+  const [xgH, xgA] = pair(["xg", "expected_goals"]);
+  const xgHome = Number(xgH) || 0;
+  const xgAway = Number(xgA) || 0;
 
   const minute = parseInt(String(m.elapsed ?? 0)) || 0;
   const timeStatus = String(m.time_status ?? "1");
@@ -149,6 +157,11 @@ export async function getFutoddsLive(): Promise<FutoddsLiveResult> {
 export function extractFutoddsStats(fixture: any): NormalizedStats | null {
   const s = fixture?._futodds_stats;
   if (!s) return null;
+  // Futodds retorna {} (vazio) para ligas sem cobertura — todos os campos ficam 0.
+  // Retorna null para indicar ausência de dados e evitar análise com stats zeradas.
+  const hasData = s.possession_home || s.possession_away || s.shots_on_target_home ||
+                  s.shots_on_target_away || s.dangerous_attacks_home || s.dangerous_attacks_away;
+  if (!hasData) return null;
   return {
     possession_home: s.possession_home,
     possession_away: s.possession_away,

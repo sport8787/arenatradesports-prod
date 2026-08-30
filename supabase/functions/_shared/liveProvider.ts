@@ -42,6 +42,9 @@ export interface LiveResult {
   source: "futodds" | "sportmonks" | "apifootball";
   fallback_reason?: string;
   count: number;
+  sm_count?: number;
+  sm_error?: string;
+  fd_count?: number;
 }
 
 async function tryFutodds(): Promise<LiveResult> {
@@ -131,6 +134,13 @@ async function mergeProviders(): Promise<LiveResult> {
     return `${h}|${a}|${d}`;
   }
 
+  // Mapa teamDay → AF fixture id para cross-reference de stats (Futodds sem stats)
+  const afTeamDayToId = new Map<string, number>();
+  for (const f of af) {
+    const k = teamDayKey(f);
+    if (!afTeamDayToId.has(k)) afTeamDayToId.set(k, f.fixture.id);
+  }
+
   const seen = new Set<string>();
   const merged: any[] = [];
   let addedFromFutodds = 0;
@@ -198,6 +208,9 @@ async function mergeProviders(): Promise<LiveResult> {
     const k = fixtureKey(f);
     if (seen.has(k)) continue;
     seen.add(k);
+    // Anexa AF fixture id para fallback de stats quando Futodds não tem dados
+    const afId = afTeamDayToId.get(teamDayKey(f));
+    if (afId) f._af_fixture_id = afId;
     merged.push(f);
     addedFromFutodds++;
     filledLeagues.add(lid);
@@ -234,9 +247,13 @@ async function mergeProviders(): Promise<LiveResult> {
     fixtures: merged,
     source: dominantSource as LiveResult["source"],
     count: merged.length,
+    sm_count: sm.length,
+    sm_error: smErr ?? undefined,
+    fd_count: fd.length,
     fallback_reason: [
       addedFromAf > 0 ? `af_copa_${addedFromAf}` : null,
       addedFromFutodds > 0 ? `futodds_filled_${addedFromFutodds}` : null,
+      smErr ? `sm_error:${smErr}` : null,
     ].filter(Boolean).join("+") || undefined,
   };
 }
@@ -292,8 +309,24 @@ export async function getFixtureStats(
 
   // === Futodds (stats inline no fixture) ===
   if (typeof fixtureRef === "object" && fixtureRef._source === "futodds" && (fixtureRef as any).raw) {
-    const stats = extractFutoddsStats({ _futodds_stats: (fixtureRef as any).raw._futodds_stats ?? null });
-    if (stats) return { stats, source: "futodds" };
+    const raw = (fixtureRef as any).raw;
+    const stats = extractFutoddsStats({ _futodds_stats: raw._futodds_stats ?? null });
+    if (stats) {
+      // Se todos os campos críticos são zero, tenta AF como fallback de stats
+      const allZero = !stats.shots_on_target_home && !stats.dangerous_attacks_home && !stats.possession_home;
+      if (allZero && raw._af_fixture_id) {
+        try {
+          const afStats = await getApiFootballStats(Number(raw._af_fixture_id));
+          if (afStats) {
+            console.log(`[liveProvider] AF stats fallback ok af_id=${raw._af_fixture_id}`);
+            return { stats: afStats, source: "apifootball" as any, fallback_reason: "futodds_zero_af_fallback" };
+          }
+        } catch (e) {
+          console.warn(`[liveProvider] AF stats fallback fail af_id=${raw._af_fixture_id}: ${(e as Error).message}`);
+        }
+      }
+      return { stats, source: "futodds" };
+    }
   }
 
   // === Sportmonks (raw inline) ===

@@ -236,8 +236,11 @@ export async function fetchInplay(
   }
 
   // 2) Cache miss → bate na Sportmonks
+  // xgfixture removido: requer bundle "Pressure Index & xG" que pode estar
+  // em ativação. Quando o plano confirmar, re-adicionar xgfixture aqui.
+  // xG é estimado sinteticamente via SoT quando não vem da API.
   const url = smUrl("/football/livescores/inplay", {
-    include: "scores;participants;state;league;statistics;xgfixture;periods;inplayodds",
+    include: "scores;participants;state;league;statistics;periods",
     per_page: "100",
   });
   const res = await resilientFetch(url, {
